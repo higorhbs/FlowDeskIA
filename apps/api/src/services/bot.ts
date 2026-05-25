@@ -124,7 +124,7 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
     default:
       // Verifica auto-replies customizadas por keyword
       for (const ar of business.autoReplies) {
-        if (ar.keywords.some((kw) => messageBody.toLowerCase().includes(kw.toLowerCase()))) {
+        if (ar.keywords.some((kw: string) => messageBody.toLowerCase().includes(kw.toLowerCase()))) {
           const text = renderTemplate(ar.response, {
             nome: customerName ?? "cliente",
             negocio: business.name,

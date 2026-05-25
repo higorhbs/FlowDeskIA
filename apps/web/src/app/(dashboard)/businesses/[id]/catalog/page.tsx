@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, use } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { catalogApi } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
@@ -28,8 +28,8 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-export default function CatalogPage({ params }: { params: { id: string } }) {
-  const { id: businessId } = params;
+export default function CatalogPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: businessId } = use(params);
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<CatalogItem | null>(null);
   const [showForm, setShowForm] = useState(false);

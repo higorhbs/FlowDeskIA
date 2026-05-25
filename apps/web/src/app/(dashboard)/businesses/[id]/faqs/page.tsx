@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, use } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { faqApi } from "@/lib/api";
 import { useForm } from "react-hook-form";
@@ -24,8 +24,8 @@ const SUGGESTIONS = [
   { question: "Vocês aceitam cartão?", answer: "Sim! Aceitamos cartão de crédito, débito e PIX.", keywords: "cartão,pagamento,cartao,forma de pagamento,pix" },
 ];
 
-export default function FAQPage({ params }: { params: { id: string } }) {
-  const { id: businessId } = params;
+export default function FAQPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: businessId } = use(params);
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
 
