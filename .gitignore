@@ -14,3 +14,4 @@ apps/web/.env.production
 .claude
 .vercel
 *.tsbuildinfo
+.claude/
