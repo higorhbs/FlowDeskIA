@@ -1,11 +1,23 @@
 {
+  "installCommand": "cd ../.. && npm install",
+  "buildCommand": "cd ../.. && npx turbo run build --filter=@zapflow/api...",
   "version": 2,
   "builds": [
     {
       "src": "api/index.ts",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["src/**", "node_modules/@prisma/client/**", "node_modules/.prisma/**"]
+        "includeFiles": [
+          "src/**",
+          "dist/**",
+          "../../packages/database/dist/**",
+          "../../packages/database/prisma/**",
+          "../../packages/shared/dist/**",
+          "../../packages/whatsapp-client/dist/**",
+          "../../node_modules/@prisma/client/**",
+          "../../node_modules/.prisma/**"
+        ],
+        "maxLambdaSize": "50mb"
       }
     }
   ],

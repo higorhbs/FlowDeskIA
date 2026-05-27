@@ -73,6 +73,26 @@ npm run dev
 - **API**: http://localhost:3001
 - **Login demo**: `demo@zapflow.com.br` / `demo1234`
 
+## Deploy (Vercel)
+
+| App | URL |
+|-----|-----|
+| **API** | https://zap-flow-api-peach.vercel.app |
+| **Web** | defina `NEXT_PUBLIC_API_URL` apontando para a API acima |
+
+**Projeto API** (`apps/api`, `prj_N74Kpq34Rkus7IroC67Alyn2c4ks`):
+
+- `DATABASE_URL` — Postgres (Neon / Vercel Postgres)
+- `API_SECRET` — segredo JWT
+- `CORS_ORIGIN` — URL do dashboard (ex.: `https://seu-app.vercel.app`)
+- `ENABLE_WORKERS=false`
+
+**Projeto Web** (`apps/web`):
+
+- `NEXT_PUBLIC_API_URL=https://zap-flow-api-peach.vercel.app`
+
+Teste: `GET https://zap-flow-api-peach.vercel.app/health` → `{ "ok": true }`
+
 ## Configuração do WhatsApp
 
 1. Acesse o dashboard → Negócios → Selecione o negócio → WhatsApp
