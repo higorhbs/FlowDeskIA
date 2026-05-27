@@ -93,6 +93,8 @@ npm run dev
 
 Teste: `GET https://zap-flow-api-peach.vercel.app/health` → `{ "ok": true }`
 
+**Se der `FUNCTION_INVOCATION_FAILED`:** confira `DATABASE_URL` e `API_SECRET` no projeto API, faça redeploy após alterar env vars. WhatsApp/filas exigem hospedagem persistente (`ENABLE_WORKERS=true`).
+
 ## Configuração do WhatsApp
 
 1. Acesse o dashboard → Negócios → Selecione o negócio → WhatsApp

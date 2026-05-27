@@ -1,24 +1,15 @@
-/**
- * Cria e configura a instância Fastify sem fazer listen().
- * Exportada para ser usada tanto no servidor local quanto no handler Vercel.
- */
-import Fastify from "fastify";
+import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import formbody from "@fastify/formbody";
-import { WhatsAppManager } from "@zapflow/whatsapp-client";
 import { authRoutes } from "./routes/auth";
 import { businessRoutes } from "./routes/business";
-import { whatsappRoutes } from "./routes/whatsapp";
 import { conversationRoutes } from "./routes/conversations";
 import { appointmentRoutes } from "./routes/appointments";
 import { analyticsRoutes } from "./routes/analytics";
 import { webhookRoutes } from "./routes/webhooks";
-import { startReminderWorker } from "./workers/message-worker";
 
-export const waManager = new WhatsAppManager();
-
-export async function buildApp() {
+export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
     logger: { level: process.env.LOG_LEVEL ?? "info" },
   });
@@ -29,20 +20,24 @@ export async function buildApp() {
     secret: process.env.API_SECRET ?? "dev-secret-change-me",
   });
 
-  // Health check
   app.get("/health", () => ({ ok: true, ts: new Date().toISOString() }));
 
-  // Routes
   await app.register(authRoutes);
   await app.register(businessRoutes);
-  await app.register(whatsappRoutes(waManager));
   await app.register(conversationRoutes);
   await app.register(appointmentRoutes);
   await app.register(analyticsRoutes);
   await app.register(webhookRoutes);
 
-  // Workers só no servidor persistente (não no serverless)
   if (process.env.ENABLE_WORKERS === "true") {
+    const { WhatsAppManager } = await import("@zapflow/whatsapp-client");
+    const { whatsappRoutes } = await import("./routes/whatsapp.js");
+    const { startReminderWorker, startMessageWorker } = await import(
+      "./workers/message-worker.js"
+    );
+    const waManager = new WhatsAppManager();
+    await app.register(whatsappRoutes(waManager));
+    startMessageWorker(waManager);
     startReminderWorker(waManager);
   }
 

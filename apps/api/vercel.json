@@ -1,33 +1,21 @@
 {
   "installCommand": "cd ../.. && npm install",
   "buildCommand": "cd ../.. && npx turbo run build --filter=@zapflow/api...",
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/index.ts",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": [
-          "src/**",
-          "dist/**",
-          "../../packages/database/dist/**",
-          "../../packages/database/prisma/**",
-          "../../packages/shared/dist/**",
-          "../../packages/whatsapp-client/dist/**",
-          "../../node_modules/@prisma/client/**",
-          "../../node_modules/.prisma/**"
-        ],
-        "maxLambdaSize": "50mb"
-      }
+  "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
+  "functions": {
+    "api/index.ts": {
+      "memory": 1024,
+      "maxDuration": 30,
+      "includeFiles": [
+        "../../node_modules/.prisma/**",
+        "../../node_modules/@prisma/client/**",
+        "../../packages/database/dist/**",
+        "../../packages/shared/dist/**"
+      ]
     }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.ts"
-    }
-  ],
+  },
   "env": {
-    "ENABLE_WORKERS": "false"
+    "ENABLE_WORKERS": "false",
+    "NODE_ENV": "production"
   }
 }
