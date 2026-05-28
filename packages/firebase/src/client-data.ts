@@ -183,6 +183,14 @@ export async function createClientFaq(
   return faq;
 }
 
+export async function updateClientFaq(
+  businessId: string,
+  faqId: string,
+  data: Partial<Omit<FAQ, "id" | "businessId" | "createdAt">>
+): Promise<void> {
+  await updateDoc(doc(faqsCol(businessId), faqId), data);
+}
+
 export async function deleteClientFaq(businessId: string, faqId: string): Promise<void> {
   await deleteDoc(doc(faqsCol(businessId), faqId));
 }

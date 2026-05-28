@@ -14,6 +14,8 @@ import {
   updateConversationStatus,
   createAppointment,
   createPayment,
+  findConflictingAppointment,
+  listCustomerAppointments,
 } from "@zapflow/firebase";
 import {
   detectIntent,
@@ -27,7 +29,7 @@ import {
   isMenuRequest,
   isExitCommand,
   buildBotMenuEntries,
-  formatBotMenuText,
+  findMatchingFaq,
   type BotMenuAction,
   PLAN_LIMITS,
 } from "@zapflow/shared";
@@ -83,11 +85,27 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   if (botPausedSessions.has(sessionKey)) {
     botPausedSessions.delete(sessionKey);
     if (!open) {
+      const faqWhenPaused = matchFaq(messageBody, business.faqs);
+      if (faqWhenPaused) {
+        await saveAndReturn(business.id, conversation.id, [{ text: faqWhenPaused.answer }]);
+        return [{ text: faqWhenPaused.answer }];
+      }
       const response = business.awayMsg;
       await saveAndReturn(business.id, conversation.id, [{ text: response }]);
       return [{ text: response }];
     }
     return sendPresentation(business, conversation, customerName);
+  }
+
+  const state = conversationState.get(sessionKey);
+
+  if (state?.step !== "FAQ_SELECT") {
+    const faqHit = matchFaq(messageBody, business.faqs);
+    if (faqHit) {
+      if (state) conversationState.delete(sessionKey);
+      await saveAndReturn(business.id, conversation.id, [{ text: faqHit.answer }]);
+      return [{ text: faqHit.answer }];
+    }
   }
 
   if (!open) {
@@ -97,7 +115,6 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   }
 
   const intent = detectIntent(messageBody);
-  const state = conversationState.get(sessionKey);
 
   // ─── Fluxo de agendamento (multi-step) ────────────────────────────────────
   if (state?.step === "APPOINTMENT_DATE") {
@@ -119,9 +136,12 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
     return [{ text: menu }];
   }
 
-  const menuAction = resolveMenuAction(messageBody, business);
-  if (menuAction) {
-    return routeMenuAction(menuAction, ctx, business, conversation, sessionKey);
+  const menuPick = resolveMenuSelection(messageBody, business);
+  if (menuPick === "EXIT") {
+    return handleBotExit(business, conversation, sessionKey);
+  }
+  if (menuPick) {
+    return handleMenuItemSelection(menuPick, ctx, business, conversation, sessionKey);
   }
 
   if (!state && isGreeting(messageBody)) {
@@ -132,6 +152,9 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   switch (intent) {
     case "CATALOG":
       return handleCatalog(business, conversation);
+
+    case "MY_APPOINTMENT":
+      return handleMyAppointments(ctx, business, conversation);
 
     case "APPOINTMENT":
       return startAppointmentFlow(business, conversation, sessionKey);
@@ -150,16 +173,11 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
       await updateConversationStatus(businessId, conversation.id, "ATTENDING");
       return saveHumanHandoff(businessId, conversation.id);
 
-    default:
-      const faqMatch = findFAQ(messageBody, business.faqs);
-      if (faqMatch) {
-        await saveAndReturn(business.id, conversation.id, [{ text: faqMatch.answer }]);
-        return [{ text: faqMatch.answer }];
-      }
-
-      const fallback = buildFallbackMessage();
+    default: {
+      const fallback = buildFallbackMessage(business);
       await saveAndReturn(business.id, conversation.id, [{ text: fallback }]);
       return [{ text: fallback }];
+    }
   }
 }
 
@@ -179,7 +197,7 @@ async function handleCatalog(business: any, conversation: Conversation): Promise
     if (item.description) text += ` — ${item.description}`;
     text += ` — *${formatCurrency(item.price)}*\n`;
   }
-  text += "\nPara agendar, digite *1* (Agendamentos) no menu ou *agendar* 📅";
+  text += "\nPara agendar, digite *1* (Agendamentos) ou *agendar* 📅\nPara ver seu horário: *meu agendamento*";
 
   await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
@@ -256,6 +274,21 @@ async function handleAppointmentTime(
   const baseDate = new Date(state.data.date);
   baseDate.setHours(parseInt(h), parseInt(min), 0, 0);
 
+  const durationMins = 60;
+  const conflict = await findConflictingAppointment(
+    business.id,
+    baseDate.toISOString(),
+    durationMins
+  );
+  if (conflict) {
+    const text =
+      `⚠️ *Horário indisponível*\n\n` +
+      `Já existe um agendamento em *${format(baseDate, "dd/MM/yyyy", { locale: ptBR })}* às *${format(baseDate, "HH:mm")}*.\n\n` +
+      `Envie outro horário (ex: *11:00*) ou outra data.`;
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+
   const tenant = await getTenant(business.tenantId);
   const plan = tenant?.plan ?? "STARTER";
   const monthlyLimit = PLAN_LIMITS[plan].appointmentsPerMonth;
@@ -280,7 +313,7 @@ async function handleAppointmentTime(
     customerName: ctx.customerName,
     serviceName: state.data.serviceName || "Agendamento",
     scheduledAt: baseDate.toISOString(),
-    durationMins: 60,
+    durationMins,
     status: "CONFIRMED",
   });
 
@@ -291,10 +324,71 @@ async function handleAppointmentTime(
     `📅 Data: *${format(baseDate, "dd/MM/yyyy", { locale: ptBR })}*\n` +
     `🕐 Horário: *${format(baseDate, "HH:mm")}*\n` +
     `🔖 Código: *${appointment.id.slice(0, 8)}*\n\n` +
+    `Para ver seu agendamento depois, digite *meu agendamento*.\n\n` +
     `Te esperamos! 😊 Qualquer dúvida é só chamar.`;
 
   await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
+}
+
+async function handleMyAppointments(
+  ctx: BotContext,
+  business: any,
+  conversation: Conversation
+): Promise<BotResponse[]> {
+  const upcoming = await listCustomerAppointments(business.id, ctx.customerPhone, {
+    upcomingOnly: true,
+  });
+
+  if (!upcoming.length) {
+    const past = await listCustomerAppointments(business.id, ctx.customerPhone);
+    if (!past.length) {
+      const text =
+        `📅 Você ainda não tem agendamento em *${business.name}*.\n\n` +
+        `Para marcar, digite *agendar* ou *1* no menu.`;
+      await saveAndReturn(business.id, conversation.id, [{ text }]);
+      return [{ text }];
+    }
+    const last = past[past.length - 1]!;
+    const when = new Date(last.scheduledAt);
+    const text =
+      `📅 *Seu último agendamento*\n\n` +
+      `Serviço: *${last.serviceName}*\n` +
+      `Data: *${format(when, "dd/MM/yyyy", { locale: ptBR })}*\n` +
+      `Horário: *${format(when, "HH:mm")}*\n` +
+      `Status: *${formatAppointmentStatus(last.status)}*\n` +
+      `Código: *${last.id.slice(0, 8)}*\n\n` +
+      `Não há horários futuros. Para novo agendamento, digite *agendar*.`;
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+
+  const lines = upcoming.map((apt, i) => {
+    const when = new Date(apt.scheduledAt);
+    return (
+      `*${i + 1}.* ${apt.serviceName}\n` +
+      `   📅 ${format(when, "dd/MM/yyyy", { locale: ptBR })} às ${format(when, "HH:mm")}\n` +
+      `   🔖 ${apt.id.slice(0, 8)} · ${formatAppointmentStatus(apt.status)}`
+    );
+  });
+
+  const text =
+    `📅 *Seus agendamentos — ${business.name}*\n\n` +
+    lines.join("\n\n") +
+    `\n\nPara marcar outro horário, digite *agendar*.`;
+  await saveAndReturn(business.id, conversation.id, [{ text }]);
+  return [{ text }];
+}
+
+function formatAppointmentStatus(status: string): string {
+  const map: Record<string, string> = {
+    PENDING: "Pendente",
+    CONFIRMED: "Confirmado",
+    CANCELLED: "Cancelado",
+    COMPLETED: "Concluído",
+    NO_SHOW: "Não compareceu",
+  };
+  return map[status] ?? status;
 }
 
 async function handlePaymentStart(conversation: Conversation): Promise<BotResponse[]> {
@@ -397,7 +491,7 @@ async function handleFAQ(
     return [{ text }];
   }
 
-  const faq = findFAQ(messageBody, business.faqs);
+  const faq = matchFaq(messageBody, business.faqs);
   if (faq) {
     await saveAndReturn(business.id, conversation.id, [{ text: faq.answer }]);
     return [{ text: faq.answer }];
@@ -424,7 +518,7 @@ async function handleFAQSelect(
   const choice = parseOptionNumber(ctx.messageBody, 1, faqs.length);
 
   if (choice === null) {
-    const byKeyword = findFAQ(ctx.messageBody, faqs);
+    const byKeyword = matchFaq(ctx.messageBody, faqs);
     if (byKeyword) {
       conversationState.delete(sessionKey);
       await saveAndReturn(business.id, conversation.id, [{ text: byKeyword.answer }]);
@@ -441,15 +535,75 @@ async function handleFAQSelect(
   return [{ text: faq.answer }];
 }
 
-function resolveMenuAction(text: string, business?: { botMenu?: unknown[] }): BotMenuAction | null {
+type MenuPick = {
+  num: number;
+  label: string;
+  response?: string;
+  enabled?: boolean;
+  emoji?: string;
+  action?: BotMenuAction;
+};
+
+function getEnabledMenuEntries(business?: { botMenu?: unknown[] }): MenuPick[] {
+  if (business?.botMenu && Array.isArray(business.botMenu) && business.botMenu.length > 0) {
+    return (business.botMenu as MenuPick[]).filter((e) => e.enabled !== false);
+  }
+  return buildBotMenuEntries().map((e) => ({
+    num: e.num,
+    label: e.label,
+    response: legacyMenuResponse(e.action),
+    action: e.action,
+    enabled: true,
+  }));
+}
+
+function legacyMenuResponse(action: BotMenuAction): string {
+  const map: Record<BotMenuAction, string> = {
+    APPOINTMENT: "Para agendar, informe a data (ex: *15/06*) ou digite *agendar*.",
+    CATALOG: "Confira nosso catálogo — digite *catálogo* ou *preços*.",
+    FAQ: "Envie sua dúvida em texto ou digite *dúvida* para ver as perguntas frequentes.",
+    HUMAN: "Certo! Vou chamar um atendente. Aguarde um momento... 👤",
+    EXIT: "",
+  };
+  return map[action] ?? "";
+}
+
+function resolveMenuSelection(
+  text: string,
+  business?: { botMenu?: unknown[]; name?: string }
+): MenuPick | "EXIT" | null {
   if (isExitCommand(text) || parseOptionNumber(text, 0, 0) === 0) return "EXIT";
-  const entries = (business?.botMenu && business.botMenu.length > 0)
-    ? (business.botMenu as Array<{ action: BotMenuAction; enabled: boolean }>)
-        .filter((e) => e.enabled !== false)
-    : buildBotMenuEntries();
+  const entries = getEnabledMenuEntries(business);
+  if (!entries.length) return null;
   const num = parseOptionNumber(text, 1, entries.length);
   if (num === null) return null;
-  return entries[num - 1].action;
+  return entries[num - 1] ?? null;
+}
+
+async function handleMenuItemSelection(
+  item: MenuPick,
+  ctx: BotContext,
+  business: any,
+  conversation: Conversation,
+  sessionKey: string
+): Promise<BotResponse[]> {
+  const custom = item.response?.trim();
+  if (custom) {
+    const text = renderTemplate(custom, {
+      nome: ctx.customerName ?? "cliente",
+      negocio: business.name,
+    });
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+
+  if (item.action && item.action !== "EXIT") {
+    return routeMenuAction(item.action, ctx, business, conversation, sessionKey);
+  }
+
+  const fallback = "Opção em configuração. Digite *menu* para ver outras opções.";
+  await saveAndReturn(business.id, conversation.id, [{ text: fallback }]);
+  return [{ text: fallback }];
 }
 
 async function routeMenuAction(
@@ -515,33 +669,30 @@ async function sendPresentation(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const ACTION_EMOJI: Record<string, string> = {
-  APPOINTMENT: "📅",
-  CATALOG: "🛍️",
-  FAQ: "❓",
-  HUMAN: "👤",
-};
-
 function buildMainMenu(business: { name: string; botMenu?: unknown[] }): string {
-  if (business.botMenu && business.botMenu.length > 0) {
-    const entries = (business.botMenu as Array<{ num: number; action: string; label: string; enabled: boolean; emoji?: string }>)
-      .filter((e) => e.enabled !== false)
-      .map((e, i) => ({ ...e, num: i + 1 }));
-    let text = `*Menu — ${business.name}*\n\n`;
-    for (const e of entries) {
-      const emoji = e.emoji ?? ACTION_EMOJI[e.action] ?? "";
-      const prefix = emoji ? `${emoji} ` : "";
-      text += `*${e.num}* — ${prefix}${e.label}\n`;
-    }
-    text += `\n*0* — 👋 Sair\n\n`;
-    text += `_Palavras: agendar, catálogo, dúvida, atendente_`;
-    return text;
+  const entries = getEnabledMenuEntries(business).map((e, i) => ({ ...e, num: i + 1 }));
+  if (!entries.length) {
+    return (
+      `*${business.name}*\n\n` +
+      `_Menu ainda não configurado no painel. Enquanto isso, envie sua mensagem que o bot tenta ajudar._`
+    );
   }
-  return formatBotMenuText(business.name);
+  let text = `*Menu — ${business.name}*\n\n`;
+  for (const e of entries) {
+    const prefix = e.emoji ? `${e.emoji} ` : "";
+    text += `*${e.num}* — ${prefix}${e.label}\n`;
+  }
+  text += `\n*0* — 👋 Sair\n\n`;
+  text += `_Digite o número da opção desejada_`;
+  return text;
 }
 
-function buildFallbackMessage(): string {
-  return "Não entendi. 😅\n\nDigite *1* a *4*, *menu* ou *sair*.";
+function buildFallbackMessage(business?: { botMenu?: unknown[] }): string {
+  const n = getEnabledMenuEntries(business).length;
+  if (n > 0) {
+    return `Não entendi. 😅\n\nDigite um número de *1* a *${n}*, *menu* ou *sair*.`;
+  }
+  return "Não entendi. 😅\n\nDigite *menu* ou descreva o que precisa.";
 }
 
 function isGreeting(text: string): boolean {
@@ -549,14 +700,9 @@ function isGreeting(text: string): boolean {
   return greetings.some((g) => text.toLowerCase().trim().startsWith(g));
 }
 
-function findFAQ(text: string, faqs: any[]): any | null {
-  const normalized = text.toLowerCase();
-  for (const faq of faqs) {
-    if (faq.keywords.some((kw: string) => normalized.includes(kw.toLowerCase()))) {
-      return faq;
-    }
-  }
-  return null;
+function matchFaq(text: string, faqs: any[] | undefined): any | null {
+  if (!text.trim() || !faqs?.length) return null;
+  return findMatchingFaq(text, faqs);
 }
 
 async function saveAndReturn(

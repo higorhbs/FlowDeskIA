@@ -24,6 +24,6 @@ export function formatBotMenuText(businessName: string): string {
     text += `*${e.num}* — ${e.label}\n`;
   }
   text += `\n*0* — Sair\n\n`;
-  text += `_Palavras: agendar, catálogo, dúvida, atendente_`;
+  text += `_Digite o número da opção desejada_`;
   return text;
 }

@@ -12,7 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <RequireAuth>
       <div className="flex min-h-screen bg-gray-50">
         <Sidebar />
-        <main className="flex-1 min-w-0 overflow-auto pb-20 lg:pb-0">{children}</main>
+        <main className="flex-1 min-w-0 overflow-auto pb-20 lg:pb-0" style={{ scrollbarGutter: "stable" }}>{children}</main>
         <MobileNav />
         <OnboardingTour />
         <LgpdConsentGate />

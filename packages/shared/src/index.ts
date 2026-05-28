@@ -2,6 +2,17 @@
 
 export const INTENT_KEYWORDS = {
   CATALOG: ["cardápio", "catálogo", "catalogo", "menu", "serviços", "produtos", "o que vocês fazem", "o que voces fazem"],
+  MY_APPOINTMENT: [
+    "meu agendamento",
+    "ver agendamento",
+    "ver meu agendamento",
+    "consultar agendamento",
+    "agendamento marcado",
+    "qual meu horario",
+    "qual meu horário",
+    "horario marcado",
+    "horário marcado",
+  ],
   APPOINTMENT: ["agendamentos", "agendamento", "agendar", "marcar", "horário disponível", "horario disponivel", "quando tem", "quero marcar", "reservar", "agenda"],
   QUOTE: ["orçamento", "orcamento", "quanto custa", "valor", "preço", "preco", "tabela de preços"],
   PAYMENT: ["pix", "pagar", "pagamento", "sinal", "entrada", "link de pagamento"],
@@ -13,15 +24,59 @@ export const INTENT_KEYWORDS = {
 
 export type Intent = keyof typeof INTENT_KEYWORDS;
 
+const INTENT_DETECT_ORDER: Intent[] = [
+  "MY_APPOINTMENT",
+  "APPOINTMENT",
+  "CATALOG",
+  "QUOTE",
+  "PAYMENT",
+  "FAQ",
+  "HUMAN",
+  "CANCEL",
+  "CONFIRM",
+];
+
 export function detectIntent(text: string): Intent | null {
   const normalized = text.toLowerCase().trim();
 
-  for (const [intent, keywords] of Object.entries(INTENT_KEYWORDS)) {
-    if ((keywords as readonly string[]).some((kw) => normalized.includes(kw))) {
-      return intent as Intent;
-    }
+  for (const intent of INTENT_DETECT_ORDER) {
+    const keywords = INTENT_KEYWORDS[intent];
+    if (keywords.some((kw) => normalized.includes(kw))) return intent;
   }
   return null;
+}
+
+export function appointmentsOverlap(
+  startA: Date,
+  durationMinsA: number,
+  startB: Date,
+  durationMinsB: number
+): boolean {
+  const endA = startA.getTime() + durationMinsA * 60_000;
+  const endB = startB.getTime() + durationMinsB * 60_000;
+  return startA.getTime() < endB && startB.getTime() < endA;
+}
+
+export function phoneDigits(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
+export {
+  normalizeFaqText,
+  findMatchingFaq,
+  faqEntryMatches,
+  faqTextsMatch,
+  wordsSimilar,
+  type FaqMatchInput,
+} from "./faq-match.js";
+
+export function phonesMatch(a: string, b: string): boolean {
+  const da = phoneDigits(a);
+  const db = phoneDigits(b);
+  if (!da || !db) return false;
+  if (da === db) return true;
+  if (da.length >= 10 && db.length >= 10) return da.slice(-10) === db.slice(-10);
+  return da.endsWith(db) || db.endsWith(da);
 }
 
 /** Opção numérica do menu WhatsApp (ex: "1", "2.", "3)") */
