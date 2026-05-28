@@ -7,15 +7,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2, Save } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
+import { WorkingHoursEditor, defaultWorkingHours, type WorkingHoursValue } from "@/components/business/WorkingHoursEditor";
 import { useBusinessId } from "@/lib/use-business-id";
-
-const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-const DAY_PT: Record<string, string> = {
-  mon: "Segunda", tue: "Terça", wed: "Quarta", thu: "Quinta",
-  fri: "Sexta", sat: "Sábado", sun: "Domingo",
-};
 
 const schema = z.object({
   name: z.string().min(2),
@@ -38,17 +33,25 @@ export default function SettingsPage() {
     queryFn: () => businessApi.get(businessId),
   });
 
+  const [workingHours, setWorkingHours] = useState<WorkingHoursValue>(defaultWorkingHours);
+  const [hoursDirty, setHoursDirty] = useState(false);
+
   const { register, control, handleSubmit, reset, formState: { errors, isDirty } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
   useEffect(() => {
-    if (business) reset(business);
+    if (!business) return;
+    reset(business);
+    const wh = business.workingHours as WorkingHoursValue;
+    setWorkingHours(wh && Object.keys(wh).length > 0 ? wh : defaultWorkingHours());
+    setHoursDirty(false);
   }, [business, reset]);
 
   const saveMutation = useMutation({
-    mutationFn: (data: FormData) => businessApi.update(businessId, data),
+    mutationFn: (data: FormData) => businessApi.update(businessId, { ...data, workingHours }),
     onSuccess: () => {
+      setHoursDirty(false);
       queryClient.invalidateQueries({ queryKey: ["business", businessId] });
       toast.success("Configurações salvas!");
     },
@@ -106,6 +109,20 @@ export default function SettingsPage() {
         </div>
 
         <div className="card space-y-4">
+          <h2 className="font-semibold text-gray-900">Horário de funcionamento</h2>
+          <p className="text-sm text-gray-500">
+            Fora desse horário o bot envia a mensagem &quot;fora do horário&quot; abaixo.
+          </p>
+          <WorkingHoursEditor
+            value={workingHours}
+            onChange={(v) => {
+              setWorkingHours(v);
+              setHoursDirty(true);
+            }}
+          />
+        </div>
+
+        <div className="card space-y-4">
           <h2 className="font-semibold text-gray-900">Mensagens automáticas</h2>
           <p className="text-sm text-gray-500">Variáveis disponíveis: <code className="bg-gray-100 px-1 rounded">{`{nome}`}</code>, <code className="bg-gray-100 px-1 rounded">{`{negocio}`}</code></p>
 
@@ -125,7 +142,7 @@ export default function SettingsPage() {
         <button
           type="submit"
           className="btn-primary"
-          disabled={saveMutation.isPending || !isDirty}
+          disabled={saveMutation.isPending || (!isDirty && !hoursDirty)}
         >
           {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Salvar configurações

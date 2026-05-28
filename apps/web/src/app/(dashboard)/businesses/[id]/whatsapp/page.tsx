@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { whatsappApi } from "@/lib/api";
 import { useBusinessId } from "@/lib/use-business-id";
+import { markWhatsAppConnected } from "@/lib/use-sync-wa-business";
 import { toast } from "sonner";
 import { Smartphone, Wifi, WifiOff, QrCode, RefreshCw, Loader2, AlertTriangle } from "lucide-react";
 import Image from "next/image";
@@ -18,11 +19,11 @@ export default function WhatsAppPage() {
   const id = useBusinessId();
   const queryClient = useQueryClient();
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const lastSyncedConnected = useRef<boolean | null>(null);
 
   const { data: status, isLoading } = useQuery({
     queryKey: ["wa-status", id],
     queryFn: () => whatsappApi.status(id),
-    refetchInterval: (q) => (q.state.data?.connected ? 10000 : 5000),
   });
 
   const waUnavailable = status?.status === "unavailable";
@@ -36,7 +37,7 @@ export default function WhatsAppPage() {
       } else if (data.status === "already_connected" || data.status === "connected") {
         setQrCode(null);
         toast.success("WhatsApp conectado!");
-        queryClient.invalidateQueries({ queryKey: ["wa-status", id] });
+        void markWhatsAppConnected(queryClient, id, true, lastSyncedConnected);
       } else if (data.status === "timeout") {
         toast.error(data.message ?? "QR expirou. Gere outro código.");
       } else if (data.status === "error") {
@@ -52,7 +53,7 @@ export default function WhatsAppPage() {
     mutationFn: () => whatsappApi.disconnect(id),
     onSuccess: () => {
       setQrCode(null);
-      queryClient.invalidateQueries({ queryKey: ["wa-status", id] });
+      void markWhatsAppConnected(queryClient, id, false, lastSyncedConnected);
       toast.success("WhatsApp desconectado");
     },
     onError: (err: Error) => toast.error(err.message ?? "Erro ao desconectar"),

@@ -24,6 +24,32 @@ export function detectIntent(text: string): Intent | null {
   return null;
 }
 
+/** Opção numérica do menu WhatsApp (ex: "1", "2.", "3)") */
+export function parseOptionNumber(text: string, min: number, max: number): number | null {
+  const trimmed = text.trim();
+  const direct = trimmed.match(/^(\d{1,2})[\.\)\s]*$/);
+  if (direct) {
+    const n = parseInt(direct[1], 10);
+    return n >= min && n <= max ? n : null;
+  }
+  const digitsOnly = trimmed.replace(/\D/g, "");
+  if (!digitsOnly || digitsOnly.length > 2) return null;
+  if (trimmed.replace(/[\d\s\.\)\-]/g, "").length > 0) return null;
+  const n = parseInt(digitsOnly, 10);
+  return !Number.isNaN(n) && n >= min && n <= max ? n : null;
+}
+
+export function parseMainMenuChoice(text: string): number | null {
+  return parseOptionNumber(text, 1, 6);
+}
+
+export function isMenuRequest(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  return ["menu", "opções", "opcoes", "opção", "opcao", "ajuda", "voltar", "início", "inicio"].some(
+    (w) => t === w || t.startsWith(`${w} `)
+  );
+}
+
 // ─── Formatação de mensagens ───────────────────────────────────────────────────
 
 export function formatCurrency(value: number | string): string {

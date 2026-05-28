@@ -92,6 +92,8 @@ export const businessApi = {
     createClientBusiness(requireUid(), data),
   update: (id: string, data: Parameters<typeof updateClientBusiness>[2]) =>
     updateClientBusiness(id, requireUid(), data),
+  setConnected: (id: string, isConnected: boolean) =>
+    updateClientBusiness(id, requireUid(), { isConnected }),
 };
 
 async function assertBusinessAccess(businessId: string) {

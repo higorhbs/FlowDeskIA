@@ -13,7 +13,17 @@ import {
   createAppointment,
   createPayment,
 } from "@zapflow/firebase";
-import { detectIntent, isOpenNow, WorkingHours, formatCurrency, DAY_LABELS, renderTemplate } from "@zapflow/shared";
+import {
+  detectIntent,
+  isOpenNow,
+  WorkingHours,
+  formatCurrency,
+  DAY_LABELS,
+  renderTemplate,
+  parseOptionNumber,
+  parseMainMenuChoice,
+  isMenuRequest,
+} from "@zapflow/shared";
 import { createPixCharge } from "./pix";
 import { addMinutes, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -77,6 +87,20 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   if (state?.step === "PAYMENT_AMOUNT") {
     return handlePaymentAmount(ctx, business, conversation, state, sessionKey);
   }
+  if (state?.step === "FAQ_SELECT") {
+    return handleFAQSelect(ctx, business, conversation, sessionKey);
+  }
+
+  if (isMenuRequest(messageBody)) {
+    const menu = buildMainMenu(business);
+    await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
+    return [{ text: menu }];
+  }
+
+  const menuChoice = parseMainMenuChoice(messageBody);
+  if (menuChoice !== null) {
+    return routeMenuChoice(menuChoice, ctx, business, conversation, sessionKey);
+  }
 
   // ─── Saudação (primeira mensagem) ─────────────────────────────────────────
   if (!state && isGreeting(messageBody)) {
@@ -106,13 +130,11 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
       return handlePaymentStart(conversation);
 
     case "FAQ":
-      return handleFAQ(messageBody, business, conversation);
+      return handleFAQ(messageBody, business, conversation, sessionKey);
 
     case "HUMAN":
       await updateConversationStatus(businessId, conversation.id, "ATTENDING");
-      const msg = "Certo! Vou chamar um atendente. Aguarde um momento... 👤";
-      await saveAndReturn(businessId, conversation.id, [{ text: msg }]);
-      return [{ text: msg }];
+      return saveHumanHandoff(businessId, conversation.id);
 
     default:
       const faqMatch = findFAQ(messageBody, business.faqs);
@@ -121,7 +143,8 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
         return [{ text: faqMatch.answer }];
       }
 
-      const fallback = "Não entendi muito bem. 😅 Digite *menu* para ver as opções disponíveis!";
+      const fallback =
+        "Não entendi. 😅\n\nDigite um *número* de *1* a *6* ou *menu* para ver as opções.";
       await saveAndReturn(business.id, conversation.id, [{ text: fallback }]);
       return [{ text: fallback }];
   }
@@ -165,14 +188,14 @@ async function handleAppointmentService(
   state: any,
   sessionKey: string
 ): Promise<BotResponse[]> {
-  const index = parseInt(ctx.messageBody.trim()) - 1;
-  if (isNaN(index) || index < 0 || index >= business.catalog.length) {
-    const text = "Por favor, digite o *número* do serviço desejado.";
+  const choice = parseOptionNumber(ctx.messageBody, 1, business.catalog.length);
+  if (choice === null) {
+    const text = "Digite só o *número* do serviço (ex: *1* ou *2*).";
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
 
-  const service = business.catalog[index];
+  const service = business.catalog[choice - 1];
   conversationState.set(sessionKey, {
     step: "APPOINTMENT_DATE",
     data: { serviceId: service.id, serviceName: service.name, servicePrice: String(service.price) },
@@ -350,7 +373,12 @@ async function handleQuote(business: any, conversation: Conversation): Promise<B
   return [{ text }];
 }
 
-async function handleFAQ(messageBody: string, business: any, conversation: Conversation): Promise<BotResponse[]> {
+async function handleFAQ(
+  messageBody: string,
+  business: any,
+  conversation: Conversation,
+  sessionKey: string
+): Promise<BotResponse[]> {
   const faq = findFAQ(messageBody, business.faqs);
   if (faq) {
     await saveAndReturn(business.id, conversation.id, [{ text: faq.answer }]);
@@ -361,24 +389,90 @@ async function handleFAQ(messageBody: string, business: any, conversation: Conve
   business.faqs.forEach((f: any, i: number) => {
     text += `${i + 1}. ${f.question}\n`;
   });
-  text += "\nDigite o *número* da pergunta ou faça sua pergunta diretamente:";
+  text += "\nDigite o *número* da pergunta (ex: *1*) ou escreva sua dúvida:";
 
+  conversationState.set(sessionKey, { step: "FAQ_SELECT", data: {} });
   await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
 }
 
+async function handleFAQSelect(
+  ctx: BotContext,
+  business: any,
+  conversation: Conversation,
+  sessionKey: string
+): Promise<BotResponse[]> {
+  const faqs = business.faqs ?? [];
+  const choice = parseOptionNumber(ctx.messageBody, 1, faqs.length);
+
+  if (choice === null) {
+    const byKeyword = findFAQ(ctx.messageBody, faqs);
+    if (byKeyword) {
+      conversationState.delete(sessionKey);
+      await saveAndReturn(business.id, conversation.id, [{ text: byKeyword.answer }]);
+      return [{ text: byKeyword.answer }];
+    }
+    const text = `Digite o *número* de *1* a *${faqs.length}* ou *menu* para voltar.`;
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+
+  const faq = faqs[choice - 1];
+  conversationState.delete(sessionKey);
+  await saveAndReturn(business.id, conversation.id, [{ text: faq.answer }]);
+  return [{ text: faq.answer }];
+}
+
+async function routeMenuChoice(
+  choice: number,
+  ctx: BotContext,
+  business: any,
+  conversation: Conversation,
+  sessionKey: string
+): Promise<BotResponse[]> {
+  switch (choice) {
+    case 1:
+      return handleCatalog(business, conversation);
+    case 2:
+      conversationState.set(sessionKey, { step: "APPOINTMENT_SERVICE", data: {} });
+      return handleAppointmentStart(business, conversation);
+    case 3:
+      return handleQuote(business, conversation);
+    case 4:
+      conversationState.set(sessionKey, {
+        step: "PAYMENT_AMOUNT",
+        data: { customerName: ctx.customerName ?? "Cliente" },
+      });
+      return handlePaymentStart(conversation);
+    case 5:
+      return handleFAQ(ctx.messageBody, business, conversation, sessionKey);
+    case 6:
+      await updateConversationStatus(business.id, conversation.id, "ATTENDING");
+      return saveHumanHandoff(business.id, conversation.id);
+    default:
+      return [{ text: buildMainMenu(business) }];
+  }
+}
+
+async function saveHumanHandoff(businessId: string, conversationId: string): Promise<BotResponse[]> {
+  const msg = "Certo! Vou chamar um atendente. Aguarde um momento... 👤";
+  await saveAndReturn(businessId, conversationId, [{ text: msg }]);
+  return [{ text: msg }];
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function buildMainMenu(business: any): string {
+function buildMainMenu(_business: any): string {
   return (
-    `*Menu de opções:*\n\n` +
-    `1️⃣  *catálogo* — Ver serviços e preços\n` +
-    `2️⃣  *agendar* — Marcar horário\n` +
-    `3️⃣  *orçamento* — Solicitar orçamento\n` +
-    `4️⃣  *pix* — Pagamento via PIX\n` +
-    `5️⃣  *dúvidas* — Perguntas frequentes\n` +
-    `6️⃣  *atendente* — Falar com humano\n\n` +
-    `_Digite a palavra-chave desejada_ 👆`
+    `*Menu de opções*\n` +
+    `Responda com o *número* ou a palavra:\n\n` +
+    `*1* — Catálogo / serviços\n` +
+    `*2* — Agendar horário\n` +
+    `*3* — Orçamento / preços\n` +
+    `*4* — Pagamento PIX\n` +
+    `*5* — Dúvidas frequentes\n` +
+    `*6* — Falar com atendente\n\n` +
+    `_Exemplo: digite *1* ou *catálogo*_`
   );
 }
 

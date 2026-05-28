@@ -106,6 +106,7 @@ export async function whatsappRoutes(app: FastifyInstance) {
     attachMessageHandler(id, client);
 
     if (client.isConnected()) {
+      await setBusinessConnected(id, true);
       return reply.send({ status: "already_connected" });
     }
 
@@ -131,8 +132,12 @@ export async function whatsappRoutes(app: FastifyInstance) {
     if (!business) return reply.status(404).send({ error: "Negócio não encontrado" });
 
     const client = waManager.get(id);
+    const connected = client?.isConnected() ?? false;
+    if (connected !== business.isConnected) {
+      await setBusinessConnected(id, connected);
+    }
     return {
-      connected: client?.isConnected() ?? false,
+      connected,
       status: client?.status ?? "disconnected",
     };
   });
