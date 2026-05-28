@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { BUSINESS_TYPE_LABELS } from "@/lib/utils";
 import { getBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { AppLink as Link } from "@/components/AppLink";
-import { persistBusinessId } from "@/lib/use-business-id";
+import { persistBusinessSnapshot } from "@/lib/use-business-id";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Wifi, WifiOff, Store, MessageSquare, Calendar,
@@ -37,8 +37,8 @@ export default function BusinessesPage() {
   const business = businesses?.[0];
 
   useEffect(() => {
-    if (business?.id) persistBusinessId(business.id);
-  }, [business?.id]);
+    if (business?.id && business.type) persistBusinessSnapshot(business);
+  }, [business?.id, business?.type]);
 
   if (isLoading) {
     return (

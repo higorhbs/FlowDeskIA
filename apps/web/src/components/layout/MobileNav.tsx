@@ -7,7 +7,7 @@ import { MessageSquare, Calendar, BookOpen, Bot, Settings, Banknote } from "luci
 import { businessApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
-import { getBusinessVocabulary } from "@/lib/use-business-vocabulary";
+import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -22,15 +22,16 @@ export function MobileNav() {
   const business = businesses?.[0];
   if (!business) return null;
 
-  const v = getBusinessVocabulary(business.type);
+  const v = useBusinessVocabulary({ requiredId: false });
+  const navId = v.businessId || business.id;
 
   const links = [
-    { href: `/businesses/${business.id}/conversations`, icon: MessageSquare, label: "Conversas" },
-    { href: `/businesses/${business.id}/appointments`, icon: Calendar, label: v.bookingsNavShort },
-    { href: `/businesses/${business.id}/catalog`, icon: BookOpen, label: v.catalogNavShort },
-    { href: `/businesses/${business.id}/payments`, icon: Banknote, label: "Pagto" },
-    { href: `/businesses/${business.id}/faqs`, icon: Bot, label: "FAQ" },
-    { href: `/businesses/${business.id}/settings`, icon: Settings, label: "Ajustes" },
+    { href: `/businesses/${navId}/conversations`, icon: MessageSquare, label: "Conversas" },
+    { href: `/businesses/${navId}/appointments`, icon: Calendar, label: v.bookingsNavShort },
+    { href: `/businesses/${navId}/catalog`, icon: BookOpen, label: v.catalogNavShort },
+    { href: `/businesses/${navId}/payments`, icon: Banknote, label: "Pagto" },
+    { href: `/businesses/${navId}/faqs`, icon: Bot, label: "FAQ" },
+    { href: `/businesses/${navId}/settings`, icon: Settings, label: "Ajustes" },
   ];
 
   return (

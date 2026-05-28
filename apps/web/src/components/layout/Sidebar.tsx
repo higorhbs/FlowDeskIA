@@ -2,7 +2,6 @@
 
 import { AppLink as Link } from "@/components/AppLink";
 import { usePathname } from "next/navigation";
-import { useBusinessId } from "@/lib/use-business-id";
 import {
   MessageSquare, LayoutDashboard, Store, Calendar,
   Bot, Settings, LogOut, CreditCard,
@@ -16,7 +15,7 @@ import { SidebarProfile } from "./SidebarProfile";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { businessApi, whatsappApi, conversationApi } from "@/lib/api";
 import { BUSINESS_TYPE_LABELS } from "@/lib/utils";
-import { getBusinessVocabulary } from "@/lib/use-business-vocabulary";
+import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 
@@ -25,7 +24,8 @@ export function Sidebar() {
   const router = useAppRouter();
   const { uid, ready } = useAuth();
 
-  const businessId = useBusinessId({ required: false }) || undefined;
+  const v = useBusinessVocabulary({ requiredId: false });
+  const businessId = v.businessId || undefined;
 
   const queryClient = useQueryClient();
 
@@ -57,8 +57,6 @@ export function Sidebar() {
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/businesses", icon: Store, label: "Meu negócio" },
   ];
-
-  const v = getBusinessVocabulary(business?.type);
 
   const businessLinks = businessId
     ? [
