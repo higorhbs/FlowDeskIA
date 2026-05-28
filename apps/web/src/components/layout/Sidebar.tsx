@@ -34,7 +34,6 @@ export function Sidebar() {
   const baseLinks = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/businesses", icon: Store, label: "Meu negócio" },
-    { href: "/plan", icon: CreditCard, label: "Meu plano" },
   ];
 
   const businessLinks = businessId
@@ -165,6 +164,20 @@ export function Sidebar() {
       </nav>
 
       <div className="px-3 py-3 border-t border-gray-100">
+        {!businessId && (
+          <Link
+            href="/plan"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-1",
+              pathname === "/plan"
+                ? "bg-brand-50 text-brand-700"
+                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            )}
+          >
+            <CreditCard className="w-4 h-4" />
+            Meu plano
+          </Link>
+        )}
         <SidebarProfile />
         <button
           onClick={handleLogout}

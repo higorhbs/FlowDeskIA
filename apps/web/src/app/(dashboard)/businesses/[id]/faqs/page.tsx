@@ -171,7 +171,7 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
       </div>
 
       {/* Preview */}
-      <div>
+      <div className="flex flex-col items-center">
         <div className="flex items-center gap-2 mb-3 text-sm font-medium text-gray-600">
           <Eye className="w-4 h-4" />
           Pré-visualização
