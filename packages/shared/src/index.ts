@@ -88,16 +88,54 @@ export const DAY_LABELS: Record<string, string> = {
 
 const DAY_ORDER = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
-export function isOpenNow(workingHours: WorkingHours): boolean {
-  const now = new Date();
-  const day = DAY_ORDER[now.getDay()];
+const WEEKDAY_TO_KEY: Record<string, string> = {
+  Sun: "sun",
+  Mon: "mon",
+  Tue: "tue",
+  Wed: "wed",
+  Thu: "thu",
+  Fri: "fri",
+  Sat: "sat",
+};
+
+export const DEFAULT_BUSINESS_TIMEZONE = "America/Sao_Paulo";
+
+export function getLocalTimeParts(
+  timeZone = DEFAULT_BUSINESS_TIMEZONE,
+  date = new Date()
+): { day: string; hours: number; minutes: number } {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(date)
+      .filter((p) => p.type !== "literal")
+      .map((p) => [p.type, p.value])
+  );
+  const day = WEEKDAY_TO_KEY[parts.weekday ?? ""] ?? DAY_ORDER[date.getUTCDay()];
+  return {
+    day,
+    hours: Number(parts.hour ?? 0),
+    minutes: Number(parts.minute ?? 0),
+  };
+}
+
+export function isOpenNow(
+  workingHours: WorkingHours,
+  timeZone = DEFAULT_BUSINESS_TIMEZONE
+): boolean {
+  const { day, hours, minutes } = getLocalTimeParts(timeZone);
   const slot = workingHours[day];
   if (!slot) return false;
 
   const [openH, openM] = slot[0].split(":").map(Number);
   const [closeH, closeM] = slot[1].split(":").map(Number);
 
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const currentMinutes = hours * 60 + minutes;
   const openMinutes = openH * 60 + openM;
   const closeMinutes = closeH * 60 + closeM;
 

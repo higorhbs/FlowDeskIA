@@ -207,6 +207,7 @@ export async function createBusiness(
     tenantId,
     isConnected: false,
     workingHours: data.workingHours ?? {},
+    timezone: data.timezone ?? "America/Sao_Paulo",
     greetingMsg: data.greetingMsg ?? "Olá! Como posso ajudar?",
     awayMsg: data.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
     createdAt: ts,

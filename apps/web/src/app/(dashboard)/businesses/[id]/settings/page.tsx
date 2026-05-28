@@ -111,7 +111,7 @@ export default function SettingsPage() {
         <div className="card space-y-4">
           <h2 className="font-semibold text-gray-900">Horário de funcionamento</h2>
           <p className="text-sm text-gray-500">
-            Fora desse horário o bot envia a mensagem &quot;fora do horário&quot; abaixo.
+            Horários no fuso de Brasília. Fora desse horário o bot envia a mensagem &quot;fora do horário&quot; abaixo.
           </p>
           <WorkingHoursEditor
             value={workingHours}

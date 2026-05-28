@@ -82,6 +82,7 @@ export async function createClientBusiness(
     address: data.address,
     description: data.description,
     workingHours: data.workingHours ?? {},
+    timezone: "America/Sao_Paulo",
     greetingMsg: data.greetingMsg ?? "Olá! Como posso ajudar?",
     awayMsg: data.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
     isConnected: false,

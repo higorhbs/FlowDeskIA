@@ -44,6 +44,7 @@ services:
     environment:
       NODE_ENV: production
       API_PORT: 3001
+      BUSINESS_TIMEZONE: ${BUSINESS_TIMEZONE:-America/Sao_Paulo}
       ENABLE_WORKERS: ${ENABLE_WORKERS:-true}
       REDIS_URL: redis://redis:6379
       WA_SESSION_PATH: /app/sessions

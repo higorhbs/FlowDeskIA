@@ -19,6 +19,7 @@ import {
   detectIntent,
   isOpenNow,
   WorkingHours,
+  DEFAULT_BUSINESS_TIMEZONE,
   formatCurrency,
   DAY_LABELS,
   renderTemplate,
@@ -69,7 +70,11 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
 
   if (conversation.status === "ATTENDING" && !isExitCommand(messageBody)) return [];
 
-  const open = isOpenNow(business.workingHours as WorkingHours);
+  const tz =
+    (typeof business.timezone === "string" && business.timezone.trim()) ||
+    process.env.BUSINESS_TIMEZONE?.trim() ||
+    DEFAULT_BUSINESS_TIMEZONE;
+  const open = isOpenNow(business.workingHours as WorkingHours, tz);
 
   if (isExitCommand(messageBody)) {
     return handleBotExit(business, conversation, sessionKey);

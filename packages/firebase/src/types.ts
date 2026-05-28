@@ -41,6 +41,7 @@ export interface Business {
   description?: string;
   logoUrl?: string;
   workingHours: Record<string, unknown>;
+  timezone?: string;
   greetingMsg: string;
   awayMsg: string;
   botMenu?: BotMenuItemConfig[];
