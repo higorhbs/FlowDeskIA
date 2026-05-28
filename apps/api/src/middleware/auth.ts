@@ -28,6 +28,12 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
   } catch (err) {
     const code = (err as { code?: string }).code;
     request.log.warn({ err, code }, "verifyIdToken failed");
+    if (code === "EACCES") {
+      return reply.status(503).send({
+        error:
+          "API sem permissão para ler .secrets/firebase-adminsdk.json. Na VM: chmod 755 .secrets && chmod 644 .secrets/firebase-adminsdk.json && docker compose -f docker-compose.prod.yml up -d api",
+      });
+    }
     if (code === "auth/id-token-expired") {
       return reply.status(401).send({ error: "Sessão expirada. Saia e entre novamente." });
     }

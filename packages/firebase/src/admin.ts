@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, accessSync, constants } from "fs";
 import { resolve } from "path";
 import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
@@ -15,7 +15,15 @@ function resolveServiceAccountPath(): string | undefined {
     resolve(process.cwd(), "../..", raw),
     resolve(process.cwd(), "..", raw),
   ];
-  return candidates.find((p) => existsSync(p));
+  return candidates.find((p) => {
+    if (!existsSync(p)) return false;
+    try {
+      accessSync(p, constants.R_OK);
+      return true;
+    } catch {
+      return false;
+    }
+  });
 }
 
 function normalizePrivateKey(raw: string | undefined): string | undefined {
@@ -78,12 +86,20 @@ function loadServiceAccountFromEnv(): ServiceAccountCreds | null {
 }
 
 export function hasAdminCredential(): boolean {
-  if (resolveServiceAccountPath()) return true;
-  return loadServiceAccountFromEnv() !== null;
+  if (loadServiceAccountFromEnv() !== null) return true;
+  return resolveServiceAccountPath() !== undefined;
 }
 
 function initAdmin(): App {
   if (getApps().length) return getApps()[0]!;
+
+  const fromEnv = loadServiceAccountFromEnv();
+  if (fromEnv) {
+    app = initializeApp({
+      credential: cert(fromEnv),
+    });
+    return app;
+  }
 
   const saPath = resolveServiceAccountPath();
   if (saPath) {
@@ -98,14 +114,6 @@ function initAdmin(): App {
         clientEmail: serviceAccount.client_email,
         privateKey: serviceAccount.private_key,
       }),
-    });
-    return app;
-  }
-
-  const fromEnv = loadServiceAccountFromEnv();
-  if (fromEnv) {
-    app = initializeApp({
-      credential: cert(fromEnv),
     });
     return app;
   }

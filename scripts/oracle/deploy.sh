@@ -28,6 +28,13 @@ fi
 
 git pull --ff-only origin main 2>/dev/null || true
 
+if [ -d .secrets ]; then
+  chmod 755 .secrets
+  if [ -f .secrets/firebase-adminsdk.json ]; then
+    chmod 644 .secrets/firebase-adminsdk.json
+  fi
+fi
+
 docker compose -f docker-compose.prod.yml up -d --build
 
 echo ""
