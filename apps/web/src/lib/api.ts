@@ -17,6 +17,7 @@ import {
   deleteClientCatalogItem,
   listClientFaqs,
   createClientFaq,
+  updateClientFaq,
   deleteClientFaq,
   getClientTenant,
   updateClientPlan,
@@ -206,6 +207,8 @@ export const faqApi = {
   list: (businessId: string) => listClientFaqs(businessId),
   create: (businessId: string, data: Record<string, unknown>) =>
     createClientFaq(businessId, data as Parameters<typeof createClientFaq>[1]),
+  update: (businessId: string, faqId: string, data: Record<string, unknown>) =>
+    updateClientFaq(businessId, faqId, data as Parameters<typeof updateClientFaq>[2]),
   remove: (businessId: string, faqId: string) => deleteClientFaq(businessId, faqId),
 };
 

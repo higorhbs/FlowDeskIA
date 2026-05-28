@@ -13,6 +13,7 @@ import {
   deleteCatalogItem,
   listFaqs,
   createFaq,
+  updateFaq,
   deleteFaq,
 } from "@zapflow/firebase";
 import { PLAN_LIMITS } from "@zapflow/shared";
@@ -132,6 +133,15 @@ export async function businessRoutes(app: FastifyInstance) {
     if (!(await getBusiness(id, req.tenantId))) return reply.status(404).send({ error: "Not found" });
     const body = faqBody.parse(req.body);
     return reply.status(201).send(await createFaq(id, body));
+  });
+
+  app.patch("/businesses/:businessId/faqs/:faqId", async (req, reply) => {
+    const { businessId, faqId } = req.params as { businessId: string; faqId: string };
+    if (!(await getBusiness(businessId, req.tenantId))) return reply.status(404).send({ error: "Not found" });
+    const body = faqBody.partial().parse(req.body);
+    const updated = await updateFaq(businessId, faqId, body);
+    if (!updated) return reply.status(404).send({ error: "Not found" });
+    return updated;
   });
 
   app.delete("/businesses/:businessId/faqs/:faqId", async (req, reply) => {

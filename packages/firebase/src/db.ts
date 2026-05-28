@@ -179,7 +179,7 @@ async function resolveCatalogForBot(business: Business): Promise<CatalogItem[]> 
 async function resolveFaqsForBot(business: Business): Promise<FAQ[]> {
   const tryIds = [business.id, ...(business.id !== "app" ? ["app"] : [])];
   for (const bid of tryIds) {
-    const items = await fetchFaqs(bid);
+    const items = await fetchFaqs(bid, { activeOnly: true });
     if (items.length > 0) return items.map((f) => ({ ...f, businessId: business.id }));
   }
   return [];
@@ -287,6 +287,18 @@ export async function createFaq(
   };
   await faqsCol(businessId).doc(id).set(faq);
   return faq;
+}
+
+export async function updateFaq(
+  businessId: string,
+  faqId: string,
+  data: Partial<Omit<FAQ, "id" | "businessId" | "createdAt">>
+): Promise<FAQ | null> {
+  const ref = faqsCol(businessId).doc(faqId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  await ref.update(data);
+  return { id: faqId, businessId, ...snap.data(), ...data } as FAQ;
 }
 
 export async function deleteFaq(businessId: string, faqId: string): Promise<void> {
@@ -414,6 +426,60 @@ export async function createMessages(
 }
 
 // ─── Appointments ────────────────────────────────────────────────────────────
+
+const ACTIVE_APPOINTMENT_STATUSES: AppointmentStatus[] = ["PENDING", "CONFIRMED"];
+
+function appointmentOverlaps(
+  scheduledAt: string,
+  durationMins: number,
+  other: Appointment
+): boolean {
+  const startA = new Date(scheduledAt).getTime();
+  const endA = startA + durationMins * 60_000;
+  const startB = new Date(other.scheduledAt).getTime();
+  const endB = startB + (other.durationMins ?? 60) * 60_000;
+  return startA < endB && startB < endA;
+}
+
+function normalizePhoneDigits(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
+function customerPhonesMatch(a: string, b: string): boolean {
+  const da = normalizePhoneDigits(a);
+  const db = normalizePhoneDigits(b);
+  if (!da || !db) return false;
+  if (da === db) return true;
+  if (da.length >= 10 && db.length >= 10) return da.slice(-10) === db.slice(-10);
+  return da.endsWith(db) || db.endsWith(da);
+}
+
+export async function findConflictingAppointment(
+  businessId: string,
+  scheduledAt: string,
+  durationMins = 60
+): Promise<Appointment | null> {
+  const appointments = await listAppointments(businessId);
+  for (const apt of appointments) {
+    if (!ACTIVE_APPOINTMENT_STATUSES.includes(apt.status)) continue;
+    if (appointmentOverlaps(scheduledAt, durationMins, apt)) return apt;
+  }
+  return null;
+}
+
+export async function listCustomerAppointments(
+  businessId: string,
+  customerPhone: string,
+  opts?: { upcomingOnly?: boolean }
+): Promise<Appointment[]> {
+  const now = Date.now();
+  const appointments = await listAppointments(businessId);
+  return appointments
+    .filter((a) => customerPhonesMatch(a.customerPhone, customerPhone))
+    .filter((a) => a.status !== "CANCELLED" && a.status !== "NO_SHOW")
+    .filter((a) => !opts?.upcomingOnly || new Date(a.scheduledAt).getTime() >= now)
+    .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
+}
 
 export async function listAppointments(
   businessId: string,

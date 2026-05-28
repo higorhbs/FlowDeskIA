@@ -26,10 +26,12 @@ export interface Tenant {
 
 export interface BotMenuItemConfig {
   num: number;
-  action: "APPOINTMENT" | "CATALOG" | "FAQ" | "HUMAN";
   label: string;
+  response: string;
   enabled: boolean;
   emoji?: string;
+  /** Legado — ignorado em menus novos; usado só para migrar dados antigos */
+  action?: "APPOINTMENT" | "CATALOG" | "FAQ" | "HUMAN";
 }
 
 export interface Business {
