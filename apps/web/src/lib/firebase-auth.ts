@@ -1,11 +1,9 @@
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
   GoogleAuthProvider,
   EmailAuthProvider,
+  signInWithCredential,
   signOut,
   onAuthStateChanged,
   updateProfile,
@@ -19,6 +17,59 @@ import {
   ensureClientTenant,
   updateClientTenantProfile,
 } from "@zapflow/firebase/client";
+
+type GoogleTokenResponse = {
+  access_token?: string;
+  error?: string;
+  error_description?: string;
+};
+
+type GoogleTokenClient = {
+  requestAccessToken: (config?: {
+    prompt?: "" | "consent" | "select_account" | "none";
+  }) => void;
+};
+
+type GoogleOAuth2 = {
+  initTokenClient: (config: {
+    client_id: string;
+    scope: string;
+    callback: (response: GoogleTokenResponse) => void;
+  }) => GoogleTokenClient;
+};
+
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        oauth2?: GoogleOAuth2;
+      };
+    };
+  }
+}
+
+let googleIdentityScriptPromise: Promise<void> | null = null;
+
+function loadGoogleIdentityScript(): Promise<void> {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("Google Identity Services só funciona no navegador"));
+  }
+  if (window.google?.accounts?.oauth2) {
+    return Promise.resolve();
+  }
+  if (!googleIdentityScriptPromise) {
+    googleIdentityScriptPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Falha ao carregar o Google Sign-In."));
+      document.head.appendChild(script);
+    });
+  }
+  return googleIdentityScriptPromise;
+}
 
 async function ensureTenantProfile(user: User, name?: string) {
   const email = user.email;
@@ -54,12 +105,15 @@ export function authErrorMessage(err: unknown, fallback: string): string {
       typeof window !== "undefined" ? window.location.origin : "sua URL";
     return `Login Google inválido em ${origin}. Use http://localhost:3000 no dev ou confira OAuth (npm run google:oauth-setup): origens JS + redirect /__/auth/handler para localhost e zapflow-higor-2026.web.app.`;
   }
+  if (raw.toLowerCase().includes("bloqueado pelo navegador")) {
+    return "O login com Google foi bloqueado pelo navegador. Permita pop-ups para este site e tente novamente.";
+  }
   if (raw.toLowerCase().includes("origin_mismatch")) {
     return "Use http://localhost:3000 (não IP da rede). Se persistir: npm run google:oauth-setup.";
   }
   if (raw.toLowerCase().includes("redirect_uri_mismatch")) {
-    const project = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "SEU-PROJETO";
-    return `Redirect URI inválida. No Google Cloud → Credentials → OAuth Client, adicione exatamente: https://${project}.firebaseapp.com/__/auth/handler (rode npm run google:oauth-setup).`;
+    const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "SEU-DOMINIO";
+    return `Redirect URI inválida. No Google Cloud → Credentials → OAuth Client, adicione exatamente: https://${authDomain}/__/auth/handler (rode npm run google:oauth-setup).`;
   }
   return map[code] ?? raw;
 }
@@ -89,12 +143,6 @@ function googleProvider() {
   return provider;
 }
 
-function isLocalAuthOrigin(): boolean {
-  if (typeof window === "undefined") return false;
-  const host = window.location.hostname;
-  return host === "localhost" || host === "127.0.0.1";
-}
-
 function isPrivateNetworkHost(host: string): boolean {
   if (!/^\d+\.\d+\.\d+\.\d+$/.test(host)) return false;
   const [a, b] = host.split(".").map(Number);
@@ -121,51 +169,67 @@ async function finishGoogleLogin(user: User) {
   return { token, user };
 }
 
-function shouldFallbackToRedirect(err: unknown): boolean {
-  const code = err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
-  const msg = err instanceof Error ? err.message : "";
-  return (
-    code === "auth/popup-blocked" ||
-    code === "auth/operation-not-supported-in-this-environment" ||
-    msg.toLowerCase().includes("requested action is invalid") ||
-    msg.toLowerCase().includes("origin_mismatch") ||
-    msg.toLowerCase().includes("redirect_uri_mismatch")
-  );
+async function signInWithGoogleIdentity(): Promise<{ token: string; user: User }> {
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  if (!clientId) throw new Error("Configure NEXT_PUBLIC_GOOGLE_CLIENT_ID no .env");
+
+  await loadGoogleIdentityScript();
+
+  const googleOAuth2 = window.google?.accounts?.oauth2;
+  if (!googleOAuth2) {
+    throw new Error("Google Identity Services indisponível.");
+  }
+
+  const accessToken = await new Promise<string>((resolve, reject) => {
+    let settled = false;
+
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      fn();
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      finish(() => reject(new Error("Não foi possível abrir o login do Google. Tente novamente.")));
+    }, 15000);
+
+    const tokenClient = googleOAuth2.initTokenClient({
+      client_id: clientId,
+      scope: "openid email profile",
+      callback: (response) => {
+        finish(() => {
+          if (!response.access_token) {
+            reject(
+              new Error(
+                response.error_description ?? response.error ?? "Não foi possível obter a credencial do Google."
+              )
+            );
+            return;
+          }
+          resolve(response.access_token);
+        });
+      },
+    });
+
+    tokenClient.requestAccessToken({ prompt: "select_account" });
+  });
+
+  const credential = GoogleAuthProvider.credential(undefined, accessToken);
+  const auth = getClientAuth();
+  const result = await signInWithCredential(auth, credential);
+  return finishGoogleLogin(result.user);
 }
 
 export async function loginWithGoogle(): Promise<{ token: string; user: User } | null> {
   assertGoogleAuthOrigin();
-  const auth = getClientAuth();
-  const provider = googleProvider();
-
-  if (!isLocalAuthOrigin()) {
-    await signInWithRedirect(auth, provider);
-    return null;
-  }
-
-  try {
-    const cred = await signInWithPopup(auth, provider);
-    return finishGoogleLogin(cred.user);
-  } catch (err: unknown) {
-    if (shouldFallbackToRedirect(err)) {
-      await signInWithRedirect(auth, provider);
-      return null;
-    }
-    throw err;
-  }
+  return signInWithGoogleIdentity();
 }
 
 let googleRedirectPromise: Promise<{ token: string; user: User } | null> | null = null;
 
 export function completeGoogleRedirect() {
-  if (!googleRedirectPromise) {
-    googleRedirectPromise = (async () => {
-      const cred = await getRedirectResult(getClientAuth());
-      if (!cred?.user) return null;
-      return finishGoogleLogin(cred.user);
-    })();
-  }
-  return googleRedirectPromise;
+  return googleRedirectPromise ?? Promise.resolve(null);
 }
 
 export async function getIdToken(): Promise<string | null> {

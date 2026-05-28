@@ -7,6 +7,7 @@ import { conversationRoutes } from "./routes/conversations";
 import { appointmentRoutes } from "./routes/appointments";
 import { analyticsRoutes } from "./routes/analytics";
 import { webhookRoutes } from "./routes/webhooks";
+import { privacyRoutes } from "./routes/privacy";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -41,6 +42,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(conversationRoutes);
   await app.register(appointmentRoutes);
   await app.register(analyticsRoutes);
+  await app.register(privacyRoutes);
   await app.register(webhookRoutes);
 
   const { whatsappRoutes } = await import("./routes/whatsapp.js");

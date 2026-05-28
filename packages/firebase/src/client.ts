@@ -3,7 +3,6 @@ import {
   getAuth,
   initializeAuth,
   browserLocalPersistence,
-  browserPopupRedirectResolver,
   type Auth,
 } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
@@ -42,7 +41,6 @@ export function getClientAuth(): Auth {
     try {
       auth = initializeAuth(app, {
         persistence: browserLocalPersistence,
-        popupRedirectResolver: browserPopupRedirectResolver,
       });
     } catch {
       auth = getAuth(app);
@@ -64,6 +62,8 @@ export {
   getClientTenant,
   updateClientPlan,
   updateClientTenantProfile,
+  completeClientOnboarding,
+  acceptClientLgpd,
 } from "./client-tenant.js";
 export * from "./client-data.js";
 export type { Plan, PlanStatus, Tenant } from "./types.js";

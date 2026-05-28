@@ -65,3 +65,29 @@ export async function updateClientTenantProfile(
   await updateDoc(ref, patch);
   return { ...current, ...patch };
 }
+
+export async function completeClientOnboarding(id: string): Promise<Tenant> {
+  const ref = doc(getClientDb(), "tenants", id);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("Conta não encontrada");
+  const current = { id: snap.id, ...snap.data() } as Tenant;
+  const patch = { onboardingCompletedAt: nowIso(), updatedAt: nowIso() };
+  await updateDoc(ref, patch);
+  return { ...current, ...patch };
+}
+
+export async function acceptClientLgpd(
+  id: string,
+  policyVersion: string
+): Promise<Tenant> {
+  const ref = doc(getClientDb(), "tenants", id);
+  const snap = await getDoc(ref);
+  const current = { id: snap.id, ...snap.data() } as Tenant;
+  const patch = {
+    lgpdAcceptedAt: nowIso(),
+    lgpdPolicyVersion: policyVersion,
+    updatedAt: nowIso(),
+  };
+  await setDoc(ref, patch, { merge: true });
+  return snap.exists() ? { ...current, ...patch } : ({ id, ...patch } as Tenant);
+}

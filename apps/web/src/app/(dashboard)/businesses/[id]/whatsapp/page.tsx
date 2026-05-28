@@ -62,7 +62,7 @@ export default function WhatsAppPage() {
   const isConnected = status?.connected;
 
   return (
-    <div className="p-8 max-w-xl mx-auto">
+    <div className="p-4 md:p-8 max-w-xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Conexão WhatsApp</h1>
         <p className="text-gray-500 mt-1">Conecte seu número para ativar o atendimento automático</p>

@@ -21,6 +21,8 @@ import {
   deleteClientFaq,
   getClientTenant,
   updateClientPlan,
+  completeClientOnboarding,
+  acceptClientLgpd,
 } from "@zapflow/firebase/client";
 import type { Plan } from "@zapflow/firebase/client";
 
@@ -77,6 +79,8 @@ export const authApi = {
 export const tenantApi = {
   get: () => getClientTenant(requireUid()),
   updatePlan: (plan: Plan) => updateClientPlan(requireUid(), plan),
+  completeOnboarding: () => completeClientOnboarding(requireUid()),
+  acceptLgpd: (policyVersion: string) => acceptClientLgpd(requireUid(), policyVersion),
 };
 
 export const profileApi = {
@@ -88,8 +92,12 @@ export const profileApi = {
 export const businessApi = {
   list: () => listClientBusinesses(requireUid()),
   get: (id: string) => getClientBusiness(id, requireUid()),
-  create: (data: Parameters<typeof createClientBusiness>[1]) =>
-    createClientBusiness(requireUid(), data),
+  create: async (data: Parameters<typeof createClientBusiness>[1]) => {
+    const uid = requireUid();
+    const existing = await listClientBusinesses(uid);
+    if (existing.length > 0) throw new Error("Sua conta já possui um negócio cadastrado.");
+    return createClientBusiness(uid, data);
+  },
   update: (id: string, data: Parameters<typeof updateClientBusiness>[2]) =>
     updateClientBusiness(id, requireUid(), data),
   setConnected: (id: string, isConnected: boolean) =>
@@ -172,4 +180,9 @@ export const analyticsApi = {
       .get(`/businesses/${businessId}/analytics`)
       .then((r) => r.data)
       .catch(() => emptyAnalytics),
+};
+
+export const privacyApi = {
+  exportMyData: () =>
+    api.get("/privacy/export").then((r) => r.data),
 };

@@ -1,6 +1,6 @@
 # ZapFlow — Atendimento Automático para WhatsApp
 
-SaaS de resposta automática para WhatsApp voltado a pequenos negócios (barbearia, salão, hamburgueria, dentista, loja de bairro).
+SaaS de resposta automática para WhatsApp voltado a pequenos negócios (barbearia, salão, hamburgueria, dentista, comércio local).
 
 ## Funcionalidades
 
@@ -56,7 +56,7 @@ npm run dev
 
 Credencial Admin: `GOOGLE_APPLICATION_CREDENTIALS=.secrets/firebase-adminsdk.json` na raiz.
 
-**Login Google:** `npm run google:oauth-setup` — no Google Cloud → Credentials → OAuth Client → **Authorized redirect URIs**, inclua obrigatoriamente `https://zapflow-higor-2026.firebaseapp.com/__/auth/handler` (e as demais URLs que o script listar). `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` deve ser `zapflow-higor-2026.firebaseapp.com`.
+**Login Google:** `npm run google:oauth-setup` — no Google Cloud → Credentials → OAuth Client → **Authorized redirect URIs**, inclua obrigatoriamente `https://zapflow-higor-2026.web.app/__/auth/handler` (e as demais URLs que o script listar). `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` deve ser `zapflow-higor-2026.web.app`.
 
 ### Acesse
 

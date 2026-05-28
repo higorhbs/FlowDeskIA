@@ -1,7 +1,4 @@
-const firebaseProject =
-  process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN?.replace(/\.firebaseapp\.com$/, "") ??
-  "zapflow-higor-2026";
-const firebaseHost = `${firebaseProject}.firebaseapp.com`;
+const firebaseHost = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "zapflow-higor-2026.web.app";
 
 const staticHosting = process.env.FIREBASE_STATIC === "1";
 

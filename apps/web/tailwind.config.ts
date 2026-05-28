@@ -18,6 +18,15 @@ const config: Config = {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
       },
+      keyframes: {
+        shimmer: {
+          "0%": { backgroundPosition: "200% center" },
+          "100%": { backgroundPosition: "-200% center" },
+        },
+      },
+      animation: {
+        shimmer: "shimmer 2s linear infinite",
+      },
     },
   },
   plugins: [],

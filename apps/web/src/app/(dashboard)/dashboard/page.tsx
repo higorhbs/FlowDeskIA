@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { businessApi, analyticsApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { formatCurrency } from "@/lib/utils";
-import { MessageSquare, Calendar, DollarSign, TrendingUp, Plus, Store, ArrowRight } from "lucide-react";
+import { MessageSquare, Calendar, DollarSign, TrendingUp, Store, ArrowRight, Plus } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +15,7 @@ export default function DashboardPage() {
     queryFn: businessApi.list,
     enabled: ready && !!uid,
   });
-  const list = businesses ?? [];
+  const business = businesses?.[0];
 
   if (isLoading) {
     return (
@@ -33,16 +33,14 @@ export default function DashboardPage() {
     );
   }
 
-  if (!list.length) {
+  if (!business) {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[60vh] p-8">
         <div className="w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center mb-4">
           <Store className="w-8 h-8 text-brand-600" />
         </div>
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Nenhum negócio cadastrado</h2>
-        <p className="text-gray-500 text-center mb-6 max-w-sm">
-          Cadastre seu negócio para começar a usar o atendimento automático no WhatsApp.
-        </p>
+        <p className="text-gray-500 text-center mb-6 max-w-sm">Cadastre seu negócio para começar a usar o atendimento automático no WhatsApp.</p>
         <Link href="/businesses/new" className="btn-primary">
           <Plus className="w-4 h-4" />
           Cadastrar meu negócio
@@ -52,24 +50,14 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500 mt-1">Visão geral dos seus negócios</p>
+        <p className="text-gray-500 mt-1">Visão geral do seu negócio</p>
       </div>
 
       <div className="space-y-6">
-        {list.map((business: any) => (
-          <BusinessCard key={business.id} business={business} />
-        ))}
-
-        <Link
-          href="/businesses/new"
-          className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-xl p-6 text-gray-400 hover:border-brand-400 hover:text-brand-600 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Adicionar outro negócio
-        </Link>
+        <BusinessCard business={business} />
       </div>
     </div>
   );

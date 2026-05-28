@@ -13,9 +13,19 @@ export interface Tenant {
   plan: Plan;
   planStatus: PlanStatus;
   stripeCustomerId?: string;
+  onboardingCompletedAt?: string;
+  lgpdAcceptedAt?: string;
+  lgpdPolicyVersion?: string;
   trialEndsAt: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface BotMenuItemConfig {
+  num: number;
+  action: "APPOINTMENT" | "CATALOG" | "FAQ" | "HUMAN";
+  label: string;
+  enabled: boolean;
 }
 
 export interface Business {
@@ -30,6 +40,7 @@ export interface Business {
   workingHours: Record<string, unknown>;
   greetingMsg: string;
   awayMsg: string;
+  botMenu?: BotMenuItemConfig[];
   isConnected: boolean;
   createdAt: string;
   updatedAt: string;

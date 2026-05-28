@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/auth-context";
 
 const schema = z.object({
   name: z.string().min(2, "Nome muito curto"),
@@ -27,6 +29,13 @@ const DAY_PT = { mon: "Seg", tue: "Ter", wed: "Qua", thu: "Qui", fri: "Sex", sat
 
 export default function NewBusinessPage() {
   const router = useRouter();
+  const { uid, ready } = useAuth();
+  const { data: businesses, isLoading: checkingBusiness } = useQuery({
+    queryKey: ["businesses", uid],
+    queryFn: businessApi.list,
+    enabled: ready && !!uid,
+  });
+  const existingBusiness = businesses?.[0];
   const { register, control, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -37,6 +46,11 @@ export default function NewBusinessPage() {
   });
 
   async function onSubmit(data: FormData) {
+    if (existingBusiness) {
+      toast.error("Sua conta já possui um negócio cadastrado.");
+      router.replace(`/businesses/${existingBusiness.id}/settings`);
+      return;
+    }
     try {
       const workingHours: Record<string, [string, string] | null> = {};
       DAY_KEYS.forEach((d) => { workingHours[d] = d === "sun" ? null : ["09:00", "18:00"]; });
@@ -50,7 +64,21 @@ export default function NewBusinessPage() {
   }
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
+    <div className="p-4 md:p-8 max-w-2xl mx-auto">
+      {checkingBusiness ? (
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+        </div>
+      ) : existingBusiness ? (
+        <div className="card">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Negócio já cadastrado</h2>
+          <p className="text-sm text-gray-500 mb-4">Sua conta permite apenas um negócio. Você pode editar os dados existentes.</p>
+          <Link href={`/businesses/${existingBusiness.id}/settings`} className="btn-primary">
+            Ir para configurações
+          </Link>
+        </div>
+      ) : (
+        <>
       <div className="flex items-center gap-3 mb-8">
         <Link href="/dashboard" className="text-gray-400 hover:text-gray-600">
           <ArrowLeft className="w-5 h-5" />
@@ -123,6 +151,8 @@ export default function NewBusinessPage() {
           Criar negócio e conectar WhatsApp
         </button>
       </form>
+        </>
+      )}
     </div>
   );
 }

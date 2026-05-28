@@ -32,6 +32,7 @@ export function SidebarProfile() {
 
   const name = tenant?.name ?? user?.displayName ?? user?.email?.split("@")[0] ?? "Minha conta";
   const email = tenant?.email ?? user?.email ?? "";
+  const photoURL = user?.photoURL ?? null;
   const active = pathname === "/profile";
 
   return (
@@ -42,14 +43,23 @@ export function SidebarProfile() {
         active ? "bg-brand-50 ring-1 ring-brand-200" : "hover:bg-gray-50"
       )}
     >
-      <div
-        className={cn(
-          "w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0",
-          active ? "bg-brand-600 text-white" : "bg-brand-100 text-brand-700"
-        )}
-      >
-        {initials(name)}
-      </div>
+      {photoURL ? (
+        <img
+          src={photoURL}
+          alt={name}
+          className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <div
+          className={cn(
+            "w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0",
+            active ? "bg-brand-600 text-white" : "bg-brand-100 text-brand-700"
+          )}
+        >
+          {initials(name)}
+        </div>
+      )}
       <div className="flex-1 min-w-0 text-left">
         <p className={cn("text-sm font-medium truncate", active ? "text-brand-800" : "text-gray-900")}>
           {name}

@@ -34,7 +34,7 @@ export const BUSINESS_TYPE_LABELS: Record<string, string> = {
   SALON: "Salão / Manicure",
   RESTAURANT: "Restaurante / Hamburgueria",
   DENTAL: "Dentista / Clínica",
-  STORE: "Loja de Bairro",
+  STORE: "Comércio local",
   OTHER: "Outro",
 };
 

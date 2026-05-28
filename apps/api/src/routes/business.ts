@@ -33,6 +33,10 @@ export async function businessRoutes(app: FastifyInstance) {
   app.get("/businesses", async (req) => listBusinesses(req.tenantId));
 
   app.post("/businesses", async (req, reply) => {
+    const existing = await listBusinesses(req.tenantId);
+    if (existing.length > 0) {
+      return reply.status(409).send({ error: "Sua conta já possui um negócio cadastrado." });
+    }
     const body = businessBody.parse(req.body);
     const business = await createBusiness(req.tenantId, {
       name: body.name,

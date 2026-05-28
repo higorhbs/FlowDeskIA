@@ -67,7 +67,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-4 md:p-8 max-w-2xl">
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Configurações do negócio</h1>
 
       <form onSubmit={handleSubmit((d) => saveMutation.mutate(d))} className="space-y-6">

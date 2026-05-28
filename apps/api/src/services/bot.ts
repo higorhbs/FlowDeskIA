@@ -111,7 +111,7 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
     return [{ text: menu }];
   }
 
-  const menuAction = resolveMenuAction(messageBody);
+  const menuAction = resolveMenuAction(messageBody, business);
   if (menuAction) {
     return routeMenuAction(menuAction, ctx, business, conversation, sessionKey);
   }
@@ -416,9 +416,12 @@ async function handleFAQSelect(
   return [{ text: faq.answer }];
 }
 
-function resolveMenuAction(text: string): BotMenuAction | null {
+function resolveMenuAction(text: string, business?: { botMenu?: unknown[] }): BotMenuAction | null {
   if (isExitCommand(text) || parseOptionNumber(text, 0, 0) === 0) return "EXIT";
-  const entries = buildBotMenuEntries();
+  const entries = (business?.botMenu && business.botMenu.length > 0)
+    ? (business.botMenu as Array<{ action: BotMenuAction; enabled: boolean }>)
+        .filter((e) => e.enabled !== false)
+    : buildBotMenuEntries();
   const num = parseOptionNumber(text, 1, entries.length);
   if (num === null) return null;
   return entries[num - 1].action;
@@ -487,7 +490,27 @@ async function sendPresentation(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function buildMainMenu(business: { name: string }): string {
+const ACTION_EMOJI: Record<string, string> = {
+  APPOINTMENT: "📅",
+  CATALOG: "🛍️",
+  FAQ: "❓",
+  HUMAN: "👤",
+};
+
+function buildMainMenu(business: { name: string; botMenu?: unknown[] }): string {
+  if (business.botMenu && business.botMenu.length > 0) {
+    const entries = (business.botMenu as Array<{ num: number; action: string; label: string; enabled: boolean }>)
+      .filter((e) => e.enabled !== false)
+      .map((e, i) => ({ ...e, num: i + 1 }));
+    let text = `*Menu — ${business.name}*\n\n`;
+    for (const e of entries) {
+      const emoji = ACTION_EMOJI[e.action] ?? "";
+      text += `*${e.num}* — ${emoji} ${e.label}\n`;
+    }
+    text += `\n*0* — 👋 Sair\n\n`;
+    text += `_Palavras: agendar, catálogo, dúvida, atendente_`;
+    return text;
+  }
   return formatBotMenuText(business.name);
 }
 

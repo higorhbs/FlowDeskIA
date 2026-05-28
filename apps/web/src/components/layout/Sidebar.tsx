@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   MessageSquare, LayoutDashboard, Store, Calendar,
-  HelpCircle, Settings, LogOut, CreditCard,
-  Wifi, WifiOff, ChevronLeft, BookOpen,
+  Bot, Settings, LogOut, CreditCard,
+  Wifi, WifiOff, ChevronLeft, BookOpen, Banknote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { removeToken } from "@/lib/auth";
@@ -33,7 +33,7 @@ export function Sidebar() {
 
   const baseLinks = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { href: "/businesses", icon: Store, label: "Negócios" },
+    { href: "/businesses", icon: Store, label: "Meu negócio" },
     { href: "/plan", icon: CreditCard, label: "Meu plano" },
   ];
 
@@ -42,7 +42,8 @@ export function Sidebar() {
         { href: `/businesses/${businessId}/conversations`, icon: MessageSquare, label: "Conversas" },
         { href: `/businesses/${businessId}/appointments`, icon: Calendar, label: "Agendamentos" },
         { href: `/businesses/${businessId}/catalog`, icon: BookOpen, label: "Catálogo" },
-        { href: `/businesses/${businessId}/faqs`, icon: HelpCircle, label: "FAQ" },
+        { href: `/businesses/${businessId}/payments`, icon: Banknote, label: "Pagamentos" },
+        { href: `/businesses/${businessId}/faqs`, icon: Bot, label: "Bot" },
         { href: `/businesses/${businessId}/whatsapp`, icon: MessageSquare, label: "WhatsApp" },
         { href: `/businesses/${businessId}/settings`, icon: Settings, label: "Configurações" },
       ]
@@ -59,7 +60,7 @@ export function Sidebar() {
     : "–";
 
   return (
-    <aside className="w-64 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0">
+    <aside className="hidden lg:flex w-64 flex-shrink-0 bg-white border-r border-gray-200 flex-col h-screen sticky top-0">
       {/* Logo */}
       <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
         <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
@@ -76,7 +77,7 @@ export function Sidebar() {
             className="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-800 font-medium mb-2 transition-colors"
           >
             <ChevronLeft className="w-3 h-3" />
-            Todos os negócios
+            Meu negócio
           </Link>
 
           <div className="flex items-center gap-2.5">

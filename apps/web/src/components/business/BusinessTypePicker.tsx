@@ -21,7 +21,7 @@ export const BUSINESS_TYPE_OPTIONS = [
     color: "bg-orange-50 text-orange-700 border-orange-200",
   },
   { value: "DENTAL", label: "Dentista / Clínica", icon: Stethoscope, color: "bg-teal-50 text-teal-700 border-teal-200" },
-  { value: "STORE", label: "Loja de bairro", icon: Store, color: "bg-violet-50 text-violet-700 border-violet-200" },
+  { value: "STORE", label: "Comércio local", icon: Store, color: "bg-violet-50 text-violet-700 border-violet-200" },
   { value: "OTHER", label: "Outro", icon: LayoutGrid, color: "bg-gray-100 text-gray-700 border-gray-200" },
 ] as const;
 

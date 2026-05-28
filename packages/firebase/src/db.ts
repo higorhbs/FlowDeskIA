@@ -108,7 +108,7 @@ export async function createTenant(
 ): Promise<Tenant> {
   const ts = nowIso();
   const trialEnds = new Date();
-  trialEnds.setDate(trialEnds.getDate() + 14);
+  trialEnds.setDate(trialEnds.getDate() + 7);
   const tenant: Tenant = {
     id,
     name: data.name,

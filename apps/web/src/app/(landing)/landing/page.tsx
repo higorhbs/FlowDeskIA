@@ -56,7 +56,7 @@ export default function LandingPage() {
         </h1>
         <p className="text-xl text-gray-500 mb-10 max-w-2xl mx-auto">
           O ZapFlow responde seus clientes, agenda horários e cobra o sinal via PIX — tudo automaticamente.
-          Para barbearia, salão, hamburgueria, dentista e loja de bairro.
+          Para barbearia, salão, hamburgueria, dentista e comércio local.
         </p>
         <div className="flex items-center justify-center gap-4 flex-wrap">
           <Link href="/register" className="btn-primary text-base px-6 py-3">
