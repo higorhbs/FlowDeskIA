@@ -26,7 +26,6 @@ import {
   acceptClientLgpd,
 } from "@zapflow/firebase/client";
 import type { Plan } from "@zapflow/firebase/client";
-import { optionalEnv } from "./env";
 
 function isLocalDevHost() {
   if (typeof window === "undefined") return false;
@@ -34,13 +33,14 @@ function isLocalDevHost() {
 }
 
 function resolveApiBaseUrl() {
-  const url = optionalEnv("NEXT_PUBLIC_API_URL");
-  if (!url) throw new Error("NEXT_PUBLIC_API_URL não configurada.");
-  return url;
+  const url = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (url) return url;
+  if (isLocalDevHost()) return "http://localhost:3001";
+  throw new Error("NEXT_PUBLIC_API_URL não configurada.");
 }
 
 function hasPublicApi() {
-  return Boolean(optionalEnv("NEXT_PUBLIC_API_URL"));
+  return Boolean(process.env.NEXT_PUBLIC_API_URL?.trim()) || isLocalDevHost();
 }
 
 function getStripePaymentLink(plan: "STARTER" | "PRO" | "UNLIMITED") {
@@ -53,7 +53,7 @@ function getStripePaymentLink(plan: "STARTER" | "PRO" | "UNLIMITED") {
 }
 
 function getStripePortalLink() {
-  return optionalEnv("NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL") ?? "";
+  return process.env.NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL?.trim() ?? "";
 }
 
 export const api = axios.create({

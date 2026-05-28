@@ -117,9 +117,23 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
 
   // ─── Fluxo de agendamento (multi-step) ────────────────────────────────────
   if (state?.step === "APPOINTMENT_DATE") {
+    if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
+      conversationState.delete(sessionKey);
+      if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
+      const menu = buildMainMenu(business);
+      await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
+      return [{ text: menu }];
+    }
     return handleAppointmentDate(ctx, business, conversation, state, sessionKey);
   }
   if (state?.step === "APPOINTMENT_TIME") {
+    if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
+      conversationState.delete(sessionKey);
+      if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
+      const menu = buildMainMenu(business);
+      await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
+      return [{ text: menu }];
+    }
     return handleAppointmentTime(ctx, business, conversation, state, sessionKey);
   }
   if (state?.step === "PAYMENT_AMOUNT") {
@@ -145,6 +159,18 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
 
   if (!state && isGreeting(messageBody)) {
     return sendPresentation(business, conversation, customerName);
+  }
+
+  if (!state && looksLikeAppointmentDate(messageBody)) {
+    const apptState = { step: "APPOINTMENT_DATE", data: { serviceName: "Agendamento" } };
+    conversationState.set(sessionKey, apptState);
+    return handleAppointmentDate(ctx, business, conversation, apptState, sessionKey);
+  }
+
+  if (isThanks(messageBody)) {
+    const text = "Por nada! 😊 Se precisar de algo, digite *menu*.";
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
   }
 
   // ─── Respostas por intenção ────────────────────────────────────────────────
@@ -579,6 +605,30 @@ function resolveMenuSelection(
   return entries[num - 1] ?? null;
 }
 
+function isAppointmentMenuItem(item: MenuPick): boolean {
+  if (item.action === "APPOINTMENT") return true;
+  const r = (item.response ?? "").toLowerCase();
+  return /\bagendar\b|informe a data|dd\/mm|qual data|marque|reservar|horário prefere|horario prefere/.test(r);
+}
+
+function isCatalogMenuItem(item: MenuPick): boolean {
+  if (item.action === "CATALOG") return true;
+  const r = (item.response ?? "").toLowerCase();
+  return /catálogo|catalogo|preços|precos|cardápio|cardapio/.test(r);
+}
+
+function isFaqMenuItem(item: MenuPick): boolean {
+  if (item.action === "FAQ") return true;
+  const r = (item.response ?? "").toLowerCase();
+  return /\bfaq\b|perguntas frequentes|dúvida|duvida/.test(r);
+}
+
+function isHumanMenuItem(item: MenuPick): boolean {
+  if (item.action === "HUMAN") return true;
+  const r = (item.response ?? "").toLowerCase();
+  return /atendente|humano|pessoa/.test(r);
+}
+
 async function handleMenuItemSelection(
   item: MenuPick,
   ctx: BotContext,
@@ -586,6 +636,20 @@ async function handleMenuItemSelection(
   conversation: Conversation,
   sessionKey: string
 ): Promise<BotResponse[]> {
+  if (isAppointmentMenuItem(item)) {
+    return startAppointmentFlow(business, conversation, sessionKey);
+  }
+  if (isCatalogMenuItem(item)) {
+    return handleCatalog(business, conversation);
+  }
+  if (isFaqMenuItem(item)) {
+    return handleFAQ(ctx.messageBody, business, conversation, sessionKey);
+  }
+  if (isHumanMenuItem(item)) {
+    await updateConversationStatus(business.id, conversation.id, "ATTENDING");
+    return saveHumanHandoff(business.id, conversation.id);
+  }
+
   const custom = item.response?.trim();
   if (custom) {
     const text = renderTemplate(custom, {
@@ -697,6 +761,15 @@ function buildFallbackMessage(business?: { botMenu?: unknown[] }): string {
 function isGreeting(text: string): boolean {
   const greetings = ["oi", "olá", "ola", "bom dia", "boa tarde", "boa noite", "hello", "hi", "menu"];
   return greetings.some((g) => text.toLowerCase().trim().startsWith(g));
+}
+
+function looksLikeAppointmentDate(text: string): boolean {
+  return /^\d{1,2}\/\d{1,2}(\/\d{2,4})?$/.test(text.trim());
+}
+
+function isThanks(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  return ["obrigado", "obrigada", "valeu", "vlw", "brigadão", "brigadao"].some((w) => t.includes(w));
 }
 
 function matchFaq(text: string, faqs: any[] | undefined): any | null {
