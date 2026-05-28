@@ -8,6 +8,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
@@ -70,13 +75,13 @@ export default function NewBusinessPage() {
           <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
         </div>
       ) : existingBusiness ? (
-        <div className="card">
+        <Card>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Negócio já cadastrado</h2>
           <p className="text-sm text-gray-500 mb-4">Sua conta permite apenas um negócio. Você pode editar os dados existentes.</p>
-          <Link href={`/businesses/${existingBusiness.id}/settings`} className="btn-primary">
+          <Link href={`/businesses/${existingBusiness.id}/settings`} className={buttonVariants()}>
             Ir para configurações
           </Link>
-        </div>
+        </Card>
       ) : (
         <>
       <div className="flex items-center gap-3 mb-8">
@@ -90,17 +95,17 @@ export default function NewBusinessPage() {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="card space-y-4">
+        <Card className="space-y-4">
           <h2 className="font-semibold text-gray-900">Informações básicas</h2>
 
-          <div>
-            <label className="label">Nome do negócio *</label>
-            <input type="text" className="input" placeholder="Barbearia do João" {...register("name")} />
+          <div className="space-y-1.5">
+            <Label>Nome do negócio *</Label>
+            <Input type="text" placeholder="Barbearia do João" {...register("name")} />
             {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
           </div>
 
-          <div>
-            <label className="label mb-2 block">Tipo de negócio *</label>
+          <div className="space-y-2">
+            <Label>Tipo de negócio *</Label>
             <Controller
               name="type"
               control={control}
@@ -114,42 +119,42 @@ export default function NewBusinessPage() {
             />
           </div>
 
-          <div>
-            <label className="label">Número do WhatsApp Business *</label>
-            <input type="text" className="input" placeholder="+55 11 99999-9999" {...register("phone")} />
+          <div className="space-y-1.5">
+            <Label>Número do WhatsApp Business *</Label>
+            <Input type="text" placeholder="+55 11 99999-9999" {...register("phone")} />
             {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone.message}</p>}
           </div>
 
-          <div>
-            <label className="label">Endereço</label>
-            <input type="text" className="input" placeholder="Rua das Flores, 123 - São Paulo/SP" {...register("address")} />
+          <div className="space-y-1.5">
+            <Label>Endereço</Label>
+            <Input type="text" placeholder="Rua das Flores, 123 - São Paulo/SP" {...register("address")} />
           </div>
 
-          <div>
-            <label className="label">Descrição</label>
-            <textarea className="input h-20 resize-none" placeholder="Breve descrição do seu negócio..." {...register("description")} />
+          <div className="space-y-1.5">
+            <Label>Descrição</Label>
+            <Textarea className="min-h-20 resize-none" placeholder="Breve descrição do seu negócio..." {...register("description")} />
           </div>
-        </div>
+        </Card>
 
-        <div className="card space-y-4">
+        <Card className="space-y-4">
           <h2 className="font-semibold text-gray-900">Mensagens automáticas</h2>
           <p className="text-sm text-gray-500">Use {`{nome}`} e {`{negocio}`} como variáveis dinâmicas.</p>
 
-          <div>
-            <label className="label">Mensagem de boas-vindas</label>
-            <textarea className="input h-24 resize-none" {...register("greetingMsg")} />
+          <div className="space-y-1.5">
+            <Label>Mensagem de boas-vindas</Label>
+            <Textarea className="min-h-24 resize-none" {...register("greetingMsg")} />
           </div>
 
-          <div>
-            <label className="label">Mensagem fora do horário</label>
-            <textarea className="input h-24 resize-none" {...register("awayMsg")} />
+          <div className="space-y-1.5">
+            <Label>Mensagem fora do horário</Label>
+            <Textarea className="min-h-24 resize-none" {...register("awayMsg")} />
           </div>
-        </div>
+        </Card>
 
-        <button type="submit" className="btn-primary w-full" disabled={isSubmitting}>
+        <Button type="submit" className="h-10 w-full" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
           Criar negócio e conectar WhatsApp
-        </button>
+        </Button>
       </form>
         </>
       )}

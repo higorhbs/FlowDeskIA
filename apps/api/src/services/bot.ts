@@ -72,7 +72,6 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
 
   const tz =
     (typeof business.timezone === "string" && business.timezone.trim()) ||
-    process.env.BUSINESS_TIMEZONE?.trim() ||
     DEFAULT_BUSINESS_TIMEZONE;
   const open = isOpenNow(business.workingHours as WorkingHours, tz);
 

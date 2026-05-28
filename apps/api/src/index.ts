@@ -1,4 +1,5 @@
 import { loadMonorepoEnv } from "./load-env";
+import { requireEnv } from "./env";
 
 loadMonorepoEnv();
 
@@ -6,7 +7,7 @@ import { buildApp } from "./app";
 
 async function bootstrap() {
   const app = await buildApp();
-  const port = parseInt(process.env.API_PORT ?? "3001");
+  const port = parseInt(requireEnv("API_PORT"), 10);
   await app.listen({ port, host: "0.0.0.0" });
   console.log(`ZapFlow API running on port ${port}`);
 }

@@ -6,6 +6,9 @@ import { useAuth } from "@/contexts/auth-context";
 import { formatCurrency } from "@/lib/utils";
 import { MessageSquare, Calendar, DollarSign, TrendingUp, Store, ArrowRight, Plus } from "lucide-react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
@@ -41,7 +44,7 @@ export default function DashboardPage() {
         </div>
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Nenhum negócio cadastrado</h2>
         <p className="text-gray-500 text-center mb-6 max-w-sm">Cadastre seu negócio para começar a usar o atendimento automático no WhatsApp.</p>
-        <Link href="/businesses/new" className="btn-primary">
+        <Link href="/businesses/new" className={cn(buttonVariants(), "gap-2")}>
           <Plus className="w-4 h-4" />
           Cadastrar meu negócio
         </Link>
@@ -102,26 +105,26 @@ function BusinessCard({ business }: { business: any }) {
   ];
 
   return (
-    <div className="card">
+    <Card>
       <div className="flex items-start justify-between mb-6">
         <div>
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold text-gray-900">{business.name}</h2>
-            <Link
-              href={`/businesses/${business.id}/whatsapp`}
+            <Badge
+              render={<Link href={`/businesses/${business.id}/whatsapp`} />}
               className={cn(
-                "badge hover:opacity-80 transition-opacity",
+                "hover:opacity-80 transition-opacity",
                 business.isConnected ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
               )}
             >
               {business.isConnected ? "● Conectado" : "○ Desconectado"}
-            </Link>
+            </Badge>
           </div>
           <p className="text-sm text-gray-500 mt-0.5">{business.phone}</p>
         </div>
         <Link
           href={`/businesses/${business.id}/conversations`}
-          className="btn-secondary text-xs"
+          className={buttonVariants({ variant: "outline", size: "xs" })}
         >
           Abrir painel
           <ArrowRight className="w-3 h-3" />
@@ -139,6 +142,6 @@ function BusinessCard({ business }: { business: any }) {
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

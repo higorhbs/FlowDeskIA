@@ -7,6 +7,7 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, 
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Calendar, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useBusinessId } from "@/lib/use-business-id";
 import { toast } from "sonner";
 
@@ -57,16 +58,16 @@ export default function AppointmentsPage() {
           <p className="text-gray-500 mt-1">Gerencie os horários marcados pelo WhatsApp</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="btn-secondary" onClick={() => setWeekOffset((w) => w - 1)}>
+          <Button type="button" variant="outline" size="icon" onClick={() => setWeekOffset((w) => w - 1)}>
             <ChevronLeft className="w-4 h-4" />
-          </button>
+          </Button>
           <span className="text-sm font-medium text-gray-700">
             {format(weekStart, "d MMM", { locale: ptBR })} — {format(weekEnd, "d MMM yyyy", { locale: ptBR })}
           </span>
-          <button className="btn-secondary" onClick={() => setWeekOffset((w) => w + 1)}>
+          <Button type="button" variant="outline" size="icon" onClick={() => setWeekOffset((w) => w + 1)}>
             <ChevronRight className="w-4 h-4" />
-          </button>
-          <button className="btn-secondary text-xs" onClick={() => setWeekOffset(0)}>Hoje</button>
+          </Button>
+          <Button type="button" variant="outline" size="xs" onClick={() => setWeekOffset(0)}>Hoje</Button>
         </div>
       </div>
 

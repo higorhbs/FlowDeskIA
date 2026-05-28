@@ -1,12 +1,15 @@
 import axios from "axios";
+import { requireEnv } from "../env";
 
-const asaas = axios.create({
-  baseURL: process.env.ASAAS_BASE_URL ?? "https://sandbox.asaas.com/api/v3",
-  headers: {
-    access_token: process.env.ASAAS_API_KEY ?? "",
-    "Content-Type": "application/json",
-  },
-});
+function asaasClient() {
+  return axios.create({
+    baseURL: requireEnv("ASAAS_BASE_URL"),
+    headers: {
+      access_token: requireEnv("ASAAS_API_KEY"),
+      "Content-Type": "application/json",
+    },
+  });
+}
 
 export interface PixChargeInput {
   customerName: string;
@@ -31,11 +34,11 @@ export async function createPixCharge(input: PixChargeInput): Promise<PixChargeR
   let customerId: string;
 
   try {
-    const existing = await asaas.get(`/customers?mobilePhone=${input.customerPhone.replace(/\D/g, "")}`);
+    const existing = await asaasClient().get(`/customers?mobilePhone=${input.customerPhone.replace(/\D/g, "")}`);
     if (existing.data.data?.length > 0) {
       customerId = existing.data.data[0].id;
     } else {
-      const created = await asaas.post("/customers", {
+      const created = await asaasClient().post("/customers", {
         name: input.customerName,
         mobilePhone: input.customerPhone.replace(/\D/g, ""),
         cpfCnpj,
@@ -44,7 +47,7 @@ export async function createPixCharge(input: PixChargeInput): Promise<PixChargeR
     }
   } catch {
     // fallback: cria sem validação
-    const created = await asaas.post("/customers", {
+    const created = await asaasClient().post("/customers", {
       name: input.customerName,
       mobilePhone: input.customerPhone.replace(/\D/g, ""),
       cpfCnpj,
@@ -55,7 +58,7 @@ export async function createPixCharge(input: PixChargeInput): Promise<PixChargeR
   // 2. Cria cobrança PIX
   const dueDate = input.dueDate ?? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-  const charge = await asaas.post("/payments", {
+  const charge = await asaasClient().post("/payments", {
     customer: customerId,
     billingType: "PIX",
     value: input.amount,
@@ -67,7 +70,7 @@ export async function createPixCharge(input: PixChargeInput): Promise<PixChargeR
   const chargeId = charge.data.id;
 
   // 3. Busca QR Code
-  const qrRes = await asaas.get(`/payments/${chargeId}/pixQrCode`);
+  const qrRes = await asaasClient().get(`/payments/${chargeId}/pixQrCode`);
 
   return {
     asaasId: chargeId,
@@ -79,6 +82,6 @@ export async function createPixCharge(input: PixChargeInput): Promise<PixChargeR
 }
 
 export async function checkPixStatus(asaasId: string): Promise<string> {
-  const res = await asaas.get(`/payments/${asaasId}`);
+  const res = await asaasClient().get(`/payments/${asaasId}`);
   return res.data.status; // PENDING | RECEIVED | OVERDUE | REFUNDED
 }

@@ -12,6 +12,12 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Loader2, Package } from "lucide-react";
 import { PLAN_LIMITS } from "@zapflow/shared";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 type CatalogItem = {
   id: string;
@@ -122,15 +128,15 @@ export default function CatalogPage() {
           <h1 className="text-2xl font-bold text-gray-900">Catálogo de Serviços</h1>
           <p className="text-gray-500 mt-1">Itens exibidos quando o cliente pede o catálogo ou orçamento</p>
         </div>
-        <button className="btn-primary" onClick={openNew} disabled={limitReached}>
+        <Button onClick={openNew} disabled={limitReached}>
           <Plus className="w-4 h-4" />
           Adicionar item
-        </button>
+        </Button>
       </div>
       {limitReached && (
-        <div className="mb-4 card bg-amber-50 border-amber-200 text-amber-900 text-sm">
+        <Card className="mb-4 border-amber-200 bg-amber-50 text-sm text-amber-900">
           Limite do plano atingido: máximo de {catalogLimit} itens no catálogo.
-        </div>
+        </Card>
       )}
 
       {/* Form modal */}
@@ -150,30 +156,30 @@ export default function CatalogPage() {
               )}
               className="space-y-4"
             >
-              <div>
-                <label className="label">Nome *</label>
-                <input type="text" className="input" placeholder="Corte masculino" {...register("name")} />
+              <div className="space-y-1.5">
+                <Label>Nome *</Label>
+                <Input type="text" placeholder="Corte masculino" {...register("name")} />
                 {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
               </div>
-              <div>
-                <label className="label">Descrição</label>
-                <textarea className="input h-20 resize-none" placeholder="Inclui lavagem e finalização..." {...register("description")} />
+              <div className="space-y-1.5">
+                <Label>Descrição</Label>
+                <Textarea className="min-h-20 resize-none" placeholder="Inclui lavagem e finalização..." {...register("description")} />
               </div>
-              <div>
-                <label className="label">Preço (R$) *</label>
-                <input type="number" step="0.01" className="input" placeholder="50.00" {...register("price")} />
+              <div className="space-y-1.5">
+                <Label>Preço (R$) *</Label>
+                <Input type="number" step="0.01" placeholder="50.00" {...register("price")} />
                 {errors.price && <p className="text-xs text-red-500 mt-1">{errors.price.message}</p>}
               </div>
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="available" className="rounded" {...register("available")} />
-                <label htmlFor="available" className="text-sm text-gray-700">Disponível</label>
+                <Label htmlFor="available" className="font-normal text-gray-700">Disponível</Label>
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" className="btn-secondary flex-1" onClick={() => setShowForm(false)}>Cancelar</button>
-                <button type="submit" className="btn-primary flex-1" disabled={isSubmitting || saveMutation.isPending}>
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setShowForm(false)}>Cancelar</Button>
+                <Button type="submit" className="flex-1" disabled={isSubmitting || saveMutation.isPending}>
                   {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                   Salvar
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -181,12 +187,12 @@ export default function CatalogPage() {
       )}
 
       {isError && (
-        <div className="mb-6 card bg-red-50 border-red-200 text-sm text-red-800">
+        <Card className="mb-6 border-red-200 bg-red-50 text-sm text-red-800">
           <p>{(error as Error)?.message ?? "Erro ao carregar catálogo"}</p>
-          <button type="button" className="btn-secondary mt-3 text-xs" onClick={() => refetch()}>
+          <Button type="button" variant="outline" size="xs" className="mt-3" onClick={() => refetch()}>
             Tentar de novo
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
       {/* Items list */}
@@ -203,31 +209,37 @@ export default function CatalogPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {items.map((item: CatalogItem) => (
-            <div key={item.id} className="card hover:shadow-md transition-shadow">
+            <Card key={item.id} className="transition-shadow hover:shadow-md">
               <div className="flex items-start justify-between mb-3">
                 <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                <span className={`badge ${item.available ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                <Badge
+                  variant="secondary"
+                  className={item.available ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}
+                >
                   {item.available ? "Disponível" : "Indisponível"}
-                </span>
+                </Badge>
               </div>
               {item.description && <p className="text-sm text-gray-500 mb-3">{item.description}</p>}
               <p className="text-xl font-bold text-brand-600 mb-4">{formatCurrency(item.price)}</p>
               <div className="flex gap-2">
-                <button className="btn-secondary flex-1 text-xs" onClick={() => openEdit(item)}>
+                <Button type="button" variant="outline" size="xs" className="flex-1" onClick={() => openEdit(item)}>
                   <Pencil className="w-3 h-3" />
                   Editar
-                </button>
-                <button
-                  className="btn-secondary text-xs text-red-600 hover:bg-red-50"
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  className="text-red-600 hover:bg-red-50"
                   onClick={() => {
                     if (confirm("Remover este item?")) deleteMutation.mutate(item.id);
                   }}
                   disabled={deleteMutation.isPending}
                 >
                   <Trash2 className="w-3 h-3" />
-                </button>
+                </Button>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}

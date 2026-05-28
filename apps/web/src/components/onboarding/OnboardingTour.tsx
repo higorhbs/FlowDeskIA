@@ -9,6 +9,7 @@ import {
   Bot, CalendarClock, BookOpen, HelpCircle,
   Clock, Users, TrendingUp, Star, MessageSquareText, Zap,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface ChatMsg {
   from: "customer" | "bot";
@@ -352,23 +353,22 @@ export function OnboardingTour() {
           </button>
 
           <div className="flex items-center gap-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => setStep((s) => s - 1)}
               disabled={!canBack}
-              className="btn-secondary disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="w-4 h-4" />
               Voltar
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => {
                 if (isLast) { dismiss(); return; }
                 setStep((s) => s + 1);
               }}
               disabled={complete.isPending}
-              className="btn-primary"
             >
               {isLast ? (
                 <>
@@ -381,7 +381,7 @@ export function OnboardingTour() {
                   <ChevronRight className="w-4 h-4" />
                 </>
               )}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

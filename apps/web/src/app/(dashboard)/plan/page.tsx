@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { Check, Crown, Loader2, Sparkles, Zap, ArrowRight, CalendarDays, BookOpen, CreditCard } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 const PLANS: { id: Plan; highlight?: boolean; extras?: string[] }[] = [
   { id: "STARTER" },
@@ -95,7 +97,7 @@ export default function PlanPage() {
             <p className="text-white/60 text-xs uppercase tracking-widest font-medium mb-1">Plano atual</p>
             <div className="flex items-center gap-3 mb-1">
               <h2 className="text-3xl font-extrabold text-white">{PLAN_LABELS[tenant.plan]}</h2>
-              <span className={cn("badge text-xs", statusMeta.color)}>{statusMeta.label}</span>
+              <Badge variant="secondary" className={cn("text-xs", statusMeta.color)}>{statusMeta.label}</Badge>
             </div>
             <p className="text-white/70 text-sm">
               {formatCurrency(PLAN_PRICES[tenant.plan].brl)}/mês
@@ -136,15 +138,17 @@ export default function PlanPage() {
             Teste até {format(new Date(tenant.trialEndsAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
           </p>
         )}
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="xs"
           onClick={() => openPortal.mutate()}
           disabled={openPortal.isPending || !tenant.stripeCustomerId}
-          className="relative mt-4 btn-secondary text-xs bg-white/10 border-white/20 text-white hover:bg-white/20 disabled:opacity-40"
+          className="relative mt-4 border-white/20 bg-white/10 text-white hover:bg-white/20"
         >
           {openPortal.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
           Gerenciar cobrança
-        </button>
+        </Button>
       </div>
 
       {/* Plans comparison */}
@@ -199,16 +203,10 @@ export default function PlanPage() {
                 ))}
               </ul>
 
-              <button
+              <Button
                 type="button"
-                className={cn(
-                  "w-full",
-                  isCurrent
-                    ? "btn-secondary cursor-default opacity-60"
-                    : highlight
-                    ? "btn-primary"
-                    : "btn-secondary"
-                )}
+                variant={isCurrent ? "secondary" : highlight ? "default" : "secondary"}
+                className={cn("w-full", isCurrent && "cursor-default opacity-60")}
                 disabled={isCurrent || selectPlan.isPending}
                 onClick={() => !isCurrent && selectPlan.mutate(id)}
               >
@@ -223,7 +221,7 @@ export default function PlanPage() {
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
-              </button>
+              </Button>
             </div>
           );
         })}

@@ -44,8 +44,8 @@ services:
     environment:
       NODE_ENV: production
       API_PORT: 3001
-      BUSINESS_TIMEZONE: ${BUSINESS_TIMEZONE:-America/Sao_Paulo}
-      ENABLE_WORKERS: ${ENABLE_WORKERS:-true}
+      BUSINESS_TIMEZONE: ${BUSINESS_TIMEZONE}
+      ENABLE_WORKERS: ${ENABLE_WORKERS}
       REDIS_URL: redis://redis:6379
       WA_SESSION_PATH: /app/sessions
       CORS_ORIGIN: ${CORS_ORIGIN}
@@ -53,14 +53,14 @@ services:
       FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
       FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
       FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON}
-      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-/app/.secrets/firebase-adminsdk.json}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
-      STRIPE_PRICE_STARTER: ${STRIPE_PRICE_STARTER:-}
-      STRIPE_PRICE_PRO: ${STRIPE_PRICE_PRO:-}
-      STRIPE_PRICE_UNLIMITED: ${STRIPE_PRICE_UNLIMITED:-}
-      ASAAS_API_KEY: ${ASAAS_API_KEY:-}
-      ASAAS_BASE_URL: ${ASAAS_BASE_URL:-https://sandbox.asaas.com/api/v3}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      STRIPE_PRICE_STARTER: ${STRIPE_PRICE_STARTER}
+      STRIPE_PRICE_PRO: ${STRIPE_PRICE_PRO}
+      STRIPE_PRICE_UNLIMITED: ${STRIPE_PRICE_UNLIMITED}
+      ASAAS_API_KEY: ${ASAAS_API_KEY}
+      ASAAS_BASE_URL: ${ASAAS_BASE_URL}
     volumes:
       - wa_sessions:/app/sessions
       - ./.secrets:/app/.secrets:ro
@@ -77,7 +77,7 @@ services:
       - "443:443"
     environment:
       API_DOMAIN: ${API_DOMAIN}
-      ACME_EMAIL: ${ACME_EMAIL:-admin@zapflow.local}
+      ACME_EMAIL: ${ACME_EMAIL}
     volumes:
       - ./scripts/oracle/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

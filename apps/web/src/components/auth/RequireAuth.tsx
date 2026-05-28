@@ -20,7 +20,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
       if (!user) {
         setUid(null);
         setReady(false);
-        router.replace("/");
+        router.replace("/?auth=login");
         return;
       }
       setUid(user.uid);

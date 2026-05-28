@@ -25,34 +25,21 @@ import {
   acceptClientLgpd,
 } from "@zapflow/firebase/client";
 import type { Plan } from "@zapflow/firebase/client";
-
-const PRODUCTION_API_URL =
-  process.env.NEXT_PUBLIC_API_URL?.trim() || "https://zapflow-41z0.onrender.com";
+import { optionalEnv } from "./env";
 
 function isLocalDevHost() {
   if (typeof window === "undefined") return false;
   return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 }
 
-function isProductionHost() {
-  if (typeof window === "undefined") return false;
-  const host = window.location.hostname;
-  return host.endsWith(".web.app") || host.endsWith(".firebaseapp.com");
-}
-
 function resolveApiBaseUrl() {
-  if (isProductionHost()) return PRODUCTION_API_URL;
-  if (isLocalDevHost()) {
-    const local = process.env.NEXT_PUBLIC_API_URL?.trim();
-    return local && !local.includes("web.app") ? local : "http://localhost:3001";
-  }
-  const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (configured && !configured.includes("localhost")) return configured;
-  return PRODUCTION_API_URL;
+  const url = optionalEnv("NEXT_PUBLIC_API_URL");
+  if (!url) throw new Error("NEXT_PUBLIC_API_URL não configurada.");
+  return url;
 }
 
 function hasPublicApi() {
-  return Boolean(resolveApiBaseUrl());
+  return Boolean(optionalEnv("NEXT_PUBLIC_API_URL"));
 }
 
 function getStripePaymentLink(plan: "STARTER" | "PRO" | "UNLIMITED") {
@@ -65,7 +52,7 @@ function getStripePaymentLink(plan: "STARTER" | "PRO" | "UNLIMITED") {
 }
 
 function getStripePortalLink() {
-  return process.env.NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL?.trim() ?? "";
+  return optionalEnv("NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL") ?? "";
 }
 
 export const api = axios.create({
@@ -236,11 +223,11 @@ export const conversationApi = {
 };
 
 async function wakeProductionApi() {
-  if (!isProductionHost() && !isLocalDevHost()) return;
+  if (!hasPublicApi()) return;
   try {
     await api.get("/health", { timeout: 120_000 });
   } catch {
-    /* Render free pode demorar no cold start */
+    /* cold start */
   }
 }
 

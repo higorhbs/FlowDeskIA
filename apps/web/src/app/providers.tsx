@@ -1,9 +1,10 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { watchAuth, completeGoogleRedirect, authErrorMessage } from "@/lib/firebase-auth";
 import { setToken, removeToken } from "@/lib/auth";
+import { AuthDrawerProvider } from "@/contexts/auth-drawer-context";
 import { toast } from "sonner";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -23,15 +24,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
       .then((res) => {
         if (!active || !res) return;
         setToken(res.token);
-        const path = window.location.pathname;
-        if (path === "/" || path === "/register") {
-          window.location.replace("/dashboard");
-        }
+        window.location.replace("/dashboard");
       })
       .catch((err: unknown) => {
         if (!active) return;
-        const path = window.location.pathname;
-        if (path === "/" || path === "/register") {
+        const params = new URLSearchParams(window.location.search);
+        if (window.location.pathname === "/" && params.has("auth")) {
           toast.error(authErrorMessage(err, "Falha ao concluir login com Google"));
         }
       });
@@ -51,5 +49,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Suspense fallback={null}>
+        <AuthDrawerProvider>{children}</AuthDrawerProvider>
+      </Suspense>
+    </QueryClientProvider>
+  );
 }

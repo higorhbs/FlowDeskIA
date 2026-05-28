@@ -29,4 +29,8 @@ docker compose -f docker-compose.prod.yml up -d --no-deps api
 
 echo ""
 echo "Deploy da API concluido."
-curl -sf "https://${API_DOMAIN:-zapflow.duckdns.org}/health" && echo "" || echo "Health check falhou — aguarde alguns segundos."
+if [ -z "${API_DOMAIN:-}" ]; then
+  echo "API_DOMAIN não definido em .env"
+  exit 1
+fi
+curl -sf "https://${API_DOMAIN}/health" && echo "" || echo "Health check falhou — aguarde alguns segundos."

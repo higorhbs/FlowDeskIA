@@ -6,6 +6,11 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
@@ -71,17 +76,17 @@ export default function SettingsPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Configurações do negócio</h1>
 
       <form onSubmit={handleSubmit((d) => saveMutation.mutate(d))} className="space-y-6">
-        <div className="card space-y-4">
+        <Card className="space-y-4">
           <h2 className="font-semibold text-gray-900">Informações básicas</h2>
 
-          <div>
-            <label className="label">Nome do negócio</label>
-            <input type="text" className="input" {...register("name")} />
+          <div className="space-y-1.5">
+            <Label>Nome do negócio</Label>
+            <Input type="text" {...register("name")} />
             {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
           </div>
 
-          <div>
-            <label className="label mb-2 block">Tipo de negócio</label>
+          <div className="space-y-2">
+            <Label>Tipo de negócio</Label>
             <Controller
               name="type"
               control={control}
@@ -91,24 +96,24 @@ export default function SettingsPage() {
             />
           </div>
 
-          <div>
-            <label className="label">Telefone WhatsApp</label>
-            <input type="text" className="input" {...register("phone")} />
+          <div className="space-y-1.5">
+            <Label>Telefone WhatsApp</Label>
+            <Input type="text" {...register("phone")} />
             {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone.message}</p>}
           </div>
 
-          <div>
-            <label className="label">Endereço</label>
-            <input type="text" className="input" {...register("address")} />
+          <div className="space-y-1.5">
+            <Label>Endereço</Label>
+            <Input type="text" {...register("address")} />
           </div>
 
-          <div>
-            <label className="label">Descrição</label>
-            <textarea className="input h-20 resize-none" {...register("description")} />
+          <div className="space-y-1.5">
+            <Label>Descrição</Label>
+            <Textarea className="min-h-20 resize-none" {...register("description")} />
           </div>
-        </div>
+        </Card>
 
-        <div className="card space-y-4">
+        <Card className="space-y-4">
           <h2 className="font-semibold text-gray-900">Horário de funcionamento</h2>
           <p className="text-sm text-gray-500">
             Horários no fuso de Brasília. Fora desse horário o bot envia a mensagem &quot;fora do horário&quot; abaixo.
@@ -120,33 +125,32 @@ export default function SettingsPage() {
               setHoursDirty(true);
             }}
           />
-        </div>
+        </Card>
 
-        <div className="card space-y-4">
+        <Card className="space-y-4">
           <h2 className="font-semibold text-gray-900">Mensagens automáticas</h2>
           <p className="text-sm text-gray-500">Variáveis disponíveis: <code className="bg-gray-100 px-1 rounded">{`{nome}`}</code>, <code className="bg-gray-100 px-1 rounded">{`{negocio}`}</code></p>
 
-          <div>
-            <label className="label">Mensagem de boas-vindas</label>
-            <textarea className="input h-28 resize-none" {...register("greetingMsg")} />
+          <div className="space-y-1.5">
+            <Label>Mensagem de boas-vindas</Label>
+            <Textarea className="min-h-28 resize-none" {...register("greetingMsg")} />
             {errors.greetingMsg && <p className="text-xs text-red-500 mt-1">{errors.greetingMsg.message}</p>}
           </div>
 
-          <div>
-            <label className="label">Mensagem fora do horário</label>
-            <textarea className="input h-28 resize-none" {...register("awayMsg")} />
+          <div className="space-y-1.5">
+            <Label>Mensagem fora do horário</Label>
+            <Textarea className="min-h-28 resize-none" {...register("awayMsg")} />
             {errors.awayMsg && <p className="text-xs text-red-500 mt-1">{errors.awayMsg.message}</p>}
           </div>
-        </div>
+        </Card>
 
-        <button
+        <Button
           type="submit"
-          className="btn-primary"
           disabled={saveMutation.isPending || (!isDirty && !hoursDirty)}
         >
           {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Salvar configurações
-        </button>
+        </Button>
       </form>
     </div>
   );

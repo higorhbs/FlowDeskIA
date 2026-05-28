@@ -14,8 +14,9 @@ import { billingRoutes } from "./routes/billing";
 import { hasAdminCredential } from "@zapflow/firebase";
 
 export async function buildApp(): Promise<FastifyInstance> {
+  const logLevel = process.env.LOG_LEVEL?.trim();
   const app = Fastify({
-    logger: { level: process.env.LOG_LEVEL ?? "info" },
+    logger: logLevel ? { level: logLevel } : true,
   });
 
   const corsOrigin = process.env.CORS_ORIGIN;
@@ -74,7 +75,8 @@ export async function buildApp(): Promise<FastifyInstance> {
     startReminderWorker(waManager);
   }
 
-  const retentionIntervalHours = Number(process.env.PRIVACY_RETENTION_INTERVAL_HOURS ?? 24);
+  const retentionRaw = process.env.PRIVACY_RETENTION_INTERVAL_HOURS?.trim();
+  const retentionIntervalHours = retentionRaw ? Number(retentionRaw) : 0;
   if (retentionIntervalHours > 0) {
     const run = async () => {
       try {

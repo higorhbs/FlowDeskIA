@@ -61,7 +61,8 @@ function waitForQr(client: WhatsAppClient, timeoutMs = 12_000): Promise<ConnectR
 export async function whatsappRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
 
-  const sessionsRoot = process.env.WA_SESSION_PATH ?? "./sessions";
+  const sessionsRoot = process.env.WA_SESSION_PATH?.trim();
+  if (!sessionsRoot) throw new Error("WA_SESSION_PATH é obrigatório.");
 
   function attachLifecycle(id: string, client: WhatsAppClient) {
     if (lifecycleAttached.has(client)) return;

@@ -1,6 +1,7 @@
 import { Worker, Queue, QueueEvents } from "bullmq";
 import IORedis from "ioredis";
 import { processMessage, BotContext } from "../services/bot";
+import { requireEnv } from "../env";
 import { WhatsAppManager } from "@zapflow/whatsapp-client";
 
 export interface MessageJob {
@@ -23,7 +24,7 @@ let connection: IORedis | null = null;
 
 export function getRedisConnection(): IORedis {
   if (!connection) {
-    connection = new IORedis(process.env.REDIS_URL ?? "redis://localhost:6379", {
+    connection = new IORedis(requireEnv("REDIS_URL"), {
       maxRetriesPerRequest: null,
     });
   }

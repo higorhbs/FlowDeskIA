@@ -15,6 +15,12 @@ function getStripe() {
   return new Stripe(key);
 }
 
+function resolveBillingOrigin(req: { headers: { origin?: string } }): string {
+  const origin = req.headers.origin?.trim() || process.env.CORS_ORIGIN?.split(",")[0]?.trim();
+  if (!origin) throw new Error("Origin ausente: configure CORS_ORIGIN ou envie o header Origin.");
+  return origin;
+}
+
 function planPriceId(plan: "STARTER" | "PRO" | "UNLIMITED"): string {
   const map = {
     STARTER: process.env.STRIPE_PRICE_STARTER,
@@ -46,7 +52,7 @@ export async function billingRoutes(app: FastifyInstance) {
       await updateTenant(tenant.id, { stripeCustomerId: customerId });
     }
 
-    const origin = req.headers.origin || process.env.CORS_ORIGIN?.split(",")[0] || "http://localhost:3000";
+    const origin = resolveBillingOrigin(req);
     const priceId = planPriceId(plan);
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -67,7 +73,7 @@ export async function billingRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Nenhum cliente Stripe vinculado." });
     }
     const stripe = getStripe();
-    const origin = req.headers.origin || process.env.CORS_ORIGIN?.split(",")[0] || "http://localhost:3000";
+    const origin = resolveBillingOrigin(req);
     const portal = await stripe.billingPortal.sessions.create({
       customer: tenant.stripeCustomerId,
       return_url: `${origin}/plan`,

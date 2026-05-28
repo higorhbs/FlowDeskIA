@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { tenantApi } from "@/lib/api";
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 const LGPD_POLICY_VERSION = "2026-05-v1";
 
@@ -52,26 +53,26 @@ export function LgpdConsentGate() {
         </div>
 
         <div className="flex flex-wrap gap-3 mb-6">
-          <Link href="/privacy" className="btn-secondary" target="_blank">
+          <Link href="/privacy" className={buttonVariants({ variant: "outline" })} target="_blank">
             Política de Privacidade
           </Link>
-          <Link href="/terms" className="btn-secondary" target="_blank">
+          <Link href="/terms" className={buttonVariants({ variant: "outline" })} target="_blank">
             Termos de Uso
           </Link>
         </div>
 
-        <button
+        <Button
           type="button"
+          className="h-10 w-full"
           onClick={() => {
             setDismissed(true);
             accept.mutate();
           }}
           disabled={accept.isPending}
-          className="btn-primary w-full"
         >
           {accept.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           Aceito e continuar
-        </button>
+        </Button>
       </div>
     </div>
   );

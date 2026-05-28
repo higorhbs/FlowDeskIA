@@ -13,6 +13,7 @@ import {
   Check, Crown, Loader2, Zap, Lock, AlertTriangle, Clock, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
 const PLANS: { id: Plan; highlight?: boolean; extras?: string[] }[] = [
@@ -64,11 +65,12 @@ function PlanCard({
           </li>
         ))}
       </ul>
-      <button
+      <Button
         type="button"
+        variant={highlight ? "default" : "secondary"}
+        className="w-full"
         onClick={() => onSelect(id)}
         disabled={loading}
-        className={cn("w-full", highlight ? "btn-primary" : "btn-secondary")}
       >
         {loading ? (
           <Loader2 className="w-4 h-4 animate-spin" />
@@ -78,7 +80,7 @@ function PlanCard({
             Escolher {PLAN_LABELS[id]}
           </>
         )}
-      </button>
+      </Button>
     </div>
   );
 }

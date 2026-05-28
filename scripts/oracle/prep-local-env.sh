@@ -12,7 +12,11 @@ fi
 
 cp -n .env.oracle.example .env.oracle 2>/dev/null || true
 
-SA_PATH="${GOOGLE_APPLICATION_CREDENTIALS:-.secrets/firebase-adminsdk.json}"
+SA_PATH="${GOOGLE_APPLICATION_CREDENTIALS:-}"
+if [ -z "$SA_PATH" ]; then
+  echo "Defina GOOGLE_APPLICATION_CREDENTIALS no ambiente ou .env"
+  exit 1
+fi
 if [ ! -f "$ROOT/$SA_PATH" ] && [ ! -f "$SA_PATH" ]; then
   echo "Arquivo service account nao encontrado: $SA_PATH"
   exit 1
@@ -24,7 +28,11 @@ JSON_ONELINE="$(node -e "console.log(JSON.stringify(require(process.argv[1])))" 
 
 {
   echo "API_DOMAIN=${API_DOMAIN}"
-  echo "ACME_EMAIL=${ACME_EMAIL:-admin@${API_DOMAIN#api.}}"
+  if [ -z "${ACME_EMAIL:-}" ]; then
+    echo "Defina ACME_EMAIL no ambiente antes de rodar este script"
+    exit 1
+  fi
+  echo "ACME_EMAIL=${ACME_EMAIL}"
   echo "ENABLE_WORKERS=true"
   echo "CORS_ORIGIN=https://zapflow-higor-2026.web.app,https://zapflow-higor-2026.firebaseapp.com"
   echo ""

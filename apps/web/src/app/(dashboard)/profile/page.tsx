@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -181,7 +185,7 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
 
         {/* Left: Dados da conta */}
-        <div className="card space-y-5">
+        <Card className="space-y-5">
           <h2 className="font-semibold text-gray-900 flex items-center gap-2 pb-3 border-b border-gray-100">
             <span className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center">
               <User className="w-3.5 h-3.5 text-brand-600" />
@@ -191,17 +195,17 @@ export default function ProfilePage() {
 
           {/* Name */}
           <form onSubmit={nameForm.handleSubmit((d) => updateName.mutate(d))} className="space-y-3">
-            <div>
-              <label className="label">Nome</label>
-              <input type="text" className="input" {...nameForm.register("name")} />
+            <div className="space-y-1.5">
+              <Label>Nome</Label>
+              <Input type="text" {...nameForm.register("name")} />
               {nameForm.formState.errors.name && (
                 <p className="text-xs text-red-500 mt-1">{nameForm.formState.errors.name.message}</p>
               )}
             </div>
-            <button type="submit" className="btn-primary w-full" disabled={updateName.isPending}>
+            <Button type="submit" className="h-10 w-full" disabled={updateName.isPending}>
               {updateName.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               Salvar nome
-            </button>
+            </Button>
           </form>
 
           {/* Email */}
@@ -212,24 +216,24 @@ export default function ProfilePage() {
             </h3>
             {passwordAccount ? (
               <form onSubmit={emailForm.handleSubmit((d) => updateEmail.mutate(d))} className="space-y-3">
-                <div>
-                  <label className="label">Novo e-mail</label>
-                  <input type="email" className="input" {...emailForm.register("email")} />
+                <div className="space-y-1.5">
+                  <Label>Novo e-mail</Label>
+                  <Input type="email" {...emailForm.register("email")} />
                   {emailForm.formState.errors.email && (
                     <p className="text-xs text-red-500 mt-1">{emailForm.formState.errors.email.message}</p>
                   )}
                 </div>
-                <div>
-                  <label className="label">Senha atual</label>
-                  <input type="password" className="input" {...emailForm.register("currentPassword")} />
+                <div className="space-y-1.5">
+                  <Label>Senha atual</Label>
+                  <Input type="password" {...emailForm.register("currentPassword")} />
                   {emailForm.formState.errors.currentPassword && (
                     <p className="text-xs text-red-500 mt-1">{emailForm.formState.errors.currentPassword.message}</p>
                   )}
                 </div>
-                <button type="submit" className="btn-primary w-full" disabled={updateEmail.isPending}>
+                <Button type="submit" className="h-10 w-full" disabled={updateEmail.isPending}>
                   {updateEmail.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                   Atualizar e-mail
-                </button>
+                </Button>
               </form>
             ) : (
               <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
@@ -240,10 +244,10 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
-        </div>
+        </Card>
 
         {/* Right: Senha */}
-        <div className="card">
+        <Card>
           <h2 className="font-semibold text-gray-900 flex items-center gap-2 pb-3 border-b border-gray-100 mb-5">
             <span className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center">
               <Lock className="w-3.5 h-3.5 text-brand-600" />
@@ -256,31 +260,31 @@ export default function ProfilePage() {
               onSubmit={passwordForm.handleSubmit((d) => updatePassword.mutate(d))}
               className="space-y-3"
             >
-              <div>
-                <label className="label">Senha atual</label>
-                <input type="password" className="input" {...passwordForm.register("currentPassword")} />
+              <div className="space-y-1.5">
+                <Label>Senha atual</Label>
+                <Input type="password" {...passwordForm.register("currentPassword")} />
                 {passwordForm.formState.errors.currentPassword && (
                   <p className="text-xs text-red-500 mt-1">{passwordForm.formState.errors.currentPassword.message}</p>
                 )}
               </div>
-              <div>
-                <label className="label">Nova senha</label>
-                <input type="password" className="input" {...passwordForm.register("newPassword")} />
+              <div className="space-y-1.5">
+                <Label>Nova senha</Label>
+                <Input type="password" {...passwordForm.register("newPassword")} />
                 {passwordForm.formState.errors.newPassword && (
                   <p className="text-xs text-red-500 mt-1">{passwordForm.formState.errors.newPassword.message}</p>
                 )}
               </div>
-              <div>
-                <label className="label">Confirmar nova senha</label>
-                <input type="password" className="input" {...passwordForm.register("confirmPassword")} />
+              <div className="space-y-1.5">
+                <Label>Confirmar nova senha</Label>
+                <Input type="password" {...passwordForm.register("confirmPassword")} />
                 {passwordForm.formState.errors.confirmPassword && (
                   <p className="text-xs text-red-500 mt-1">{passwordForm.formState.errors.confirmPassword.message}</p>
                 )}
               </div>
-              <button type="submit" className="btn-primary w-full mt-1" disabled={updatePassword.isPending}>
+              <Button type="submit" className="mt-1 h-10 w-full" disabled={updatePassword.isPending}>
                 {updatePassword.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                 Alterar senha
-              </button>
+              </Button>
             </form>
           ) : (
             <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100 mb-4">
@@ -297,7 +301,7 @@ export default function ProfilePage() {
               Alterações sensíveis podem exigir login recente. Se aparecer erro, saia e entre novamente.
             </p>
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* Bottom: two groups side by side */}
@@ -306,7 +310,7 @@ export default function ProfilePage() {
         {/* Conta */}
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Conta</p>
-          <div className="card divide-y divide-gray-100 p-0 overflow-hidden">
+          <Card className="divide-y divide-gray-100 p-0 overflow-hidden">
             <Link
               href="/plan"
               className="flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors group"
@@ -343,13 +347,13 @@ export default function ProfilePage() {
               </div>
               <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 transition-colors flex-shrink-0" />
             </button>
-          </div>
+          </Card>
         </div>
 
         {/* Privacidade */}
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Privacidade</p>
-          <div className="card divide-y divide-gray-100 p-0 overflow-hidden">
+          <Card className="divide-y divide-gray-100 p-0 overflow-hidden">
             <button
               type="button"
               onClick={() => exportData.mutate()}
@@ -407,7 +411,7 @@ export default function ProfilePage() {
               </div>
               <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 transition-colors flex-shrink-0" />
             </button>
-          </div>
+          </Card>
         </div>
       </div>
     </div>

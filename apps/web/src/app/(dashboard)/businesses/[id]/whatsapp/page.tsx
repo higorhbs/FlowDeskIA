@@ -8,6 +8,8 @@ import { markWhatsAppConnected, useSyncWhatsAppBusiness } from "@/lib/use-sync-w
 import { toast } from "sonner";
 import { Smartphone, Wifi, WifiOff, QrCode, RefreshCw, Loader2, AlertTriangle } from "lucide-react";
 import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 type ConnectResponse = {
   status: string;
@@ -81,7 +83,7 @@ export default function WhatsAppPage() {
       </div>
 
       {waUnavailable && (
-        <div className="mb-6 card bg-amber-50 border-amber-200 flex gap-3 text-sm text-amber-900">
+        <Card className="mb-6 flex gap-3 border-amber-200 bg-amber-50 text-sm text-amber-900">
           <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-medium">WhatsApp indisponível neste ambiente</p>
@@ -90,10 +92,10 @@ export default function WhatsAppPage() {
               porta 3001 com <code className="text-xs">ENABLE_WORKERS=true</code>).
             </p>
           </div>
-        </div>
+        </Card>
       )}
 
-      <div className="card text-center">
+      <Card className="text-center">
         <div className="flex items-center justify-center mb-6">
           <div className={`w-20 h-20 rounded-full flex items-center justify-center ${isConnected ? "bg-green-50" : "bg-gray-100"}`}>
             {isConnected ? (
@@ -129,17 +131,17 @@ export default function WhatsAppPage() {
         )}
 
         {isConnected ? (
-          <button
-            className="btn-danger"
+          <Button
+            type="button"
+            variant="destructiveSolid"
             onClick={() => disconnectMutation.mutate()}
             disabled={disconnectMutation.isPending || waUnavailable}
           >
             {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <WifiOff className="w-4 h-4" />}
             Desconectar
-          </button>
+          </Button>
         ) : (
-          <button
-            className="btn-primary"
+          <Button
             onClick={() => connectMutation.mutate(!!qrCode)}
             disabled={connectMutation.isPending || waUnavailable}
           >
@@ -151,12 +153,12 @@ export default function WhatsAppPage() {
               <QrCode className="w-4 h-4" />
             )}
             {qrCode ? "Novo QR Code" : "Gerar QR Code"}
-          </button>
+          </Button>
         )}
-      </div>
+      </Card>
 
       {!isConnected && !qrCode && !waUnavailable && (
-        <div className="mt-6 card bg-brand-50 border-brand-100">
+        <Card className="mt-6 border-brand-100 bg-brand-50">
           <h3 className="font-medium text-brand-900 mb-3 flex items-center gap-2">
             <Smartphone className="w-4 h-4" />
             Como funciona
@@ -167,7 +169,7 @@ export default function WhatsAppPage() {
             <li>• Se deslogar no celular, basta reconectar aqui</li>
             <li>• Recomendamos usar o WhatsApp Business</li>
           </ul>
-        </div>
+        </Card>
       )}
     </div>
   );

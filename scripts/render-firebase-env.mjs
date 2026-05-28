@@ -1,10 +1,12 @@
 import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 
-const path =
-  process.argv[2] ??
-  process.env.GOOGLE_APPLICATION_CREDENTIALS ??
-  ".secrets/firebase-adminsdk.json";
+const path = process.argv[2] ?? process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim();
+if (!path) {
+  console.error("Uso: node scripts/render-firebase-env.mjs <caminho-sa.json>");
+  console.error("Ou defina GOOGLE_APPLICATION_CREDENTIALS.");
+  process.exit(1);
+}
 
 const full = resolve(path);
 if (!existsSync(full)) {

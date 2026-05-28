@@ -5,6 +5,7 @@ import { businessApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { BUSINESS_TYPE_LABELS } from "@/lib/utils";
 import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Wifi, WifiOff, Store, MessageSquare, Calendar,
   BookOpen, Bot, Settings, Phone, ChevronRight, Banknote,
@@ -59,7 +60,7 @@ export default function BusinessesPage() {
         </div>
         <h2 className="text-lg font-semibold text-gray-900 mb-2">Nenhum negócio cadastrado</h2>
         <p className="text-gray-500 mb-6">Cadastre seu negócio para começar a usar o ZapFlow.</p>
-        <Link href="/businesses/new" className="btn-primary">
+        <Link href="/businesses/new" className={buttonVariants()}>
           Cadastrar meu negócio
         </Link>
       </div>

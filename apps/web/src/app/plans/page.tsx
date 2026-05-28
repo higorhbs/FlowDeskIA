@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { MessageSquare, CheckCircle, ArrowLeft, Crown, Zap } from "lucide-react";
 import { PLAN_PRICES, planMarketingFeatures } from "@zapflow/shared";
 
@@ -20,7 +22,7 @@ export default function PlansPage() {
           <span className="text-lg font-bold text-gray-900">ZapFlow</span>
         </Link>
         <Link
-          href="/"
+          href="/?auth=login"
           className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors inline-flex items-center gap-1.5"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
@@ -80,8 +82,11 @@ export default function PlansPage() {
                 </ul>
 
                 <Link
-                  href="/register"
-                  className={highlight ? "btn-primary w-full text-center py-2.5" : "btn-secondary w-full text-center py-2.5"}
+                  href="/?auth=register"
+                  className={cn(
+                    buttonVariants({ variant: highlight ? "default" : "secondary" }),
+                    "h-10 w-full justify-center"
+                  )}
                 >
                   Começar grátis
                 </Link>

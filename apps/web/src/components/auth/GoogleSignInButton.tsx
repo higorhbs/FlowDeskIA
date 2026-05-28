@@ -63,17 +63,6 @@ export function GoogleSignInButton() {
           </>
         )}
       </button>
-      <p className="text-[11px] text-gray-500 mt-2 text-center">
-        Ao continuar, você aceita nossa{" "}
-        <Link href="/privacy" className="text-brand-600 hover:underline" target="_blank">
-          Política de Privacidade
-        </Link>{" "}
-        e{" "}
-        <Link href="/terms" className="text-brand-600 hover:underline" target="_blank">
-          Termos de Uso
-        </Link>
-        .
-      </p>
     </div>
   );
 }

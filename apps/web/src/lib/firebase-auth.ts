@@ -112,7 +112,10 @@ export function authErrorMessage(err: unknown, fallback: string): string {
     return "Use http://localhost:3000 (não IP da rede). Se persistir: pnpm google:oauth-setup.";
   }
   if (raw.toLowerCase().includes("redirect_uri_mismatch")) {
-    const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "SEU-DOMINIO";
+    const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim();
+    if (!authDomain) {
+      return "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN não configurado. Defina no .env e rode pnpm google:oauth-setup.";
+    }
     return `Redirect URI inválida. No Google Cloud → Credentials → OAuth Client, adicione exatamente: https://${authDomain}/__/auth/handler (rode pnpm google:oauth-setup).`;
   }
   return map[code] ?? raw;

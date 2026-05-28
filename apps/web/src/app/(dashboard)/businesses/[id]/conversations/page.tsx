@@ -9,6 +9,10 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MessageSquare, Send, Bot, User, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 type Conversation = {
   id: string;
@@ -103,8 +107,8 @@ export default function ConversationsPage() {
           <h1 className="font-semibold text-gray-900 mb-3">Conversas</h1>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              className="input pl-9 text-sm"
+            <Input
+              className="pl-9 text-sm"
               placeholder="Buscar cliente..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -137,9 +141,9 @@ export default function ConversationsPage() {
                     <p className="text-xs text-gray-500 truncate">{conv.customerPhone}</p>
                   </div>
                   <div className="flex-shrink-0 text-right">
-                    <span className={cn("badge text-xs", STATUS_LABELS[conv.status]?.color)}>
+                    <Badge variant="secondary" className={cn("text-xs", STATUS_LABELS[conv.status]?.color)}>
                       {STATUS_LABELS[conv.status]?.label}
-                    </span>
+                    </Badge>
                     <p className="text-xs text-gray-400 mt-1">
                       {formatDistanceToNow(new Date(conv.lastMessageAt), { locale: ptBR, addSuffix: true })}
                     </p>
@@ -164,28 +168,32 @@ export default function ConversationsPage() {
                 <p className="text-sm text-gray-500">{selectedConv.customerPhone}</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className={cn("badge", STATUS_LABELS[selectedConv.status]?.color)}>
+                <Badge variant="secondary" className={STATUS_LABELS[selectedConv.status]?.color}>
                   {STATUS_LABELS[selectedConv.status]?.label}
-                </span>
+                </Badge>
                 {selectedConv.status === "OPEN" && (
-                  <button
-                    className="btn-secondary text-xs"
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
                     onClick={() => attendMutation.mutate(selectedConv.id)}
                     disabled={attendMutation.isPending}
                   >
                     <User className="w-3 h-3" />
                     Assumir atendimento
-                  </button>
+                  </Button>
                 )}
                 {selectedConv.status === "ATTENDING" && (
-                  <button
-                    className="btn-secondary text-xs"
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
                     onClick={() => releaseMutation.mutate(selectedConv.id)}
                     disabled={releaseMutation.isPending}
                   >
                     <Bot className="w-3 h-3" />
                     Devolver ao bot
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -225,8 +233,8 @@ export default function ConversationsPage() {
             {selectedConv.status === "ATTENDING" && (
               <div className="bg-white border-t border-gray-200 p-4">
                 <div className="flex items-end gap-3">
-                  <textarea
-                    className="input flex-1 resize-none h-20 text-sm"
+                  <Textarea
+                    className="min-h-20 flex-1 resize-none text-sm"
                     placeholder="Digite sua mensagem..."
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
@@ -243,8 +251,8 @@ export default function ConversationsPage() {
                       }
                     }}
                   />
-                  <button
-                    className="btn-primary h-10"
+                  <Button
+                    className="h-10"
                     disabled={!replyText.trim() || sendMutation.isPending}
                     onClick={() =>
                       sendMutation.mutate({
@@ -255,7 +263,7 @@ export default function ConversationsPage() {
                     }
                   >
                     {sendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  </button>
+                  </Button>
                 </div>
                 <p className="text-xs text-gray-400 mt-2">Enter para enviar • Shift+Enter para nova linha</p>
               </div>

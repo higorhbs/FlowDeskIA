@@ -14,6 +14,11 @@ import {
   ChevronUp, ChevronDown, Eye, Save, Pencil, Check,
   CalendarCheck, BookOpen, Users,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 export interface BotMenuItemConfig {
@@ -407,18 +412,20 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
               <option value="FAQ">❓ FAQ</option>
               <option value="HUMAN">👤 Atendente</option>
             </select>
-            <button type="button" onClick={() => {
-              const trimmed = newLabel.trim();
-              if (!trimmed) return;
-              setItems(prev => [...prev, { num: prev.length + 1, action: newAction, label: trimmed, enabled: true, emoji: displayNewEmoji }]);
-              setNewLabel(""); setNewAction("APPOINTMENT"); setPendingNewEmoji(""); setShowAddForm(false);
-            }}
+            <Button
+              type="button"
+              size="sm"
               disabled={!newLabel.trim()}
-              className="btn-primary py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => {
+                const trimmed = newLabel.trim();
+                if (!trimmed) return;
+                setItems(prev => [...prev, { num: prev.length + 1, action: newAction, label: trimmed, enabled: true, emoji: displayNewEmoji }]);
+                setNewLabel(""); setNewAction("APPOINTMENT"); setPendingNewEmoji(""); setShowAddForm(false);
+              }}
             >
               <Plus className="w-3.5 h-3.5" />
               Adicionar
-            </button>
+            </Button>
             <button type="button" onClick={() => { setShowAddForm(false); setNewLabel(""); setPendingNewEmoji(""); }} className="text-gray-400 hover:text-gray-600 p-1">
               <X className="w-4 h-4" />
             </button>
@@ -432,10 +439,10 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
           </button>
         )}
 
-        <button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="btn-primary">
+        <Button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
           {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Salvar menu
-        </button>
+        </Button>
       </div>
 
       {/* Preview */}
@@ -666,10 +673,10 @@ function FAQsEditor({ businessId }: { businessId: string }) {
         <p className="text-sm text-gray-500">
           O bot responde automaticamente ao detectar as palavras-chave na mensagem do cliente.
         </p>
-        <button className="btn-primary" onClick={() => { setShowForm(true); reset(); }}>
+        <Button onClick={() => { setShowForm(true); reset(); }}>
           <Plus className="w-4 h-4" />
           Nova pergunta
-        </button>
+        </Button>
       </div>
 
       {/* Modal form */}
@@ -683,28 +690,30 @@ function FAQsEditor({ businessId }: { businessId: string }) {
               </button>
             </div>
             <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} className="space-y-4">
-              <div>
-                <label className="label">Pergunta</label>
-                <input type="text" className="input" placeholder="Qual o horário de funcionamento?" {...register("question")} />
+              <div className="space-y-1.5">
+                <Label>Pergunta</Label>
+                <Input type="text" placeholder="Qual o horário de funcionamento?" {...register("question")} />
                 {errors.question && <p className="text-xs text-red-500 mt-1">{errors.question.message}</p>}
               </div>
-              <div>
-                <label className="label">Resposta do bot</label>
-                <textarea className="input h-28 resize-none" placeholder="Funcionamos de segunda a sexta..." {...register("answer")} />
+              <div className="space-y-1.5">
+                <Label>Resposta do bot</Label>
+                <Textarea className="min-h-28 resize-none" placeholder="Funcionamos de segunda a sexta..." {...register("answer")} />
                 {errors.answer && <p className="text-xs text-red-500 mt-1">{errors.answer.message}</p>}
               </div>
-              <div>
-                <label className="label">Palavras-chave <span className="font-normal text-gray-400">(separadas por vírgula)</span></label>
-                <input type="text" className="input" placeholder="horário, funcionamento, abre, fecha" {...register("keywords")} />
+              <div className="space-y-1.5">
+                <Label>
+                  Palavras-chave <span className="font-normal text-gray-400">(separadas por vírgula)</span>
+                </Label>
+                <Input type="text" placeholder="horário, funcionamento, abre, fecha" {...register("keywords")} />
                 <p className="text-xs text-gray-400 mt-1">O bot detecta qualquer dessas palavras na mensagem</p>
                 {errors.keywords && <p className="text-xs text-red-500 mt-1">{errors.keywords.message}</p>}
               </div>
               <div className="flex gap-3 pt-1">
-                <button type="button" className="btn-secondary flex-1" onClick={() => setShowForm(false)}>Cancelar</button>
-                <button type="submit" className="btn-primary flex-1" disabled={isSubmitting || createMutation.isPending}>
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setShowForm(false)}>Cancelar</Button>
+                <Button type="submit" className="flex-1" disabled={isSubmitting || createMutation.isPending}>
                   {(isSubmitting || createMutation.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
                   Salvar
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -717,14 +726,25 @@ function FAQsEditor({ businessId }: { businessId: string }) {
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Sugestões para começar</p>
           <div className="grid sm:grid-cols-2 gap-3">
             {SUGGESTIONS.map((s) => (
-              <button
+              <Card
                 key={s.question}
+                role="button"
+                tabIndex={0}
                 onClick={() => { setValue("question", s.question); setValue("answer", s.answer); setValue("keywords", s.keywords); setShowForm(true); }}
-                className="text-left card border-dashed border-gray-200 hover:border-brand-400 hover:bg-brand-50 transition-colors"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setValue("question", s.question);
+                    setValue("answer", s.answer);
+                    setValue("keywords", s.keywords);
+                    setShowForm(true);
+                  }
+                }}
+                className="cursor-pointer border-dashed border-gray-200 text-left transition-colors hover:border-brand-400 hover:bg-brand-50"
               >
                 <p className="font-medium text-sm text-gray-900 mb-1">{s.question}</p>
                 <p className="text-xs text-gray-500 line-clamp-2">{s.answer}</p>
-              </button>
+              </Card>
             ))}
           </div>
         </div>

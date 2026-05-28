@@ -1,5 +1,9 @@
 #!/usr/bin/env node
-const project = process.env.FIREBASE_PROJECT_ID ?? "zapflow-higor-2026";
+const project = process.env.FIREBASE_PROJECT_ID?.trim();
+if (!project) {
+  console.error("Defina FIREBASE_PROJECT_ID no .env");
+  process.exit(1);
+}
 const clientSuffix = "295076612394-8k6ecbb35gps827lj3um1efvofbj3gj6";
 
 const site = `https://${project}.web.app`;

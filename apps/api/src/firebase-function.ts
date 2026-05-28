@@ -5,8 +5,6 @@ import { buildApp } from "./app";
 
 loadMonorepoEnv();
 
-if (!process.env.ENABLE_WORKERS) process.env.ENABLE_WORKERS = "false";
-
 setGlobalOptions({
   region: "southamerica-east1",
   maxInstances: 10,
