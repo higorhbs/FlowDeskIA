@@ -1,11 +1,11 @@
 // ─── Intent detection keywords ────────────────────────────────────────────────
 
 export const INTENT_KEYWORDS = {
-  CATALOG: ["cardápio", "catálogo", "menu", "serviços", "produtos", "o que vocês fazem", "o que voces fazem"],
-  APPOINTMENT: ["agendar", "marcar", "horário disponível", "horario disponivel", "quando tem", "quero marcar", "reservar", "agenda"],
+  CATALOG: ["cardápio", "catálogo", "catalogo", "menu", "serviços", "produtos", "o que vocês fazem", "o que voces fazem"],
+  APPOINTMENT: ["agendamentos", "agendamento", "agendar", "marcar", "horário disponível", "horario disponivel", "quando tem", "quero marcar", "reservar", "agenda"],
   QUOTE: ["orçamento", "orcamento", "quanto custa", "valor", "preço", "preco", "tabela de preços"],
   PAYMENT: ["pix", "pagar", "pagamento", "sinal", "entrada", "link de pagamento"],
-  FAQ: ["horário", "horario", "onde fica", "endereço", "endereco", "funcionamento", "abre", "fecha", "telefone", "contato"],
+  FAQ: ["faq", "dúvida", "duvida", "perguntas", "horário", "horario", "onde fica", "endereço", "endereco", "funcionamento", "abre", "fecha", "telefone", "contato"],
   HUMAN: ["falar com atendente", "falar com humano", "atendente", "pessoa", "responsável"],
   CANCEL: ["cancelar", "desmarcar", "cancelamento"],
   CONFIRM: ["confirmar", "confirmo", "sim", "ok", "pode ser", "certo"],
@@ -39,8 +39,9 @@ export function parseOptionNumber(text: string, min: number, max: number): numbe
   return !Number.isNaN(n) && n >= min && n <= max ? n : null;
 }
 
-export function parseMainMenuChoice(text: string): number | null {
-  return parseOptionNumber(text, 1, 6);
+export function isExitCommand(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  return ["sair", "exit", "parar", "encerrar", "fim", "#sair"].includes(t);
 }
 
 export function isMenuRequest(text: string): boolean {
@@ -146,3 +147,5 @@ export const PLAN_PRICES = {
   PRO: { brl: 197, label: "Pro" },
   UNLIMITED: { brl: 397, label: "Unlimited" },
 } as const;
+
+export * from "./bot-menu.js";

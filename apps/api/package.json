@@ -2,7 +2,7 @@
   "name": "@zapflow/api",
   "version": "0.1.0",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "npm run build --workspace @zapflow/firebase && npm run build --workspace @zapflow/shared && tsx watch src/index.ts",
     "build": "npm run build --workspace @zapflow/firebase && npm run build --workspace @zapflow/shared && npm run build --workspace @zapflow/whatsapp-client && tsc -p tsconfig.json",
     "start": "node dist/index.js"
   },

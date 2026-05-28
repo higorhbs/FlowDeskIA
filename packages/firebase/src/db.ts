@@ -32,6 +32,46 @@ function faqsCol(businessId: string) {
   return businessRef(businessId).collection("faqs");
 }
 
+function sortBySortOrder<T extends { sortOrder?: number }>(items: T[]): T[] {
+  return items.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+}
+
+/** Firestore orderBy omite docs sem sortOrder; o painel usa get() — alinhar com o bot. */
+async function fetchCatalogItems(
+  businessId: string,
+  opts?: { availableOnly?: boolean }
+): Promise<CatalogItem[]> {
+  const snap = await catalogCol(businessId).get();
+  let items = snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      ...data,
+      id: d.id,
+      businessId,
+      sortOrder: typeof data.sortOrder === "number" ? data.sortOrder : 0,
+      available: data.available !== false,
+    } as CatalogItem;
+  });
+  if (opts?.availableOnly) items = items.filter((i) => i.available);
+  return sortBySortOrder(items);
+}
+
+async function fetchFaqs(businessId: string, opts?: { activeOnly?: boolean }): Promise<FAQ[]> {
+  const snap = await faqsCol(businessId).get();
+  let items = snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      ...data,
+      id: d.id,
+      businessId,
+      sortOrder: typeof data.sortOrder === "number" ? data.sortOrder : 0,
+      active: data.active !== false,
+    } as FAQ;
+  });
+  if (opts?.activeOnly) items = items.filter((f) => f.active);
+  return sortBySortOrder(items);
+}
+
 function conversationsCol(businessId: string) {
   return businessRef(businessId).collection("conversations");
 }
@@ -104,33 +144,36 @@ export async function getBusinessWithRelations(
 ): Promise<BusinessWithRelations | null> {
   const business = await getBusiness(id, tenantId);
   if (!business) return null;
-  const [catalogSnap, faqsSnap] = await Promise.all([
-    catalogCol(id).orderBy("sortOrder", "asc").get(),
-    faqsCol(id).orderBy("sortOrder", "asc").get(),
-  ]);
-  return {
-    ...business,
-    catalog: catalogSnap.docs.map((d) => ({ id: d.id, businessId: id, ...d.data() }) as CatalogItem),
-    faqs: faqsSnap.docs.map((d) => ({ id: d.id, businessId: id, ...d.data() }) as FAQ),
-  };
+  const [catalog, faqs] = await Promise.all([fetchCatalogItems(id), fetchFaqs(id)]);
+  return { ...business, catalog, faqs };
+}
+
+async function resolveCatalogForBot(business: Business): Promise<CatalogItem[]> {
+  const tryIds = [business.id, ...(business.id !== "app" ? ["app"] : [])];
+  for (const bid of tryIds) {
+    const items = await fetchCatalogItems(bid);
+    if (items.length > 0) return items.map((i) => ({ ...i, businessId: business.id }));
+  }
+  return [];
+}
+
+async function resolveFaqsForBot(business: Business): Promise<FAQ[]> {
+  const tryIds = [business.id, ...(business.id !== "app" ? ["app"] : [])];
+  for (const bid of tryIds) {
+    const items = await fetchFaqs(bid);
+    if (items.length > 0) return items.map((f) => ({ ...f, businessId: business.id }));
+  }
+  return [];
 }
 
 export async function getBusinessForBot(id: string): Promise<BusinessWithRelations | null> {
   const business = await getBusiness(id);
   if (!business) return null;
-  const [catalogSnap, faqsSnap] = await Promise.all([
-    catalogCol(id).orderBy("sortOrder", "asc").get(),
-    faqsCol(id).orderBy("sortOrder", "asc").get(),
+  const [catalog, faqs] = await Promise.all([
+    resolveCatalogForBot(business),
+    resolveFaqsForBot(business),
   ]);
-  return {
-    ...business,
-    catalog: catalogSnap.docs
-      .filter((d) => d.data().available !== false)
-      .map((d) => ({ id: d.id, businessId: id, ...d.data() }) as CatalogItem),
-    faqs: faqsSnap.docs
-      .filter((d) => d.data().active !== false)
-      .map((d) => ({ id: d.id, businessId: id, ...d.data() }) as FAQ),
-  };
+  return { ...business, catalog, faqs };
 }
 
 export async function createBusiness(
@@ -175,8 +218,7 @@ export async function setBusinessConnected(id: string, isConnected: boolean): Pr
 // ─── Catalog ─────────────────────────────────────────────────────────────────
 
 export async function listCatalog(businessId: string): Promise<CatalogItem[]> {
-  const snap = await catalogCol(businessId).orderBy("sortOrder", "asc").get();
-  return snap.docs.map((d) => ({ id: d.id, businessId, ...d.data() }) as CatalogItem);
+  return fetchCatalogItems(businessId);
 }
 
 export async function createCatalogItem(
@@ -208,8 +250,7 @@ export async function deleteCatalogItem(businessId: string, itemId: string): Pro
 // ─── FAQ ─────────────────────────────────────────────────────────────────────
 
 export async function listFaqs(businessId: string): Promise<FAQ[]> {
-  const snap = await faqsCol(businessId).orderBy("sortOrder", "asc").get();
-  return snap.docs.map((d) => ({ id: d.id, businessId, ...d.data() }) as FAQ);
+  return fetchFaqs(businessId);
 }
 
 export async function createFaq(

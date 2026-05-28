@@ -21,8 +21,11 @@ import {
   DAY_LABELS,
   renderTemplate,
   parseOptionNumber,
-  parseMainMenuChoice,
   isMenuRequest,
+  isExitCommand,
+  buildBotMenuEntries,
+  formatBotMenuText,
+  type BotMenuAction,
 } from "@zapflow/shared";
 import { createPixCharge } from "./pix";
 import { addMinutes, format } from "date-fns";
@@ -43,6 +46,7 @@ export interface BotResponse {
 // Estado simples de conversa por sessão (em memória — para MVP)
 // Em produção: usar Redis com TTL
 const conversationState = new Map<string, { step: string; data: Record<string, string> }>();
+const botPausedSessions = new Set<string>();
 
 export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   const { businessId, customerPhone, customerName, messageBody } = ctx;
@@ -55,29 +59,39 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
 
   const conversation = await upsertConversation(businessId, customerPhone, customerName);
 
-  if (conversation.status === "ATTENDING") return [];
-
   await createMessage(businessId, conversation.id, {
     role: "CUSTOMER",
     content: messageBody,
   });
 
-  // Verifica se está fora do horário
+  if (conversation.status === "ATTENDING" && !isExitCommand(messageBody)) return [];
+
   const open = isOpenNow(business.workingHours as WorkingHours);
+
+  if (isExitCommand(messageBody)) {
+    return handleBotExit(business, conversation, sessionKey);
+  }
+
+  if (botPausedSessions.has(sessionKey)) {
+    botPausedSessions.delete(sessionKey);
+    if (!open) {
+      const response = business.awayMsg;
+      await saveAndReturn(business.id, conversation.id, [{ text: response }]);
+      return [{ text: response }];
+    }
+    return sendPresentation(business, conversation, customerName);
+  }
+
   if (!open) {
     const response = business.awayMsg;
     await saveAndReturn(business.id, conversation.id, [{ text: response }]);
     return [{ text: response }];
   }
 
-  // Detecta intenção
   const intent = detectIntent(messageBody);
   const state = conversationState.get(sessionKey);
 
   // ─── Fluxo de agendamento (multi-step) ────────────────────────────────────
-  if (state?.step === "APPOINTMENT_SERVICE") {
-    return handleAppointmentService(ctx, business, conversation, state, sessionKey);
-  }
   if (state?.step === "APPOINTMENT_DATE") {
     return handleAppointmentDate(ctx, business, conversation, state, sessionKey);
   }
@@ -97,20 +111,13 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
     return [{ text: menu }];
   }
 
-  const menuChoice = parseMainMenuChoice(messageBody);
-  if (menuChoice !== null) {
-    return routeMenuChoice(menuChoice, ctx, business, conversation, sessionKey);
+  const menuAction = resolveMenuAction(messageBody);
+  if (menuAction) {
+    return routeMenuAction(menuAction, ctx, business, conversation, sessionKey);
   }
 
-  // ─── Saudação (primeira mensagem) ─────────────────────────────────────────
   if (!state && isGreeting(messageBody)) {
-    const text = renderTemplate(business.greetingMsg, {
-      nome: customerName ?? "cliente",
-      negocio: business.name,
-    });
-    const menu = buildMainMenu(business);
-    await saveAndReturn(business.id, conversation.id, [{ text }, { text: menu }]);
-    return [{ text }, { text: menu }];
+    return sendPresentation(business, conversation, customerName);
   }
 
   // ─── Respostas por intenção ────────────────────────────────────────────────
@@ -119,8 +126,7 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
       return handleCatalog(business, conversation);
 
     case "APPOINTMENT":
-      conversationState.set(sessionKey, { step: "APPOINTMENT_SERVICE", data: {} });
-      return handleAppointmentStart(business, conversation);
+      return startAppointmentFlow(business, conversation, sessionKey);
 
     case "QUOTE":
       return handleQuote(business, conversation);
@@ -143,8 +149,7 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
         return [{ text: faqMatch.answer }];
       }
 
-      const fallback =
-        "Não entendi. 😅\n\nDigite um *número* de *1* a *6* ou *menu* para ver as opções.";
+      const fallback = buildFallbackMessage();
       await saveAndReturn(business.id, conversation.id, [{ text: fallback }]);
       return [{ text: fallback }];
   }
@@ -154,54 +159,36 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
 
 async function handleCatalog(business: any, conversation: Conversation): Promise<BotResponse[]> {
   if (!business.catalog.length) {
-    const text = "Ainda não temos um catálogo cadastrado. Entre em contato para mais informações!";
+    const text =
+      "Ainda não há itens no *Catálogo*.\n\nCadastre serviços no painel ZapFlow (menu Catálogo) para exibir aqui.";
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
 
-  let text = `📋 *Cardápio/Serviços - ${business.name}*\n\n`;
+  let text = `📋 *Catálogo — ${business.name}*\n\n`;
   for (const item of business.catalog) {
     text += `• *${item.name}*`;
     if (item.description) text += ` — ${item.description}`;
     text += ` — *${formatCurrency(item.price)}*\n`;
   }
-  text += "\nPara agendar, digite *agendar* 📅";
+  text += "\nPara agendar, digite *1* (Agendamentos) no menu ou *agendar* 📅";
 
   await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
 }
 
-async function handleAppointmentStart(business: any, conversation: Conversation): Promise<BotResponse[]> {
-  let text = `📅 *Agendamento - ${business.name}*\n\nQual serviço você deseja agendar?\n\n`;
-  business.catalog.forEach((item: any, i: number) => {
-    text += `${i + 1}. ${item.name} — ${formatCurrency(item.price)}\n`;
-  });
-  text += "\nDigite o *número* do serviço:";
-  await saveAndReturn(business.id, conversation.id, [{ text }]);
-  return [{ text }];
-}
-
-async function handleAppointmentService(
-  ctx: BotContext,
+async function startAppointmentFlow(
   business: any,
   conversation: Conversation,
-  state: any,
   sessionKey: string
 ): Promise<BotResponse[]> {
-  const choice = parseOptionNumber(ctx.messageBody, 1, business.catalog.length);
-  if (choice === null) {
-    const text = "Digite só o *número* do serviço (ex: *1* ou *2*).";
-    await saveAndReturn(business.id, conversation.id, [{ text }]);
-    return [{ text }];
-  }
-
-  const service = business.catalog[choice - 1];
   conversationState.set(sessionKey, {
     step: "APPOINTMENT_DATE",
-    data: { serviceId: service.id, serviceName: service.name, servicePrice: String(service.price) },
+    data: { serviceName: "Agendamento" },
   });
-
-  const text = `Ótimo! *${service.name}* selecionado.\n\nQual data você prefere? (ex: *15/06* ou *amanhã*)`;
+  const text =
+    `📅 *Agendamentos — ${business.name}*\n\n` +
+    `Qual data você prefere? (ex: *15/06* ou *amanhã*)`;
   await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
 }
@@ -261,13 +248,12 @@ async function handleAppointmentTime(
   const baseDate = new Date(state.data.date);
   baseDate.setHours(parseInt(h), parseInt(min), 0, 0);
 
-  await createAppointment({
+  const appointment = await createAppointment({
     businessId: business.id,
     conversationId: conversation.id,
     customerPhone: ctx.customerPhone,
     customerName: ctx.customerName,
-    serviceName: state.data.serviceName,
-    serviceId: state.data.serviceId,
+    serviceName: state.data.serviceName || "Agendamento",
     scheduledAt: baseDate.toISOString(),
     durationMins: 60,
     status: "CONFIRMED",
@@ -277,9 +263,9 @@ async function handleAppointmentTime(
 
   const text =
     `✅ *Agendamento confirmado!*\n\n` +
-    `📋 Serviço: *${state.data.serviceName}*\n` +
     `📅 Data: *${format(baseDate, "dd/MM/yyyy", { locale: ptBR })}*\n` +
-    `🕐 Horário: *${format(baseDate, "HH:mm")}*\n\n` +
+    `🕐 Horário: *${format(baseDate, "HH:mm")}*\n` +
+    `🔖 Código: *${appointment.id.slice(0, 8)}*\n\n` +
     `Te esperamos! 😊 Qualquer dúvida é só chamar.`;
 
   await saveAndReturn(business.id, conversation.id, [{ text }]);
@@ -379,13 +365,20 @@ async function handleFAQ(
   conversation: Conversation,
   sessionKey: string
 ): Promise<BotResponse[]> {
+  if (!business.faqs?.length) {
+    const text =
+      "Ainda não há perguntas no *FAQ*.\n\nCadastre no painel ZapFlow (menu FAQ) para o bot responder automaticamente.";
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+
   const faq = findFAQ(messageBody, business.faqs);
   if (faq) {
     await saveAndReturn(business.id, conversation.id, [{ text: faq.answer }]);
     return [{ text: faq.answer }];
   }
 
-  let text = `❓ *Perguntas Frequentes - ${business.name}*\n\n`;
+  let text = `❓ *FAQ — ${business.name}*\n\n`;
   business.faqs.forEach((f: any, i: number) => {
     text += `${i + 1}. ${f.question}\n`;
   });
@@ -423,30 +416,31 @@ async function handleFAQSelect(
   return [{ text: faq.answer }];
 }
 
-async function routeMenuChoice(
-  choice: number,
+function resolveMenuAction(text: string): BotMenuAction | null {
+  if (isExitCommand(text) || parseOptionNumber(text, 0, 0) === 0) return "EXIT";
+  const entries = buildBotMenuEntries();
+  const num = parseOptionNumber(text, 1, entries.length);
+  if (num === null) return null;
+  return entries[num - 1].action;
+}
+
+async function routeMenuAction(
+  action: BotMenuAction,
   ctx: BotContext,
   business: any,
   conversation: Conversation,
   sessionKey: string
 ): Promise<BotResponse[]> {
-  switch (choice) {
-    case 1:
+  switch (action) {
+    case "EXIT":
+      return handleBotExit(business, conversation, sessionKey);
+    case "CATALOG":
       return handleCatalog(business, conversation);
-    case 2:
-      conversationState.set(sessionKey, { step: "APPOINTMENT_SERVICE", data: {} });
-      return handleAppointmentStart(business, conversation);
-    case 3:
-      return handleQuote(business, conversation);
-    case 4:
-      conversationState.set(sessionKey, {
-        step: "PAYMENT_AMOUNT",
-        data: { customerName: ctx.customerName ?? "Cliente" },
-      });
-      return handlePaymentStart(conversation);
-    case 5:
+    case "APPOINTMENT":
+      return startAppointmentFlow(business, conversation, sessionKey);
+    case "FAQ":
       return handleFAQ(ctx.messageBody, business, conversation, sessionKey);
-    case 6:
+    case "HUMAN":
       await updateConversationStatus(business.id, conversation.id, "ATTENDING");
       return saveHumanHandoff(business.id, conversation.id);
     default:
@@ -460,20 +454,45 @@ async function saveHumanHandoff(businessId: string, conversationId: string): Pro
   return [{ text: msg }];
 }
 
+async function handleBotExit(
+  business: any,
+  conversation: Conversation,
+  sessionKey: string
+): Promise<BotResponse[]> {
+  conversationState.delete(sessionKey);
+  botPausedSessions.add(sessionKey);
+  if (conversation.status === "ATTENDING") {
+    await updateConversationStatus(business.id, conversation.id, "OPEN");
+  }
+  const text =
+    "👋 *Atendimento automático encerrado.*\n\n" +
+    "Quando quiser voltar, envie qualquer mensagem que eu te apresento o menu novamente.";
+  await saveAndReturn(business.id, conversation.id, [{ text }]);
+  return [{ text }];
+}
+
+async function sendPresentation(
+  business: any,
+  conversation: Conversation,
+  customerName?: string
+): Promise<BotResponse[]> {
+  const text = renderTemplate(business.greetingMsg, {
+    nome: customerName ?? "cliente",
+    negocio: business.name,
+  });
+  const menu = buildMainMenu(business);
+  await saveAndReturn(business.id, conversation.id, [{ text }, { text: menu }]);
+  return [{ text }, { text: menu }];
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function buildMainMenu(_business: any): string {
-  return (
-    `*Menu de opções*\n` +
-    `Responda com o *número* ou a palavra:\n\n` +
-    `*1* — Catálogo / serviços\n` +
-    `*2* — Agendar horário\n` +
-    `*3* — Orçamento / preços\n` +
-    `*4* — Pagamento PIX\n` +
-    `*5* — Dúvidas frequentes\n` +
-    `*6* — Falar com atendente\n\n` +
-    `_Exemplo: digite *1* ou *catálogo*_`
-  );
+function buildMainMenu(business: { name: string }): string {
+  return formatBotMenuText(business.name);
+}
+
+function buildFallbackMessage(): string {
+  return "Não entendi. 😅\n\nDigite *1* a *4*, *menu* ou *sair*.";
 }
 
 function isGreeting(text: string): boolean {

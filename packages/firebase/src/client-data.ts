@@ -8,7 +8,6 @@ import {
   deleteDoc,
   query,
   where,
-  orderBy,
 } from "firebase/firestore";
 import type { Business, BusinessType, CatalogItem, FAQ } from "./types.js";
 import { getClientDb } from "./client.js";
@@ -167,9 +166,10 @@ export async function deleteClientCatalogItem(businessId: string, itemId: string
 }
 
 export async function listClientFaqs(businessId: string): Promise<FAQ[]> {
-  const q = query(faqsCol(businessId), orderBy("sortOrder", "asc"));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, businessId, ...d.data() }) as FAQ);
+  const snap = await getDocs(faqsCol(businessId));
+  return snap.docs
+    .map((d) => ({ id: d.id, businessId, sortOrder: 0, ...d.data() }) as FAQ)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 }
 
 export async function createClientFaq(
