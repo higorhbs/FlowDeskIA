@@ -35,7 +35,7 @@ function isLocalDevHost() {
 function resolveApiBaseUrl() {
   const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
   if (configured) return configured;
-  return isLocalDevHost() ? "http://localhost:3001" : "/api";
+  return isLocalDevHost() ? "http://localhost:3001" : "https://zapflow-41z0.onrender.com";
 }
 
 function hasPublicApi() {
@@ -84,13 +84,6 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 && typeof window !== "undefined") {
-      const path = window.location.pathname;
-      if (path !== "/" && !path.startsWith("/register")) {
-        Cookies.remove("zf_token");
-        window.location.href = "/";
-      }
-    }
     const status = err.response?.status;
     const data = err.response?.data;
     const apiMsg =
