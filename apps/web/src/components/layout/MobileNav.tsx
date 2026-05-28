@@ -1,17 +1,15 @@
 "use client";
 
 import { AppLink as Link } from "@/components/AppLink";
-import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { MessageSquare, Calendar, BookOpen, Bot, Settings, Banknote } from "lucide-react";
 import { businessApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
-import { cn } from "@/lib/utils";
 import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { VocabLabel } from "@/components/layout/VocabLabel";
+import { BusinessNavLink } from "@/components/layout/BusinessNavLink";
 
 export function MobileNav() {
-  const pathname = usePathname();
   const { uid, ready } = useAuth();
 
   const { data: businesses } = useQuery({
@@ -38,30 +36,23 @@ export function MobileNav() {
   return (
     <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur">
       <nav className="grid grid-cols-6">
-        {links.map(({ href, icon: Icon, label, vocab }) => {
-          const active = pathname.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium",
-                active ? "text-brand-700" : "text-gray-500"
-              )}
-            >
-              <Icon className={cn("w-4 h-4", active && "text-brand-600")} />
-              <span suppressHydrationWarning>
-                {vocab ? (
-                  <VocabLabel ready={v.vocabReady} width="3.25rem" className="mx-auto">
-                    {label}
-                  </VocabLabel>
-                ) : (
-                  label
-                )}
-              </span>
-            </Link>
-          );
-        })}
+        {links.map(({ href, icon: Icon, label, vocab }) => (
+          <BusinessNavLink
+            key={href}
+            href={href}
+            icon={Icon}
+            layout="mobile"
+            label={
+              vocab ? (
+                <VocabLabel ready={v.vocabReady} width="3.25rem" className="mx-auto">
+                  {label}
+                </VocabLabel>
+              ) : (
+                label
+              )
+            }
+          />
+        ))}
       </nav>
     </div>
   );

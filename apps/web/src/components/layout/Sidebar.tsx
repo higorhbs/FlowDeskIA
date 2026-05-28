@@ -17,6 +17,7 @@ import { businessApi, whatsappApi, conversationApi } from "@/lib/api";
 import { BUSINESS_TYPE_LABELS } from "@/lib/utils";
 import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { VocabLabel } from "@/components/layout/VocabLabel";
+import { BusinessNavLink } from "@/components/layout/BusinessNavLink";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 
@@ -164,36 +165,30 @@ export function Sidebar() {
             <div className="space-y-0.5 mb-4">
               {businessLinks.map(({ href, icon: Icon, label, vocab }) => {
                 const isConversations = label === "Conversas";
+                const text = vocab ? (
+                  <VocabLabel ready={v.vocabReady}>{label}</VocabLabel>
+                ) : (
+                  label
+                );
                 return (
-                  <Link
+                  <BusinessNavLink
                     key={href}
                     href={href}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                      pathname.startsWith(href)
-                        ? "bg-brand-50 text-brand-700"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                    )}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span className="flex-1" suppressHydrationWarning>
-                      {vocab ? (
-                        <VocabLabel ready={v.vocabReady}>{label}</VocabLabel>
-                      ) : (
-                        label
-                      )}
-                    </span>
-                    {isConversations && unreadCount > 0 && (
-                      <span
-                        className={cn(
-                          "ml-auto inline-flex shrink-0 items-center justify-center rounded-full bg-brand-600 text-[10px] font-bold leading-none text-white tabular-nums",
-                          unreadCount > 9 ? "h-[18px] min-w-[22px] px-1" : "size-[18px]"
-                        )}
-                      >
-                        {unreadCount > 99 ? "99+" : unreadCount}
-                      </span>
-                    )}
-                  </Link>
+                    icon={Icon}
+                    label={text}
+                    badge={
+                      isConversations && unreadCount > 0 ? (
+                        <span
+                          className={cn(
+                            "ml-auto inline-flex shrink-0 items-center justify-center rounded-full bg-brand-600 text-[10px] font-bold leading-none text-white tabular-nums",
+                            unreadCount > 9 ? "h-[18px] min-w-[22px] px-1" : "size-[18px]"
+                          )}
+                        >
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      ) : undefined
+                    }
+                  />
                 );
               })}
             </div>

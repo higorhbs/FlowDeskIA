@@ -2,6 +2,7 @@
 
 import NextLink, { type LinkProps } from "next/link";
 import type { ComponentProps } from "react";
+import { isBusinessPanelHref } from "@/lib/business-nav";
 
 type AppLinkProps = LinkProps & Omit<ComponentProps<"a">, "href">;
 
@@ -28,8 +29,17 @@ function useHardDocumentNav() {
 
 export function AppLink({ href, prefetch, replace, scroll, ...rest }: AppLinkProps) {
   const hard = useHardDocumentNav();
-  if (hard) {
-    return <a href={toHref(href)} {...rest} />;
+  const path = toHref(href);
+  if (hard && !isBusinessPanelHref(path)) {
+    return <a href={path} {...rest} />;
   }
-  return <NextLink href={href} prefetch={prefetch} replace={replace} scroll={scroll} {...rest} />;
+  return (
+    <NextLink
+      href={href}
+      prefetch={prefetch ?? (isBusinessPanelHref(path) ? false : undefined)}
+      replace={replace}
+      scroll={scroll ?? false}
+      {...rest}
+    />
+  );
 }
