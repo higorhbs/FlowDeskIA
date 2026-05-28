@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { VocabLabel } from "@/components/layout/VocabLabel";
 import { BusinessNavLink } from "@/components/layout/BusinessNavLink";
+import { panelHref } from "@/lib/business-nav";
 
 export function MobileNav() {
   const { uid, ready } = useAuth();
@@ -25,12 +26,12 @@ export function MobileNav() {
   const navId = v.businessId || business.id;
 
   const links = [
-    { href: `/businesses/${navId}/conversations`, icon: MessageSquare, label: "Conversas", vocab: false },
-    { href: `/businesses/${navId}/appointments`, icon: Calendar, label: v.bookingsNavShort, vocab: true },
-    { href: `/businesses/${navId}/catalog`, icon: BookOpen, label: v.catalogNavShort, vocab: true },
-    { href: `/businesses/${navId}/payments`, icon: Banknote, label: "Pagto", vocab: false },
-    { href: `/businesses/${navId}/faqs`, icon: Bot, label: "FAQ", vocab: false },
-    { href: `/businesses/${navId}/settings`, icon: Settings, label: "Ajustes", vocab: false },
+    { href: panelHref(navId, "conversations"), icon: MessageSquare, label: "Conversas", vocab: false },
+    { href: panelHref(navId, "appointments"), icon: Calendar, label: v.bookingsNavShort, vocab: true },
+    { href: panelHref(navId, "catalog"), icon: BookOpen, label: v.catalogNavShort, vocab: true },
+    { href: panelHref(navId, "payments"), icon: Banknote, label: "Pagto", vocab: false },
+    { href: panelHref(navId, "faqs"), icon: Bot, label: "FAQ", vocab: false },
+    { href: panelHref(navId, "settings"), icon: Settings, label: "Ajustes", vocab: false },
   ];
 
   return (

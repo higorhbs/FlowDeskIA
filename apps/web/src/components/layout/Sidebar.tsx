@@ -18,6 +18,7 @@ import { BUSINESS_TYPE_LABELS } from "@/lib/utils";
 import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { VocabLabel } from "@/components/layout/VocabLabel";
 import { BusinessNavLink } from "@/components/layout/BusinessNavLink";
+import { panelHref } from "@/lib/business-nav";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 
@@ -62,13 +63,13 @@ export function Sidebar() {
 
   const businessLinks = businessId
     ? [
-        { href: `/businesses/${businessId}/conversations`, icon: MessageSquare, label: "Conversas", vocab: false },
-        { href: `/businesses/${businessId}/appointments`, icon: Calendar, label: v.bookingsNav, vocab: true },
-        { href: `/businesses/${businessId}/catalog`, icon: BookOpen, label: v.catalogNav, vocab: true },
-        { href: `/businesses/${businessId}/payments`, icon: Banknote, label: "Pagamentos", vocab: false },
-        { href: `/businesses/${businessId}/faqs`, icon: Bot, label: "Bot", vocab: false },
-        { href: `/businesses/${businessId}/whatsapp`, icon: MessageSquare, label: "WhatsApp", vocab: false },
-        { href: `/businesses/${businessId}/settings`, icon: Settings, label: "Configurações", vocab: false },
+        { href: panelHref(businessId, "conversations"), icon: MessageSquare, label: "Conversas", vocab: false },
+        { href: panelHref(businessId, "appointments"), icon: Calendar, label: v.bookingsNav, vocab: true },
+        { href: panelHref(businessId, "catalog"), icon: BookOpen, label: v.catalogNav, vocab: true },
+        { href: panelHref(businessId, "payments"), icon: Banknote, label: "Pagamentos", vocab: false },
+        { href: panelHref(businessId, "faqs"), icon: Bot, label: "Bot", vocab: false },
+        { href: panelHref(businessId, "whatsapp"), icon: MessageSquare, label: "WhatsApp", vocab: false },
+        { href: panelHref(businessId, "settings"), icon: Settings, label: "Configurações", vocab: false },
       ]
     : [];
 

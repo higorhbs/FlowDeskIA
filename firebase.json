@@ -29,17 +29,25 @@
     ],
     "redirects": [
       { "source": "/index.txt", "destination": "/", "type": 301 },
-      { "regex": "^/(.*)/index\\.txt$", "destination": "/$1/", "type": 301 }
+      { "regex": "^/(.*)/index\\.txt$", "destination": "/$1/", "type": 301 },
+      { "regex": "^/businesses/([^/]+)/(conversations|appointments|catalog|payments|faqs|whatsapp|settings)$", "destination": "/businesses/$1/$2/", "type": 301 }
     ],
     "rewrites": [
       { "source": "/api/**", "function": "api" },
       { "source": "/businesses/*/conversations", "destination": "/businesses/app/conversations/index.html" },
-      { "source": "/businesses/*/catalog", "destination": "/businesses/app/catalog/index.html" },
+      { "source": "/businesses/*/conversations/", "destination": "/businesses/app/conversations/index.html" },
       { "source": "/businesses/*/appointments", "destination": "/businesses/app/appointments/index.html" },
+      { "source": "/businesses/*/appointments/", "destination": "/businesses/app/appointments/index.html" },
+      { "source": "/businesses/*/catalog", "destination": "/businesses/app/catalog/index.html" },
+      { "source": "/businesses/*/catalog/", "destination": "/businesses/app/catalog/index.html" },
       { "source": "/businesses/*/payments", "destination": "/businesses/app/payments/index.html" },
+      { "source": "/businesses/*/payments/", "destination": "/businesses/app/payments/index.html" },
       { "source": "/businesses/*/faqs", "destination": "/businesses/app/faqs/index.html" },
+      { "source": "/businesses/*/faqs/", "destination": "/businesses/app/faqs/index.html" },
       { "source": "/businesses/*/whatsapp", "destination": "/businesses/app/whatsapp/index.html" },
-      { "source": "/businesses/*/settings", "destination": "/businesses/app/settings/index.html" }
+      { "source": "/businesses/*/whatsapp/", "destination": "/businesses/app/whatsapp/index.html" },
+      { "source": "/businesses/*/settings", "destination": "/businesses/app/settings/index.html" },
+      { "source": "/businesses/*/settings/", "destination": "/businesses/app/settings/index.html" }
     ]
   }
 }

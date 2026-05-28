@@ -8,6 +8,7 @@ import { BUSINESS_TYPE_LABELS } from "@/lib/utils";
 import { getBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { AppLink as Link } from "@/components/AppLink";
 import { persistBusinessSnapshot } from "@/lib/use-business-id";
+import { panelHref } from "@/lib/business-nav";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Wifi, WifiOff, Store, MessageSquare, Calendar,
@@ -123,7 +124,7 @@ export default function BusinessesPage() {
         {businessSections(business.type).map(({ href, icon: Icon, label, desc, color }) => (
           <Link
             key={href}
-            href={`/businesses/${business.id}/${href}`}
+            href={panelHref(business.id, href)}
             className="group flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 hover:border-brand-300 hover:shadow-md transition-all"
           >
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>

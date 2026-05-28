@@ -2,7 +2,7 @@
 
 import NextLink, { type LinkProps } from "next/link";
 import type { ComponentProps } from "react";
-import { isBusinessPanelHref } from "@/lib/business-nav";
+import { hostingHref, isFirebaseHostingClient } from "@/lib/hosting-href";
 
 type AppLinkProps = LinkProps & Omit<ComponentProps<"a">, "href">;
 
@@ -19,27 +19,14 @@ function toHref(href: LinkProps["href"]): string {
   return qs ? `${path}?${qs}` : path;
 }
 
-function useHardDocumentNav() {
-  return (
-    typeof window !== "undefined" &&
-    process.env.NODE_ENV === "production" &&
-    !window.location.hostname.includes("localhost")
-  );
-}
-
 export function AppLink({ href, prefetch, replace, scroll, ...rest }: AppLinkProps) {
-  const hard = useHardDocumentNav();
-  const path = toHref(href);
-  if (hard && !isBusinessPanelHref(path)) {
+  const path = hostingHref(toHref(href));
+
+  if (isFirebaseHostingClient()) {
     return <a href={path} {...rest} />;
   }
+
   return (
-    <NextLink
-      href={href}
-      prefetch={prefetch ?? (isBusinessPanelHref(path) ? false : undefined)}
-      replace={replace}
-      scroll={scroll ?? false}
-      {...rest}
-    />
+    <NextLink href={href} prefetch={prefetch} replace={replace} scroll={scroll} {...rest} />
   );
 }
