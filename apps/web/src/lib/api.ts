@@ -27,15 +27,28 @@ import {
 } from "@zapflow/firebase/client";
 import type { Plan } from "@zapflow/firebase/client";
 
+const PRODUCTION_API_URL = "https://zapflow-41z0.onrender.com";
+
 function isLocalDevHost() {
   if (typeof window === "undefined") return false;
   return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 }
 
+function isProductionHost() {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host.endsWith(".web.app") || host.endsWith(".firebaseapp.com");
+}
+
 function resolveApiBaseUrl() {
+  if (isProductionHost()) return PRODUCTION_API_URL;
+  if (isLocalDevHost()) {
+    const local = process.env.NEXT_PUBLIC_API_URL?.trim();
+    return local && !local.includes("web.app") ? local : "http://localhost:3001";
+  }
   const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (configured) return configured;
-  return isLocalDevHost() ? "http://localhost:3001" : "https://zapflow-41z0.onrender.com";
+  if (configured && !configured.includes("localhost")) return configured;
+  return PRODUCTION_API_URL;
 }
 
 function hasPublicApi() {
@@ -57,6 +70,7 @@ function getStripePortalLink() {
 
 export const api = axios.create({
   baseURL: resolveApiBaseUrl(),
+  timeout: 90_000,
 });
 
 function requireUid(): string {
@@ -98,12 +112,15 @@ api.interceptors.response.use(
     if (apiMsg) {
       err.message = apiMsg;
     } else if (!err.response) {
-      const isLocal =
-        typeof window !== "undefined" &&
-        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-      err.message = isLocal
-        ? "API offline. Inicie com npm run dev (porta 3001)."
-        : "API de produção indisponível. Configure NEXT_PUBLIC_API_URL com a URL pública da API.";
+      const isLocal = isLocalDevHost();
+      const apiUrl = resolveApiBaseUrl();
+      if (isLocal) {
+        err.message = "API offline. Inicie com npm run dev (porta 3001).";
+      } else if (err.code === "ECONNABORTED") {
+        err.message = "API demorou para responder (servidor iniciando). Aguarde 30s e tente de novo.";
+      } else {
+        err.message = `Não foi possível conectar à API (${apiUrl}). Tente novamente em instantes.`;
+      }
     } else if (status === 401) {
       err.message = "Sessão inválida. Entre de novo.";
     }
