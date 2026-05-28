@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/AppLink";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import type { User } from "firebase/auth";

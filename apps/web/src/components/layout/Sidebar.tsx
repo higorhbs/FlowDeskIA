@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { AppLink as Link } from "@/components/AppLink";
 import { usePathname } from "next/navigation";
 import {
   MessageSquare, LayoutDashboard, Store, Calendar,
@@ -10,7 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { removeToken } from "@/lib/auth";
 import { logoutFirebase } from "@/lib/firebase-auth";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/app-navigation";
 import { SidebarProfile } from "./SidebarProfile";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { businessApi, whatsappApi, conversationApi } from "@/lib/api";
@@ -20,7 +20,7 @@ import { toast } from "sonner";
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
+  const router = useAppRouter();
   const { uid, ready } = useAuth();
 
   const businessIdMatch = pathname.match(/\/businesses\/([^/]+)/);

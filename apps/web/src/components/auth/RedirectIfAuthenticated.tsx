@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/app-navigation";
 import { waitForAuthReady } from "@zapflow/firebase/client";
 
 export function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
+  const router = useAppRouter();
 
   useEffect(() => {
     void waitForAuthReady().then((auth) => {

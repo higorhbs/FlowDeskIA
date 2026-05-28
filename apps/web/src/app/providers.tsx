@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import { watchAuth, completeGoogleRedirect, authErrorMessage } from "@/lib/firebase-auth";
 import { setToken, removeToken } from "@/lib/auth";
 import { AuthDrawerProvider } from "@/contexts/auth-drawer-context";
+import { HostingRouteGuard } from "@/components/HostingRouteGuard";
 import { toast } from "sonner";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -52,7 +53,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <Suspense fallback={null}>
-        <AuthDrawerProvider>{children}</AuthDrawerProvider>
+        <HostingRouteGuard>
+          <AuthDrawerProvider>{children}</AuthDrawerProvider>
+        </HostingRouteGuard>
       </Suspense>
     </QueryClientProvider>
   );

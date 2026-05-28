@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/app-navigation";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { getClientAuth } from "@zapflow/firebase/client";
 import { authApi } from "@/lib/api";
 import { AuthContext } from "@/contexts/auth-context";
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
+  const router = useAppRouter();
   const [ready, setReady] = useState(false);
   const [uid, setUid] = useState<string | null>(null);
 
