@@ -29,14 +29,7 @@ export const PLAN_STATUS_LABELS: Record<string, { label: string; color: string }
   CANCELED: { label: "Cancelado", color: "bg-gray-100 text-gray-600" },
 };
 
-export const BUSINESS_TYPE_LABELS: Record<string, string> = {
-  BARBERSHOP: "Barbearia",
-  SALON: "Salão / Manicure",
-  RESTAURANT: "Restaurante / Hamburgueria",
-  DENTAL: "Dentista / Clínica",
-  STORE: "Comércio local",
-  OTHER: "Outro",
-};
+export { BUSINESS_TYPE_LABELS } from "@zapflow/shared";
 
 export const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   OPEN: { label: "Aberta", color: "bg-blue-100 text-blue-700" },

@@ -1,7 +1,14 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { getBusiness, listAppointments, updateAppointment, type AppointmentStatus } from "@zapflow/firebase";
+import {
+  getBusiness,
+  listAppointments,
+  updateAppointment,
+  getAppointment,
+  type AppointmentStatus,
+} from "@zapflow/firebase";
 import { requireAuth } from "../middleware/auth";
+import { notifyBookingAccepted } from "../services/booking-notify.js";
 
 export async function appointmentRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
@@ -25,10 +32,16 @@ export async function appointmentRoutes(app: FastifyInstance) {
 
   app.patch("/businesses/:businessId/appointments/:appointmentId", async (req, reply) => {
     const { businessId, appointmentId } = req.params as { businessId: string; appointmentId: string };
-    if (!(await getBusiness(businessId, req.tenantId))) return reply.status(404).send({ error: "Not found" });
+    const business = await getBusiness(businessId, req.tenantId);
+    if (!business) return reply.status(404).send({ error: "Not found" });
+    const before = await getAppointment(businessId, appointmentId);
+    if (!before) return reply.status(404).send({ error: "Not found" });
     const body = patchBody.parse(req.body);
     const updated = await updateAppointment(businessId, appointmentId, body);
     if (!updated) return reply.status(404).send({ error: "Not found" });
+    if (body.status === "CONFIRMED" && before.status === "PENDING") {
+      await notifyBookingAccepted(business, updated);
+    }
     return updated;
   });
 }

@@ -15,6 +15,7 @@ import { SidebarProfile } from "./SidebarProfile";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { businessApi, whatsappApi, conversationApi } from "@/lib/api";
 import { BUSINESS_TYPE_LABELS } from "@/lib/utils";
+import { getBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 
@@ -57,11 +58,13 @@ export function Sidebar() {
     { href: "/businesses", icon: Store, label: "Meu negócio" },
   ];
 
+  const v = getBusinessVocabulary(business?.type);
+
   const businessLinks = businessId
     ? [
         { href: `/businesses/${businessId}/conversations`, icon: MessageSquare, label: "Conversas" },
-        { href: `/businesses/${businessId}/appointments`, icon: Calendar, label: "Agendamentos" },
-        { href: `/businesses/${businessId}/catalog`, icon: BookOpen, label: "Catálogo" },
+        { href: `/businesses/${businessId}/appointments`, icon: Calendar, label: v.bookingsNav },
+        { href: `/businesses/${businessId}/catalog`, icon: BookOpen, label: v.catalogNav },
         { href: `/businesses/${businessId}/payments`, icon: Banknote, label: "Pagamentos" },
         { href: `/businesses/${businessId}/faqs`, icon: Bot, label: "Bot" },
         { href: `/businesses/${businessId}/whatsapp`, icon: MessageSquare, label: "WhatsApp" },

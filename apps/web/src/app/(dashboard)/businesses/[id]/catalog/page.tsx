@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { catalogApi, tenantApi } from "@/lib/api";
 import { useBusinessId } from "@/lib/use-business-id";
+import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { useAuth } from "@/contexts/auth-context";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useForm } from "react-hook-form";
@@ -56,6 +57,7 @@ function getItemColor(name: string) {
 
 export default function CatalogPage() {
   const businessId = useBusinessId();
+  const v = useBusinessVocabulary();
   const { ready, uid } = useAuth();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<CatalogItem | null>(null);
@@ -83,7 +85,7 @@ export default function CatalogPage() {
 
   function openNew() {
     if (limitReached) {
-      toast.error(`Seu plano permite até ${catalogLimit} itens no catálogo.`);
+      toast.error(`Seu plano permite até ${catalogLimit} ${v.catalogLimitToast}.`);
       return;
     }
     setEditing(null);
@@ -147,10 +149,8 @@ export default function CatalogPage() {
               <ShoppingBag className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">Catálogo de Serviços</h1>
-              <p className="text-white/70 text-sm mt-0.5">
-                Itens exibidos quando o cliente pede o catálogo ou orçamento
-              </p>
+              <h1 className="text-2xl font-bold text-white">{v.catalogPageTitle}</h1>
+              <p className="text-white/70 text-sm mt-0.5">{v.catalogPageSubtitle}</p>
             </div>
           </div>
           <button
@@ -169,7 +169,7 @@ export default function CatalogPage() {
         <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200">
           <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
           <p className="text-sm text-amber-800">
-            Limite do plano atingido: máximo de <strong>{catalogLimit}</strong> itens no catálogo.
+            Limite do plano atingido: máximo de <strong>{catalogLimit}</strong> {v.catalogLimitToast}.
           </p>
         </div>
       )}
@@ -189,7 +189,7 @@ export default function CatalogPage() {
                     {editing ? "Editar item" : "Novo item"}
                   </h3>
                   <p className="text-white/70 text-xs mt-0.5">
-                    {editing ? "Atualize as informações do serviço" : "Adicione um serviço ou produto ao catálogo"}
+                    {editing ? `Atualize o ${v.catalogItemSingular}` : `Adicione um ${v.catalogItemSingular} ao ${v.catalogNav.toLowerCase()}`}
                   </p>
                 </div>
               </div>
@@ -284,7 +284,7 @@ export default function CatalogPage() {
         <div className="flex items-start gap-3 mb-6 px-4 py-4 rounded-2xl bg-red-50 border border-red-200">
           <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm text-red-800">{(error as Error)?.message ?? "Erro ao carregar catálogo"}</p>
+            <p className="text-sm text-red-800">{(error as Error)?.message ?? `Erro ao carregar ${v.catalogNav.toLowerCase()}`}</p>
             <button
               type="button"
               onClick={() => refetch()}
@@ -306,10 +306,8 @@ export default function CatalogPage() {
           <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-100 to-brand-100 flex items-center justify-center mb-4 shadow-sm">
             <Package className="w-10 h-10 text-brand-500" />
           </div>
-          <h3 className="text-base font-semibold text-gray-800 mb-1">Nenhum item no catálogo</h3>
-          <p className="text-sm text-gray-400 max-w-xs mb-6">
-            Adicione seus serviços e produtos para o bot enviar automaticamente quando solicitado
-          </p>
+          <h3 className="text-base font-semibold text-gray-800 mb-1">{v.catalogEmptyTitle}</h3>
+          <p className="text-sm text-gray-400 max-w-xs mb-6">{v.catalogEmptyHint}</p>
           <button
             onClick={openNew}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium transition-colors"

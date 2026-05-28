@@ -1,3 +1,5 @@
+import { getIntentKeywordsForType } from "./business-vocabulary.js";
+
 // ─── Intent detection keywords ────────────────────────────────────────────────
 
 export const INTENT_KEYWORDS = {
@@ -36,11 +38,17 @@ const INTENT_DETECT_ORDER: Intent[] = [
   "CONFIRM",
 ];
 
-export function detectIntent(text: string): Intent | null {
+export function detectIntent(text: string, businessType?: string | null): Intent | null {
   const normalized = text.toLowerCase().trim();
+  const typeKw = businessType ? getIntentKeywordsForType(businessType) : null;
 
   for (const intent of INTENT_DETECT_ORDER) {
-    const keywords = INTENT_KEYWORDS[intent];
+    const base = INTENT_KEYWORDS[intent] as readonly string[];
+    const extra =
+      typeKw && intent in typeKw
+        ? typeKw[intent as keyof typeof typeKw]
+        : [];
+    const keywords = [...base, ...extra];
     if (keywords.some((kw) => normalized.includes(kw))) return intent;
   }
   return null;
@@ -242,3 +250,4 @@ export const PLAN_PRICES = {
 } as const;
 
 export * from "./bot-menu.js";
+export * from "./business-vocabulary.js";

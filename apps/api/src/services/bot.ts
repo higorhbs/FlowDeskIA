@@ -30,9 +30,16 @@ import {
   isExitCommand,
   buildBotMenuEntries,
   findMatchingFaq,
+  getBusinessVocabulary,
+  businessRequiresBookingApproval,
+  getBookingStatusLabel,
   type BotMenuAction,
   PLAN_LIMITS,
 } from "@zapflow/shared";
+
+function voc(business: { type?: string }) {
+  return getBusinessVocabulary(business.type);
+}
 import { createPixCharge } from "./pix";
 import { addMinutes, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -113,7 +120,7 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
     return [{ text: response }];
   }
 
-  const intent = detectIntent(messageBody);
+  const intent = detectIntent(messageBody, business.type);
 
   // ─── Fluxo de agendamento (multi-step) ────────────────────────────────────
   if (state?.step === "APPOINTMENT_DATE") {
@@ -162,7 +169,7 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   }
 
   if (!state && looksLikeAppointmentDate(messageBody)) {
-    const apptState = { step: "APPOINTMENT_DATE", data: { serviceName: "Agendamento" } };
+    const apptState = { step: "APPOINTMENT_DATE", data: { serviceName: voc(business).botBookingServiceDefault } };
     conversationState.set(sessionKey, apptState);
     return handleAppointmentDate(ctx, business, conversation, apptState, sessionKey);
   }
@@ -209,20 +216,20 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
 // ─── Handlers ─────────────────────────────────────────────────────────────────
 
 async function handleCatalog(business: any, conversation: Conversation): Promise<BotResponse[]> {
+  const v = voc(business);
   if (!business.catalog.length) {
-    const text =
-      "Ainda não há itens no *Catálogo*.\n\nCadastre serviços no painel ZapFlow (menu Catálogo) para exibir aqui.";
+    const text = v.botCatalogEmpty;
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
 
-  let text = `📋 *Catálogo — ${business.name}*\n\n`;
+  let text = `📋 *${v.botCatalogHeader} — ${business.name}*\n\n`;
   for (const item of business.catalog) {
     text += `• *${item.name}*`;
     if (item.description) text += ` — ${item.description}`;
     text += ` — *${formatCurrency(item.price)}*\n`;
   }
-  text += "\nPara agendar, digite *1* (Agendamentos) ou *agendar* 📅\nPara ver seu horário: *meu agendamento*";
+  text += v.botCatalogFooter;
 
   await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
@@ -233,13 +240,14 @@ async function startAppointmentFlow(
   conversation: Conversation,
   sessionKey: string
 ): Promise<BotResponse[]> {
+  const v = voc(business);
   conversationState.set(sessionKey, {
     step: "APPOINTMENT_DATE",
-    data: { serviceName: "Agendamento" },
+    data: { serviceName: v.botBookingServiceDefault },
   });
   const text =
-    `📅 *Agendamentos — ${business.name}*\n\n` +
-    `Qual data você prefere? (ex: *15/06* ou *amanhã*)`;
+    `📅 *${v.botStartBookingTitle} — ${business.name}*\n\n` +
+    v.botStartBookingPrompt;
   await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
 }
@@ -331,26 +339,29 @@ async function handleAppointmentTime(
     }
   }
 
+  const v = voc(business);
+  const needsApproval = businessRequiresBookingApproval(business.type);
   const appointment = await createAppointment({
     businessId: business.id,
     conversationId: conversation.id,
     customerPhone: ctx.customerPhone,
     customerName: ctx.customerName,
-    serviceName: state.data.serviceName || "Agendamento",
+    serviceName: state.data.serviceName || v.botBookingServiceDefault,
     scheduledAt: baseDate.toISOString(),
     durationMins,
-    status: "CONFIRMED",
+    status: needsApproval ? "PENDING" : "CONFIRMED",
   });
 
   conversationState.delete(sessionKey);
 
-  const text =
-    `✅ *Agendamento confirmado!*\n\n` +
-    `📅 Data: *${format(baseDate, "dd/MM/yyyy", { locale: ptBR })}*\n` +
+  const dateLine = `📅 Data: *${format(baseDate, "dd/MM/yyyy", { locale: ptBR })}*\n` +
     `🕐 Horário: *${format(baseDate, "HH:mm")}*\n` +
-    `🔖 Código: *${appointment.id.slice(0, 8)}*\n\n` +
-    `Para ver seu agendamento depois, digite *meu agendamento*.\n\n` +
-    `Te esperamos! 😊 Qualquer dúvida é só chamar.`;
+    `🔖 Código: *${appointment.id.slice(0, 8)}*\n\n`;
+  const text = needsApproval
+    ? `📋 *${v.botBookingAwaitingTitle}!*\n\n${dateLine}${v.botBookingAwaitingHint}\n\nPara acompanhar: *${v.botMyBookingPrompt}*.`
+    : `✅ *${v.botBookingConfirmedTitle}!*\n\n${dateLine}` +
+      `Para consultar depois, digite *${v.botMyBookingPrompt}*.\n\n` +
+      `Te esperamos! 😊 Qualquer dúvida é só chamar.`;
 
   await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
@@ -361,6 +372,7 @@ async function handleMyAppointments(
   business: any,
   conversation: Conversation
 ): Promise<BotResponse[]> {
+  const v = voc(business);
   const upcoming = await listCustomerAppointments(business.id, ctx.customerPhone, {
     upcomingOnly: true,
   });
@@ -369,21 +381,21 @@ async function handleMyAppointments(
     const past = await listCustomerAppointments(business.id, ctx.customerPhone);
     if (!past.length) {
       const text =
-        `📅 Você ainda não tem agendamento em *${business.name}*.\n\n` +
-        `Para marcar, digite *agendar* ou *1* no menu.`;
+        `📅 Você ainda não tem ${v.bookingSingular.toLowerCase()} em *${business.name}*.\n\n` +
+        `Para solicitar, use o *menu* ou digite *${v.botAppointmentKeywords[0] ?? "agendar"}*.`;
       await saveAndReturn(business.id, conversation.id, [{ text }]);
       return [{ text }];
     }
     const last = past[past.length - 1]!;
     const when = new Date(last.scheduledAt);
     const text =
-      `📅 *Seu último agendamento*\n\n` +
-      `Serviço: *${last.serviceName}*\n` +
+      `📅 *Seu último ${v.bookingSingular.toLowerCase()}*\n\n` +
+      `Item: *${last.serviceName}*\n` +
       `Data: *${format(when, "dd/MM/yyyy", { locale: ptBR })}*\n` +
       `Horário: *${format(when, "HH:mm")}*\n` +
-      `Status: *${formatAppointmentStatus(last.status)}*\n` +
+      `Status: *${getBookingStatusLabel(business.type, last.status)}*\n` +
       `Código: *${last.id.slice(0, 8)}*\n\n` +
-      `Não há horários futuros. Para novo agendamento, digite *agendar*.`;
+      `Não há ${v.bookingsPlural.toLowerCase()} futuros. Para novo, digite *${v.botAppointmentKeywords[0] ?? "agendar"}*.`;
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
@@ -393,27 +405,16 @@ async function handleMyAppointments(
     return (
       `*${i + 1}.* ${apt.serviceName}\n` +
       `   📅 ${format(when, "dd/MM/yyyy", { locale: ptBR })} às ${format(when, "HH:mm")}\n` +
-      `   🔖 ${apt.id.slice(0, 8)} · ${formatAppointmentStatus(apt.status)}`
+      `   🔖 ${apt.id.slice(0, 8)} · ${getBookingStatusLabel(business.type, apt.status)}`
     );
   });
 
   const text =
-    `📅 *Seus agendamentos — ${business.name}*\n\n` +
+    `📅 *Seus ${v.bookingsPlural.toLowerCase()} — ${business.name}*\n\n` +
     lines.join("\n\n") +
-    `\n\nPara marcar outro horário, digite *agendar*.`;
+    `\n\nPara solicitar outro, digite *${v.botAppointmentKeywords[0] ?? "agendar"}*.`;
   await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
-}
-
-function formatAppointmentStatus(status: string): string {
-  const map: Record<string, string> = {
-    PENDING: "Pendente",
-    CONFIRMED: "Confirmado",
-    CANCELLED: "Cancelado",
-    COMPLETED: "Concluído",
-    NO_SHOW: "Não compareceu",
-  };
-  return map[status] ?? status;
 }
 
 async function handlePaymentStart(conversation: Conversation): Promise<BotResponse[]> {
@@ -497,7 +498,8 @@ async function handleQuote(business: any, conversation: Conversation): Promise<B
     text += `• *${item.name}*: ${formatCurrency(item.price)}\n`;
     if (item.description) text += `  _${item.description}_\n`;
   }
-  text += "\n Para agendar, digite *agendar* 📅";
+  const v = voc(business);
+  text += `\n\nPara ${v.bookingsPlural.toLowerCase()}, use o *menu* ou digite *${v.botAppointmentKeywords[0] ?? "agendar"}*.`;
 
   await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
@@ -569,23 +571,24 @@ type MenuPick = {
   action?: BotMenuAction;
 };
 
-function getEnabledMenuEntries(business?: { botMenu?: unknown[] }): MenuPick[] {
+function getEnabledMenuEntries(business?: { botMenu?: unknown[]; type?: string }): MenuPick[] {
   if (business?.botMenu && Array.isArray(business.botMenu) && business.botMenu.length > 0) {
     return (business.botMenu as MenuPick[]).filter((e) => e.enabled !== false);
   }
-  return buildBotMenuEntries().map((e) => ({
+  return buildBotMenuEntries(business?.type).map((e) => ({
     num: e.num,
     label: e.label,
-    response: legacyMenuResponse(e.action),
+    response: legacyMenuResponse(e.action, business?.type),
     action: e.action,
     enabled: true,
   }));
 }
 
-function legacyMenuResponse(action: BotMenuAction): string {
+function legacyMenuResponse(action: BotMenuAction, businessType?: string): string {
+  const v = getBusinessVocabulary(businessType);
   const map: Record<BotMenuAction, string> = {
-    APPOINTMENT: "Para agendar, informe a data (ex: *15/06*) ou digite *agendar*.",
-    CATALOG: "Confira nosso catálogo — digite *catálogo* ou *preços*.",
+    APPOINTMENT: v.botLegacyAppointmentHint,
+    CATALOG: v.botLegacyCatalogHint,
     FAQ: "Envie sua dúvida em texto ou digite *dúvida* para ver as perguntas frequentes.",
     HUMAN: "Certo! Vou chamar um atendente. Aguarde um momento... 👤",
     EXIT: "",
@@ -605,16 +608,30 @@ function resolveMenuSelection(
   return entries[num - 1] ?? null;
 }
 
-function isAppointmentMenuItem(item: MenuPick): boolean {
+function isAppointmentMenuItem(item: MenuPick, businessType?: string): boolean {
   if (item.action === "APPOINTMENT") return true;
   const r = (item.response ?? "").toLowerCase();
-  return /\bagendar\b|informe a data|dd\/mm|qual data|marque|reservar|horário prefere|horario prefere/.test(r);
+  const v = getBusinessVocabulary(businessType);
+  const hints = [
+    ...v.botAppointmentKeywords,
+    "informe a data",
+    "dd/mm",
+    "qual data",
+    "marque",
+    "reservar",
+    "horário prefere",
+    "horario prefere",
+    "pedido",
+    "consulta",
+  ];
+  return hints.some((h) => r.includes(h));
 }
 
-function isCatalogMenuItem(item: MenuPick): boolean {
+function isCatalogMenuItem(item: MenuPick, businessType?: string): boolean {
   if (item.action === "CATALOG") return true;
   const r = (item.response ?? "").toLowerCase();
-  return /catálogo|catalogo|preços|precos|cardápio|cardapio/.test(r);
+  const v = getBusinessVocabulary(businessType);
+  return v.botCatalogKeywords.some((k) => r.includes(k));
 }
 
 function isFaqMenuItem(item: MenuPick): boolean {
@@ -636,10 +653,10 @@ async function handleMenuItemSelection(
   conversation: Conversation,
   sessionKey: string
 ): Promise<BotResponse[]> {
-  if (isAppointmentMenuItem(item)) {
+  if (isAppointmentMenuItem(item, business.type)) {
     return startAppointmentFlow(business, conversation, sessionKey);
   }
-  if (isCatalogMenuItem(item)) {
+  if (isCatalogMenuItem(item, business.type)) {
     return handleCatalog(business, conversation);
   }
   if (isFaqMenuItem(item)) {

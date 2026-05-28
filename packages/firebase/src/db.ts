@@ -503,6 +503,15 @@ export async function createAppointment(
   return apt;
 }
 
+export async function getAppointment(
+  businessId: string,
+  appointmentId: string
+): Promise<Appointment | null> {
+  const snap = await appointmentsCol(businessId).doc(appointmentId).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, businessId, ...snap.data() } as Appointment;
+}
+
 export async function updateAppointment(
   businessId: string,
   appointmentId: string,

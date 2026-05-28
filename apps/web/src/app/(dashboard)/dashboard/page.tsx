@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { getBusinessVocabulary } from "@/lib/use-business-vocabulary";
 
 export default function DashboardPage() {
   const { uid, ready } = useAuth();
@@ -67,6 +68,7 @@ export default function DashboardPage() {
 }
 
 function BusinessCard({ business }: { business: any }) {
+  const v = getBusinessVocabulary(business?.type);
   const { data: analytics } = useQuery({
     queryKey: ["analytics", business.id],
     queryFn: () => analyticsApi.get(business.id),
@@ -82,7 +84,7 @@ function BusinessCard({ business }: { business: any }) {
       bg: "bg-blue-50",
     },
     {
-      label: "Agendamentos",
+      label: v.bookingsPlural,
       value: analytics?.appointments.pending ?? "—",
       icon: Calendar,
       color: "text-purple-600",

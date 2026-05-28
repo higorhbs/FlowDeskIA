@@ -16,13 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BotMenuItemConfig } from "@zapflow/firebase/client";
-
-const LEGACY_MENU_RESPONSE: Record<string, string> = {
-  APPOINTMENT: "Para agendar, informe a data (ex: *15/06*) ou digite *agendar*.",
-  CATALOG: "Confira nosso catálogo — digite *catálogo* ou *preços*.",
-  FAQ: "Envie sua dúvida em texto ou digite *dúvida* para ver as perguntas frequentes.",
-  HUMAN: "Certo! Vou chamar um atendente. Aguarde um momento... 👤",
-};
+import { buildBotMenuEntries, getBusinessVocabulary } from "@zapflow/shared";
 
 const LEGACY_EMOJI: Record<string, string> = {
   APPOINTMENT: "📅",
@@ -31,13 +25,35 @@ const LEGACY_EMOJI: Record<string, string> = {
   HUMAN: "👤",
 };
 
+function legacyMenuResponse(type: string | undefined, action: string): string {
+  const v = getBusinessVocabulary(type);
+  const map: Record<string, string> = {
+    APPOINTMENT: v.botLegacyAppointmentHint,
+    CATALOG: v.botLegacyCatalogHint,
+    FAQ: "Envie sua dúvida em texto ou digite *dúvida* para ver as perguntas frequentes.",
+    HUMAN: "Certo! Vou chamar um atendente. Aguarde um momento... 👤",
+  };
+  return map[action] ?? "";
+}
+
+function defaultMenuItems(type?: string): BotMenuItemConfig[] {
+  return buildBotMenuEntries(type).map((e, index) => ({
+    num: e.num,
+    label: e.label,
+    response: legacyMenuResponse(type, e.action),
+    enabled: true,
+    emoji: LEGACY_EMOJI[e.action],
+  }));
+}
+
 function migrateMenuItem(
   raw: Partial<BotMenuItemConfig> & { action?: string },
-  index: number
+  index: number,
+  businessType?: string
 ): BotMenuItemConfig {
   const response =
     raw.response?.trim() ||
-    (raw.action ? LEGACY_MENU_RESPONSE[raw.action] ?? "" : "") ||
+    (raw.action ? legacyMenuResponse(businessType, raw.action) : "") ||
     "";
   const emoji =
     raw.emoji ||
@@ -51,9 +67,9 @@ function migrateMenuItem(
   };
 }
 
-function migrateMenu(saved?: Partial<BotMenuItemConfig>[]): BotMenuItemConfig[] {
-  if (!saved?.length) return [];
-  return saved.map(migrateMenuItem);
+function migrateMenu(saved?: Partial<BotMenuItemConfig>[], businessType?: string): BotMenuItemConfig[] {
+  if (!saved?.length) return defaultMenuItems(businessType);
+  return saved.map((raw, i) => migrateMenuItem(raw, i, businessType));
 }
 
 const faqSchema = z.object({
@@ -141,11 +157,13 @@ function EmojiPickerBalloon({
 }
 
 // ── BotMenuEditor ──────────────────────────────────────────────────────────────
-function BotMenuEditor({ businessId, initialMenu, businessName }: {
+function BotMenuEditor({ businessId, initialMenu, businessName, businessType }: {
   businessId: string;
   initialMenu: BotMenuItemConfig[];
   businessName: string;
+  businessType?: string;
 }) {
+  const v = getBusinessVocabulary(businessType);
   const queryClient = useQueryClient();
   const [items, setItems] = useState<BotMenuItemConfig[]>(initialMenu);
 
@@ -285,7 +303,7 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
                     value={modal.label}
                     onChange={(e) => setModal(m => ({ ...m, label: e.target.value }))}
                     onKeyDown={(e) => { if (e.key === "Enter") commitModal(); if (e.key === "Escape") closeModal(); }}
-                    placeholder="Ex: Agendamentos, Horários, Preços…"
+                    placeholder={`Ex: ${v.botBookingMenuLabel}, ${v.botCatalogMenuLabel}, Horários…`}
                     className="input flex-1"
                   />
                 </div>
@@ -301,7 +319,7 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
                   value={modal.response}
                   onChange={(e) => setModal(m => ({ ...m, response: e.target.value }))}
                   rows={4}
-                  placeholder="Ex: Para agendar, informe a data desejada ou acesse nosso link…"
+                  placeholder={v.botLegacyAppointmentHint}
                   className="input resize-none h-28"
                 />
                 <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
@@ -584,14 +602,19 @@ function buildPreviewLines(items: BotMenuItemConfig[], name: string): WaLine[] {
 }
 
 // ── FAQsEditor ─────────────────────────────────────────────────────────────────
-const SUGGESTIONS = [
-  { icon: "🕐", color: "bg-blue-50 border-blue-200 hover:border-blue-400 hover:bg-blue-50", iconBg: "bg-blue-100 text-blue-600", question: "Qual o horário de funcionamento?", answer: "Funcionamos de segunda a sexta das 9h às 18h, sábados das 9h às 14h.", keywords: "horário,funcionamento,abre,fecha" },
-  { icon: "📍", color: "bg-purple-50 border-purple-200 hover:border-purple-400 hover:bg-purple-50", iconBg: "bg-purple-100 text-purple-600", question: "Onde vocês ficam localizados?", answer: "Estamos na Rua [endereço]. Confira no Google Maps: [link].", keywords: "endereço,onde,localização,fica" },
-  { icon: "📅", color: "bg-emerald-50 border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50", iconBg: "bg-emerald-100 text-emerald-600", question: "Como funciona o agendamento?", answer: "Digite *agendar* aqui no WhatsApp e escolha data e horário disponível.", keywords: "agendar,agendamento,marcar,como funciona" },
-  { icon: "💳", color: "bg-amber-50 border-amber-200 hover:border-amber-400 hover:bg-amber-50", iconBg: "bg-amber-100 text-amber-600", question: "Vocês aceitam cartão?", answer: "Sim! Aceitamos cartão de crédito, débito e PIX.", keywords: "cartão,pagamento,pix,forma de pagamento" },
-];
+function faqSuggestions(businessType?: string) {
+  const v = getBusinessVocabulary(businessType);
+  const kw = v.botAppointmentKeywords.slice(0, 4).join(",");
+  return [
+    { icon: "🕐", color: "bg-blue-50 border-blue-200 hover:border-blue-400 hover:bg-blue-50", iconBg: "bg-blue-100 text-blue-600", question: "Qual o horário de funcionamento?", answer: "Funcionamos de segunda a sexta das 9h às 18h, sábados das 9h às 14h.", keywords: "horário,funcionamento,abre,fecha" },
+    { icon: "📍", color: "bg-purple-50 border-purple-200 hover:border-purple-400 hover:bg-purple-50", iconBg: "bg-purple-100 text-purple-600", question: "Onde vocês ficam localizados?", answer: "Estamos na Rua [endereço]. Confira no Google Maps: [link].", keywords: "endereço,onde,localização,fica" },
+    { icon: "📅", color: "bg-emerald-50 border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50", iconBg: "bg-emerald-100 text-emerald-600", question: `Como funciona ${v.bookingsPlural.toLowerCase().replace(/s$/, "")}?`, answer: `Digite *${v.botAppointmentKeywords[0] ?? "agendar"}* aqui no WhatsApp e siga as instruções.`, keywords: `${kw},como funciona` },
+    { icon: "💳", color: "bg-amber-50 border-amber-200 hover:border-amber-400 hover:bg-amber-50", iconBg: "bg-amber-100 text-amber-600", question: "Vocês aceitam cartão?", answer: "Sim! Aceitamos cartão de crédito, débito e PIX.", keywords: "cartão,pagamento,pix,forma de pagamento" },
+  ];
+}
 
-function FAQsEditor({ businessId }: { businessId: string }) {
+function FAQsEditor({ businessId, businessType }: { businessId: string; businessType?: string }) {
+  const suggestions = faqSuggestions(businessType);
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -777,7 +800,7 @@ function FAQsEditor({ businessId }: { businessId: string }) {
               <div className="h-px flex-1 bg-gray-200" />
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
-              {SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <button
                   key={s.question}
                   onClick={() => {
@@ -913,7 +936,7 @@ export default function BotPage() {
   });
 
   const savedMenu = (business as any)?.botMenu as Partial<BotMenuItemConfig>[] | undefined;
-  const initialMenu = migrateMenu(savedMenu);
+  const initialMenu = migrateMenu(savedMenu, business?.type);
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
@@ -965,9 +988,9 @@ export default function BotPage() {
           <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
         </div>
       ) : tab === "menu" ? (
-        <BotMenuEditor businessId={businessId} initialMenu={initialMenu} businessName={business?.name ?? "Meu Negócio"} />
+        <BotMenuEditor businessId={businessId} initialMenu={initialMenu} businessName={business?.name ?? "Meu Negócio"} businessType={business?.type} />
       ) : (
-        <FAQsEditor businessId={businessId} />
+        <FAQsEditor businessId={businessId} businessType={business?.type} />
       )}
     </div>
   );
