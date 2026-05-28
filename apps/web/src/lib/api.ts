@@ -75,9 +75,12 @@ async function ensureTenantRecord() {
 }
 
 api.interceptors.request.use(async (config) => {
-  const fresh = await getIdToken();
+  const fresh = await getIdToken(true);
   const token = fresh ?? Cookies.get("zf_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+    Cookies.set("zf_token", token, { expires: 1 });
+  }
   return config;
 });
 

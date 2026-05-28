@@ -11,6 +11,7 @@ import { webhookRoutes } from "./routes/webhooks";
 import { privacyRoutes } from "./routes/privacy";
 import { runPrivacyRetentionForAllTenants } from "./services/privacy-compliance";
 import { billingRoutes } from "./routes/billing";
+import { hasAdminCredential } from "@zapflow/firebase";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -46,6 +47,11 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   app.get("/health", () => ({ ok: true, ts: new Date().toISOString() }));
+  app.get("/health/admin", () => ({
+    ok: hasAdminCredential(),
+    adminConfigured: hasAdminCredential(),
+    projectId: process.env.FIREBASE_PROJECT_ID ?? null,
+  }));
 
   await app.register(authRoutes);
   await app.register(businessRoutes);

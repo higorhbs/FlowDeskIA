@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from "fastify";
-import { getAdminAuth } from "@zapflow/firebase";
+import { getAdminAuth, hasAdminCredential } from "@zapflow/firebase";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -9,6 +9,13 @@ declare module "fastify" {
 }
 
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply) {
+  if (!hasAdminCredential()) {
+    return reply.status(503).send({
+      error:
+        "API sem credencial Firebase Admin. No Render, configure FIREBASE_SERVICE_ACCOUNT_JSON (JSON completo da service account).",
+    });
+  }
+
   const header = request.headers.authorization;
   const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
   if (!token) {
@@ -19,7 +26,16 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
     request.tenantId = decoded.uid;
     request.tenantEmail = decoded.email;
   } catch (err) {
-    request.log.warn({ err }, "verifyIdToken failed");
-    return reply.status(401).send({ error: "Token inválido ou API sem credencial Firebase Admin" });
+    const code = (err as { code?: string }).code;
+    request.log.warn({ err, code }, "verifyIdToken failed");
+    if (code === "auth/id-token-expired") {
+      return reply.status(401).send({ error: "Sessão expirada. Saia e entre novamente." });
+    }
+    if (code === "app/invalid-credential" || code === "auth/invalid-credential") {
+      return reply.status(503).send({
+        error: "Credencial Firebase Admin inválida no servidor. Revise FIREBASE_SERVICE_ACCOUNT_JSON.",
+      });
+    }
+    return reply.status(401).send({ error: "Token inválido. Saia e entre novamente." });
   }
 }

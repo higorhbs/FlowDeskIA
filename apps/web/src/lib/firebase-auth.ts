@@ -232,10 +232,10 @@ export function completeGoogleRedirect() {
   return googleRedirectPromise ?? Promise.resolve(null);
 }
 
-export async function getIdToken(): Promise<string | null> {
+export async function getIdToken(forceRefresh = false): Promise<string | null> {
   const user = getClientAuth().currentUser;
   if (!user) return null;
-  return user.getIdToken();
+  return user.getIdToken(forceRefresh);
 }
 
 export async function logoutFirebase() {

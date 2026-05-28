@@ -27,6 +27,61 @@ function normalizePrivateKey(raw: string | undefined): string | undefined {
   return key.replace(/\\n/g, "\n");
 }
 
+type ServiceAccountCreds = {
+  projectId: string;
+  clientEmail: string;
+  privateKey: string;
+};
+
+function parseServiceAccountJson(raw: string): ServiceAccountCreds | null {
+  try {
+    const sa = JSON.parse(raw) as {
+      project_id?: string;
+      projectId?: string;
+      client_email?: string;
+      clientEmail?: string;
+      private_key?: string;
+      privateKey?: string;
+    };
+    const projectId = sa.project_id ?? sa.projectId;
+    const clientEmail = sa.client_email ?? sa.clientEmail;
+    const privateKey = normalizePrivateKey(sa.private_key ?? sa.privateKey);
+    if (!projectId || !clientEmail || !privateKey) return null;
+    return { projectId, clientEmail, privateKey };
+  } catch {
+    return null;
+  }
+}
+
+function loadServiceAccountFromEnv(): ServiceAccountCreds | null {
+  const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
+  if (json) {
+    const parsed = parseServiceAccountJson(json);
+    if (parsed) return parsed;
+  }
+
+  const b64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64?.trim();
+  if (b64) {
+    const decoded = Buffer.from(b64, "base64").toString("utf8");
+    const parsed = parseServiceAccountJson(decoded);
+    if (parsed) return parsed;
+  }
+
+  const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
+  const privateKey = normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY);
+  if (projectId && clientEmail && privateKey) {
+    return { projectId, clientEmail, privateKey };
+  }
+
+  return null;
+}
+
+export function hasAdminCredential(): boolean {
+  if (resolveServiceAccountPath()) return true;
+  return loadServiceAccountFromEnv() !== null;
+}
+
 function initAdmin(): App {
   if (getApps().length) return getApps()[0]!;
 
@@ -47,16 +102,15 @@ function initAdmin(): App {
     return app;
   }
 
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY);
-  if (projectId && clientEmail && privateKey) {
+  const fromEnv = loadServiceAccountFromEnv();
+  if (fromEnv) {
     app = initializeApp({
-      credential: cert({ projectId, clientEmail, privateKey }),
+      credential: cert(fromEnv),
     });
-  } else {
-    app = initializeApp();
+    return app;
   }
+
+  app = initializeApp();
   return app;
 }
 
