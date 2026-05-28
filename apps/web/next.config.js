@@ -9,6 +9,7 @@ const staticHosting = process.env.FIREBASE_STATIC === "1";
 const nextConfig = {
   output: staticHosting ? "export" : undefined,
   transpilePackages: ["@zapflow/shared", "@zapflow/firebase"],
+  serverExternalPackages: ["firebase", "firebase-admin"],
   async rewrites() {
     return [
       {
