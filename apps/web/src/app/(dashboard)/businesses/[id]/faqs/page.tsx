@@ -10,7 +10,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import {
   Bot, MessageSquare, HelpCircle, Plus, Trash2, Loader2, X,
-  ChevronUp, ChevronDown, Eye, Save,
+  ChevronUp, ChevronDown, Eye, Save, Pencil, Check,
   CalendarCheck, BookOpen, Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -56,6 +56,11 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
 }) {
   const queryClient = useQueryClient();
   const [items, setItems] = useState<BotMenuItemConfig[]>(initialMenu);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingLabel, setEditingLabel] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+  const [newAction, setNewAction] = useState<BotMenuItemConfig["action"]>("APPOINTMENT");
 
   const saveMutation = useMutation({
     mutationFn: () => businessApi.update(businessId, { botMenu: items } as any),
@@ -78,6 +83,31 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
     setItems(items.map((it, i) => i === index ? { ...it, enabled: !it.enabled } : it));
   }
 
+  function removeItem(index: number) {
+    setItems(items.filter((_, i) => i !== index).map((it, i) => ({ ...it, num: i + 1 })));
+  }
+
+  function startEdit(index: number) {
+    setEditingIndex(index);
+    setEditingLabel(items[index]!.label);
+  }
+
+  function commitEdit() {
+    if (editingIndex === null) return;
+    const trimmed = editingLabel.trim();
+    if (trimmed) setItems(items.map((it, i) => i === editingIndex ? { ...it, label: trimmed } : it));
+    setEditingIndex(null);
+  }
+
+  function addItem() {
+    const trimmed = newLabel.trim();
+    if (!trimmed) return;
+    setItems([...items, { num: items.length + 1, action: newAction, label: trimmed, enabled: true }]);
+    setNewLabel("");
+    setNewAction("APPOINTMENT");
+    setShowAddForm(false);
+  }
+
   const previewLines = buildPreviewLines(items, businessName);
 
   return (
@@ -88,15 +118,16 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
           Defina quais opções aparecem no menu quando o cliente digita <code className="bg-gray-100 px-1 rounded text-xs">menu</code> no WhatsApp.
         </p>
 
-        <div className="rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden mb-4">
+        <div className="rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden mb-3">
           {items.map((item, i) => {
             const meta = ACTION_META[item.action];
             const Icon = meta.icon;
+            const isEditing = editingIndex === i;
             return (
               <div
-                key={item.action}
+                key={i}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3 transition-colors",
+                  "flex items-center gap-2.5 px-4 py-3 transition-colors",
                   item.enabled ? "bg-white" : "bg-gray-50 opacity-60"
                 )}
               >
@@ -108,56 +139,148 @@ function BotMenuEditor({ businessId, initialMenu, businessName }: {
                   {item.num}
                 </span>
 
-                {/* Action badge */}
-                <span className={cn("inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium flex-shrink-0", meta.color)}>
-                  <Icon className="w-3 h-3" />
-                  {meta.label}
-                </span>
-
-                <div className="flex-1" />
-
-                {/* Controls */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {/* Up / Down grouped */}
-                  <div className="flex rounded-lg border border-gray-200 overflow-hidden divide-x divide-gray-200">
-                    <button
-                      type="button"
-                      onClick={() => move(i, -1)}
-                      disabled={i === 0}
-                      className="w-8 h-8 flex items-center justify-center text-brand-600 hover:bg-brand-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <ChevronUp className="w-4 h-4" />
+                {/* Label — editable */}
+                {isEditing ? (
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={editingLabel}
+                      autoFocus
+                      onChange={(e) => setEditingLabel(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditingIndex(null); }}
+                      className="flex-1 min-w-0 text-sm font-medium border border-brand-400 rounded-md px-2 py-0.5 outline-none focus:ring-2 focus:ring-brand-300"
+                    />
+                    <button type="button" onClick={commitEdit} className="w-7 h-7 rounded-md bg-brand-600 text-white flex items-center justify-center hover:bg-brand-700 flex-shrink-0">
+                      <Check className="w-3.5 h-3.5" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => move(i, 1)}
-                      disabled={i === items.length - 1}
-                      className="w-8 h-8 flex items-center justify-center text-brand-600 hover:bg-brand-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <ChevronDown className="w-4 h-4" />
+                    <button type="button" onClick={() => setEditingIndex(null)} className="w-7 h-7 rounded-md border border-gray-200 text-gray-500 flex items-center justify-center hover:bg-gray-50 flex-shrink-0">
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
-
-                  {/* Toggle enable */}
+                ) : (
                   <button
                     type="button"
-                    onClick={() => toggle(i)}
-                    className={cn(
-                      "relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
-                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
-                      item.enabled ? "bg-brand-600" : "bg-gray-200"
-                    )}
+                    onClick={() => startEdit(i)}
+                    className="flex-1 min-w-0 text-left group flex items-center gap-1.5"
                   >
-                    <span className={cn(
-                      "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200",
-                      item.enabled ? "translate-x-4" : "translate-x-0"
-                    )} />
+                    <span className="text-sm font-medium text-gray-900 truncate group-hover:text-brand-600 transition-colors">
+                      {item.label}
+                    </span>
+                    <Pencil className="w-3 h-3 text-gray-300 group-hover:text-brand-400 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
-                </div>
+                )}
+
+                {/* Action type badge */}
+                {!isEditing && (
+                  <span className={cn("inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium flex-shrink-0", meta.color)}>
+                    <Icon className="w-3 h-3" />
+                    {meta.label}
+                  </span>
+                )}
+
+                {/* Controls */}
+                {!isEditing && (
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {/* Up / Down */}
+                    <div className="flex rounded-lg border border-gray-200 overflow-hidden divide-x divide-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => move(i, -1)}
+                        disabled={i === 0}
+                        className="w-7 h-7 flex items-center justify-center text-brand-600 hover:bg-brand-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => move(i, 1)}
+                        disabled={i === items.length - 1}
+                        className="w-7 h-7 flex items-center justify-center text-brand-600 hover:bg-brand-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Toggle enable */}
+                    <button
+                      type="button"
+                      onClick={() => toggle(i)}
+                      className={cn(
+                        "relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
+                        "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
+                        item.enabled ? "bg-brand-600" : "bg-gray-200"
+                      )}
+                    >
+                      <span className={cn(
+                        "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200",
+                        item.enabled ? "translate-x-4" : "translate-x-0"
+                      )} />
+                    </button>
+
+                    {/* Delete */}
+                    <button
+                      type="button"
+                      onClick={() => removeItem(i)}
+                      className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
+
+          {/* Add item inline form */}
+          {showAddForm && (
+            <div className="px-4 py-3 bg-brand-50 flex items-center gap-2 flex-wrap">
+              <input
+                type="text"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") addItem(); if (e.key === "Escape") { setShowAddForm(false); setNewLabel(""); } }}
+                placeholder="Nome do item…"
+                autoFocus
+                className="flex-1 min-w-[140px] text-sm border border-gray-300 rounded-md px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 bg-white"
+              />
+              <select
+                value={newAction}
+                onChange={(e) => setNewAction(e.target.value as BotMenuItemConfig["action"])}
+                className="text-sm border border-gray-300 rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-brand-300 bg-white"
+              >
+                <option value="APPOINTMENT">📅 Agendamento</option>
+                <option value="CATALOG">🛍️ Catálogo</option>
+                <option value="FAQ">❓ FAQ</option>
+                <option value="HUMAN">👤 Atendente</option>
+              </select>
+              <button
+                type="button"
+                onClick={addItem}
+                disabled={!newLabel.trim()}
+                className="btn-primary py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Adicionar
+              </button>
+              <button type="button" onClick={() => { setShowAddForm(false); setNewLabel(""); }} className="text-gray-400 hover:text-gray-600 p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Add item trigger */}
+        {!showAddForm && (
+          <button
+            type="button"
+            onClick={() => setShowAddForm(true)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 mb-4 rounded-xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50 transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            Adicionar item
+          </button>
+        )}
+        {showAddForm && <div className="mb-4" />}
 
         <button
           type="button"

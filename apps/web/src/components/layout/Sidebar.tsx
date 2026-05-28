@@ -176,7 +176,12 @@ export function Sidebar() {
                     <Icon className="w-4 h-4" />
                     <span className="flex-1">{label}</span>
                     {isConversations && unreadCount > 0 && (
-                      <span className="ml-auto bg-brand-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                      <span
+                        className={cn(
+                          "ml-auto inline-flex shrink-0 items-center justify-center rounded-full bg-brand-600 text-[10px] font-bold leading-none text-white tabular-nums",
+                          unreadCount > 9 ? "h-[18px] min-w-[22px] px-1" : "size-[18px]"
+                        )}
+                      >
                         {unreadCount > 99 ? "99+" : unreadCount}
                       </span>
                     )}
