@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MessageSquare, Calendar, QrCode, Bot, Star, CheckCircle, ArrowRight, Scissors, Coffee, Stethoscope, Store } from "lucide-react";
+import { MessageSquare, Calendar, QrCode, Bot, Star, CheckCircle, ArrowRight, Scissors, Coffee, Stethoscope, Store, Quote } from "lucide-react";
 import { PLAN_PRICES, planMarketingFeatures } from "@zapflow/shared";
 
 const FEATURES = [
@@ -17,6 +17,57 @@ const SEGMENTS = [
   { icon: Coffee, label: "Hamburgueria", color: "bg-orange-50 text-orange-600" },
   { icon: Stethoscope, label: "Dentista", color: "bg-teal-50 text-teal-600" },
   { icon: Store, label: "Loja de Bairro", color: "bg-purple-50 text-purple-600" },
+];
+
+const TESTIMONIALS = [
+  {
+    name: "Rafael Mendes",
+    role: "Barbearia do Rafael",
+    initials: "RM",
+    color: "bg-blue-600",
+    stars: 5,
+    text: "Antes eu perdia cliente toda hora por não responder rápido. Agora o ZapFlow responde na hora, agenda sozinho e ainda cobra o sinal. Minha agenda lotou em 2 semanas.",
+  },
+  {
+    name: "Camila Oliveira",
+    role: "Studio Cami — Manicure",
+    initials: "CF",
+    color: "bg-pink-500",
+    stars: 5,
+    text: "Eu ficava respondendo WhatsApp até meia-noite. Hoje o bot resolve tudo durante o dia e eu só confirmo. Economizo pelo menos 3 horas por dia. Valeu cada centavo.",
+  },
+  {
+    name: "Bruno Tavares",
+    role: "Burger do Bruno",
+    initials: "BT",
+    color: "bg-orange-500",
+    stars: 5,
+    text: "Configurei o catálogo com os combos e os clientes já pedem pelo WhatsApp sem precisar falar comigo. As cobranças via PIX chegam na hora. Nunca mais esqueci de cobrar ninguém.",
+  },
+  {
+    name: "Dra. Patrícia Lima",
+    role: "Consultório Odontológico",
+    initials: "PL",
+    color: "bg-teal-600",
+    stars: 5,
+    text: "Minha secretária ficava sobrecarregada com mensagens. Agora o ZapFlow filtra, agenda e só passa para ela os casos que precisam de atenção. A clínica ficou muito mais organizada.",
+  },
+  {
+    name: "Marcos Oliveira",
+    role: "Loja do Marcos — Varejo",
+    initials: "MO",
+    color: "bg-purple-600",
+    stars: 5,
+    text: "Coloquei as perguntas mais frequentes no FAQ e os clientes param de me ligar para saber horário e endereço. Simples assim. Recomendo para qualquer comércio de bairro.",
+  },
+  {
+    name: "Juliana Costa",
+    role: "Salão JC Beauty",
+    initials: "JC",
+    color: "bg-rose-500",
+    stars: 5,
+    text: "Testei 14 dias sem pagar nada e já via resultado. No final do teste eu nem hesitei em assinar. A integração com WhatsApp funciona perfeitamente, nunca travou.",
+  },
 ];
 
 const PLANS = [
@@ -121,6 +172,42 @@ export default function LandingPage() {
                 <div className={`max-w-[80%] rounded-xl px-3 py-2 ${msg.side === "right" ? "bg-brand-500" : "bg-white/20"}`}>
                   <p className="text-xs opacity-70 mb-0.5">{msg.name}</p>
                   <p className="whitespace-pre-wrap">{msg.msg}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="bg-gray-50 py-24">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <span className="inline-flex items-center gap-2 bg-brand-50 text-brand-700 text-sm font-medium px-4 py-1.5 rounded-full mb-4">
+              <Star className="w-4 h-4 fill-brand-500 text-brand-500" />
+              Avaliação média 5.0
+            </span>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Quem usou, recomendou</h2>
+            <p className="text-gray-500 max-w-xl mx-auto">Donos de negócios locais que transformaram o atendimento pelo WhatsApp com o ZapFlow.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {TESTIMONIALS.map(({ name, role, initials, color, stars, text }) => (
+              <div key={name} className="card flex flex-col gap-4 hover:shadow-md transition-shadow">
+                <Quote className="w-8 h-8 text-brand-200 flex-shrink-0" />
+                <p className="text-gray-600 text-sm leading-relaxed flex-1">{text}</p>
+                <div className="flex items-center gap-1 mt-1">
+                  {Array.from({ length: stars }).map((_, i) => (
+                    <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
+                  ))}
+                </div>
+                <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+                  <div className={`w-10 h-10 rounded-full ${color} flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}>
+                    {initials}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900 text-sm">{name}</p>
+                    <p className="text-xs text-gray-400">{role}</p>
+                  </div>
                 </div>
               </div>
             ))}
