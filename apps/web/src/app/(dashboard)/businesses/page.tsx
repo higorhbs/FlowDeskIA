@@ -70,7 +70,7 @@ export default function BusinessesPage() {
           <Store className="w-8 h-8 text-gray-400" />
         </div>
         <h2 className="text-lg font-semibold text-gray-900 mb-2">Nenhum negócio cadastrado</h2>
-        <p className="text-gray-500 mb-6">Cadastre seu negócio para começar a usar o ZapFlow.</p>
+        <p className="text-gray-500 mb-6">Cadastre seu negócio para começar a usar o AtendeJa.</p>
         <Link href="/businesses/new" className={buttonVariants()}>
           Cadastrar meu negócio
         </Link>

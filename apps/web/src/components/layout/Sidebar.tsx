@@ -3,9 +3,20 @@
 import { AppLink as Link } from "@/components/AppLink";
 import { usePathname } from "next/navigation";
 import {
-  MessageSquare, LayoutDashboard, Store, Calendar,
-  Bot, Settings, LogOut, CreditCard,
-  Wifi, WifiOff, ChevronLeft, BookOpen, Banknote, Loader2,
+  MessageSquare,
+  LayoutDashboard,
+  Store,
+  Calendar,
+  Bot,
+  Settings,
+  LogOut,
+  CreditCard,
+  Wifi,
+  WifiOff,
+  ChevronLeft,
+  BookOpen,
+  Banknote,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { removeToken } from "@/lib/auth";
@@ -51,7 +62,9 @@ export function Sidebar() {
     mutationFn: () => whatsappApi.disconnect(businessId!),
     onSuccess: () => {
       toast.success("WhatsApp desconectado");
-      void queryClient.invalidateQueries({ queryKey: ["business", businessId] });
+      void queryClient.invalidateQueries({
+        queryKey: ["business", businessId],
+      });
     },
     onError: (err: Error) => toast.error(err.message ?? "Erro ao desconectar"),
   });
@@ -80,7 +93,13 @@ export function Sidebar() {
   }
 
   const businessInitials = business?.name
-    ? business.name.trim().split(/\s+/).slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()
+    ? business.name
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((w: string) => w[0])
+        .join("")
+        .toUpperCase()
     : "–";
 
   return (
@@ -90,7 +109,7 @@ export function Sidebar() {
         <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
           <MessageSquare className="w-5 h-5 text-white" />
         </div>
-        <span className="font-bold text-gray-900">ZapFlow</span>
+        <span className="font-bold text-gray-900">AtendeJa</span>
       </div>
 
       {/* Business context card */}
@@ -126,7 +145,9 @@ export function Sidebar() {
                 {business.isConnected ? (
                   <>
                     <Wifi className="w-3 h-3 text-green-600" />
-                    <span className="text-xs font-medium text-green-700">WhatsApp conectado</span>
+                    <span className="text-xs font-medium text-green-700">
+                      WhatsApp conectado
+                    </span>
                   </>
                 ) : (
                   <Link
@@ -134,7 +155,9 @@ export function Sidebar() {
                     className="flex items-center gap-1.5 hover:opacity-75 transition-opacity"
                   >
                     <WifiOff className="w-3 h-3 text-gray-400" />
-                    <span className="text-xs text-gray-500 underline underline-offset-2">Desconectado</span>
+                    <span className="text-xs text-gray-500 underline underline-offset-2">
+                      Desconectado
+                    </span>
                   </Link>
                 )}
               </div>
@@ -145,9 +168,11 @@ export function Sidebar() {
                   className="text-[10px] text-red-500 hover:text-red-700 font-medium transition-colors flex items-center gap-0.5"
                   title="Desconectar WhatsApp"
                 >
-                  {disconnectMutation.isPending
-                    ? <Loader2 className="w-3 h-3 animate-spin" />
-                    : <WifiOff className="w-3 h-3" />}
+                  {disconnectMutation.isPending ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <WifiOff className="w-3 h-3" />
+                  )}
                   Desconectar
                 </button>
               )}
@@ -209,7 +234,7 @@ export function Sidebar() {
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                 pathname === href
                   ? "bg-brand-50 text-brand-700"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
               )}
             >
               <Icon className="w-4 h-4" />
@@ -227,7 +252,7 @@ export function Sidebar() {
               "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-1",
               pathname === "/plan"
                 ? "bg-brand-50 text-brand-700"
-                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
             )}
           >
             <CreditCard className="w-4 h-4" />

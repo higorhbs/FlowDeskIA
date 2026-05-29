@@ -56,7 +56,7 @@ function getStripePortalLink() {
   return process.env.NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL?.trim() ?? "";
 }
 
-export const api = axios.create({
+const api = axios.create({
   baseURL: resolveApiBaseUrl(),
   timeout: 90_000,
 });

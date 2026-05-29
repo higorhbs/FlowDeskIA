@@ -1,5 +1,5 @@
 /**
- * Motor de resposta automática do ZapFlow.
+ * Motor de resposta automática do AtendeJa.
  * Recebe a mensagem, detecta intenção, busca dados do negócio e retorna resposta.
  */
 
@@ -58,7 +58,10 @@ export interface BotResponse {
 
 // Estado simples de conversa por sessão (em memória — para MVP)
 // Em produção: usar Redis com TTL
-const conversationState = new Map<string, { step: string; data: Record<string, string> }>();
+const conversationState = new Map<
+  string,
+  { step: string; data: Record<string, string> }
+>();
 const botPausedSessions = new Set<string>();
 
 export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
@@ -70,14 +73,19 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
 
   if (!business) return [{ text: "Negócio não encontrado." }];
 
-  const conversation = await upsertConversation(businessId, customerPhone, customerName);
+  const conversation = await upsertConversation(
+    businessId,
+    customerPhone,
+    customerName,
+  );
 
   await createMessage(businessId, conversation.id, {
     role: "CUSTOMER",
     content: messageBody,
   });
 
-  if (conversation.status === "ATTENDING" && !isExitCommand(messageBody)) return [];
+  if (conversation.status === "ATTENDING" && !isExitCommand(messageBody))
+    return [];
 
   const tz =
     (typeof business.timezone === "string" && business.timezone.trim()) ||
@@ -93,7 +101,9 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
     if (!open) {
       const faqWhenPaused = matchFaq(messageBody, business.faqs);
       if (faqWhenPaused) {
-        await saveAndReturn(business.id, conversation.id, [{ text: faqWhenPaused.answer }]);
+        await saveAndReturn(business.id, conversation.id, [
+          { text: faqWhenPaused.answer },
+        ]);
         return [{ text: faqWhenPaused.answer }];
       }
       const response = business.awayMsg;
@@ -109,7 +119,9 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
     const faqHit = matchFaq(messageBody, business.faqs);
     if (faqHit) {
       if (state) conversationState.delete(sessionKey);
-      await saveAndReturn(business.id, conversation.id, [{ text: faqHit.answer }]);
+      await saveAndReturn(business.id, conversation.id, [
+        { text: faqHit.answer },
+      ]);
       return [{ text: faqHit.answer }];
     }
   }
@@ -161,7 +173,13 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
     return handleBotExit(business, conversation, sessionKey);
   }
   if (menuPick) {
-    return handleMenuItemSelection(menuPick, ctx, business, conversation, sessionKey);
+    return handleMenuItemSelection(
+      menuPick,
+      ctx,
+      business,
+      conversation,
+      sessionKey,
+    );
   }
 
   if (!state && isGreeting(messageBody)) {
@@ -195,7 +213,10 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
       return handleQuote(business, conversation);
 
     case "PAYMENT":
-      conversationState.set(sessionKey, { step: "PAYMENT_AMOUNT", data: { customerName: customerName ?? "Cliente" } });
+      conversationState.set(sessionKey, {
+        step: "PAYMENT_AMOUNT",
+        data: { customerName: customerName ?? "Cliente" },
+      });
       return handlePaymentStart(conversation);
 
     case "FAQ":
@@ -238,7 +259,7 @@ async function handleCatalog(business: any, conversation: Conversation): Promise
 async function startAppointmentFlow(
   business: any,
   conversation: Conversation,
-  sessionKey: string
+  sessionKey: string,
 ): Promise<BotResponse[]> {
   const v = voc(business);
   conversationState.set(sessionKey, {
@@ -257,7 +278,7 @@ async function handleAppointmentDate(
   business: any,
   conversation: Conversation,
   state: any,
-  sessionKey: string
+  sessionKey: string,
 ): Promise<BotResponse[]> {
   const dateStr = ctx.messageBody.trim();
   // Parse simples: dd/MM
@@ -274,13 +295,17 @@ async function handleAppointmentDate(
   }
 
   if (!date || isNaN(date.getTime())) {
-    const text = "Não entendi a data. Por favor, informe no formato *dd/mm* (ex: *15/06*)";
+    const text =
+      "Não entendi a data. Por favor, informe no formato *dd/mm* (ex: *15/06*)";
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
 
   state.data.date = date.toISOString();
-  conversationState.set(sessionKey, { step: "APPOINTMENT_TIME", data: state.data });
+  conversationState.set(sessionKey, {
+    step: "APPOINTMENT_TIME",
+    data: state.data,
+  });
 
   const text = `Data *${format(date, "dd/MM/yyyy", { locale: ptBR })}* selecionada!\n\nQual horário prefere? (ex: *10:00* ou *14:30*)`;
   await saveAndReturn(business.id, conversation.id, [{ text }]);
@@ -292,13 +317,14 @@ async function handleAppointmentTime(
   business: any,
   conversation: Conversation,
   state: any,
-  sessionKey: string
+  sessionKey: string,
 ): Promise<BotResponse[]> {
   const timeStr = ctx.messageBody.trim();
   const match = timeStr.match(/(\d{1,2}):(\d{2})/);
 
   if (!match) {
-    const text = "Por favor, informe o horário no formato *HH:MM* (ex: *10:00*)";
+    const text =
+      "Por favor, informe o horário no formato *HH:MM* (ex: *10:00*)";
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
@@ -311,7 +337,7 @@ async function handleAppointmentTime(
   const conflict = await findConflictingAppointment(
     business.id,
     baseDate.toISOString(),
-    durationMins
+    durationMins,
   );
   if (conflict) {
     const text =
@@ -328,7 +354,15 @@ async function handleAppointmentTime(
   if (Number.isFinite(monthlyLimit)) {
     const now = new Date();
     const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
+    const to = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999,
+    ).toISOString();
     const monthAppointments = await listAppointments(business.id, { from, to });
     if (monthAppointments.length >= monthlyLimit) {
       const text =
@@ -370,7 +404,7 @@ async function handleAppointmentTime(
 async function handleMyAppointments(
   ctx: BotContext,
   business: any,
-  conversation: Conversation
+  conversation: Conversation,
 ): Promise<BotResponse[]> {
   const v = voc(business);
   const upcoming = await listCustomerAppointments(business.id, ctx.customerPhone, {
@@ -428,13 +462,14 @@ async function handlePaymentAmount(
   business: any,
   conversation: Conversation,
   state: any,
-  sessionKey: string
+  sessionKey: string,
 ): Promise<BotResponse[]> {
   const raw = ctx.messageBody.replace(/[R$\s]/g, "").replace(",", ".");
   const amount = parseFloat(raw);
 
   if (isNaN(amount) || amount <= 0) {
-    const text = "Por favor, informe o valor corretamente (ex: *50* ou *150,00*)";
+    const text =
+      "Por favor, informe o valor corretamente (ex: *50* ou *150,00*)";
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
@@ -486,9 +521,13 @@ async function handlePaymentAmount(
   return responses;
 }
 
-async function handleQuote(business: any, conversation: Conversation): Promise<BotResponse[]> {
+async function handleQuote(
+  business: any,
+  conversation: Conversation,
+): Promise<BotResponse[]> {
   if (!business.catalog.length) {
-    const text = "Você pode nos enviar mais detalhes sobre o que precisa para prepararmos um orçamento personalizado!";
+    const text =
+      "Você pode nos enviar mais detalhes sobre o que precisa para prepararmos um orçamento personalizado!";
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
@@ -509,11 +548,11 @@ async function handleFAQ(
   messageBody: string,
   business: any,
   conversation: Conversation,
-  sessionKey: string
+  sessionKey: string,
 ): Promise<BotResponse[]> {
   if (!business.faqs?.length) {
     const text =
-      "Ainda não há perguntas no *FAQ*.\n\nCadastre no painel ZapFlow (menu FAQ) para o bot responder automaticamente.";
+      "Ainda não há perguntas no *FAQ*.\n\nCadastre no painel AtendeJa (menu FAQ) para o bot responder automaticamente.";
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
@@ -539,7 +578,7 @@ async function handleFAQSelect(
   ctx: BotContext,
   business: any,
   conversation: Conversation,
-  sessionKey: string
+  sessionKey: string,
 ): Promise<BotResponse[]> {
   const faqs = business.faqs ?? [];
   const choice = parseOptionNumber(ctx.messageBody, 1, faqs.length);
@@ -548,7 +587,9 @@ async function handleFAQSelect(
     const byKeyword = matchFaq(ctx.messageBody, faqs);
     if (byKeyword) {
       conversationState.delete(sessionKey);
-      await saveAndReturn(business.id, conversation.id, [{ text: byKeyword.answer }]);
+      await saveAndReturn(business.id, conversation.id, [
+        { text: byKeyword.answer },
+      ]);
       return [{ text: byKeyword.answer }];
     }
     const text = `Digite o *número* de *1* a *${faqs.length}* ou *menu* para voltar.`;
@@ -598,7 +639,7 @@ function legacyMenuResponse(action: BotMenuAction, businessType?: string): strin
 
 function resolveMenuSelection(
   text: string,
-  business?: { botMenu?: unknown[]; name?: string }
+  business?: { botMenu?: unknown[]; name?: string },
 ): MenuPick | "EXIT" | null {
   if (isExitCommand(text) || parseOptionNumber(text, 0, 0) === 0) return "EXIT";
   const entries = getEnabledMenuEntries(business);
@@ -651,7 +692,7 @@ async function handleMenuItemSelection(
   ctx: BotContext,
   business: any,
   conversation: Conversation,
-  sessionKey: string
+  sessionKey: string,
 ): Promise<BotResponse[]> {
   if (isAppointmentMenuItem(item, business.type)) {
     return startAppointmentFlow(business, conversation, sessionKey);
@@ -678,10 +719,17 @@ async function handleMenuItemSelection(
   }
 
   if (item.action && item.action !== "EXIT") {
-    return routeMenuAction(item.action, ctx, business, conversation, sessionKey);
+    return routeMenuAction(
+      item.action,
+      ctx,
+      business,
+      conversation,
+      sessionKey,
+    );
   }
 
-  const fallback = "Opção em configuração. Digite *menu* para ver outras opções.";
+  const fallback =
+    "Opção em configuração. Digite *menu* para ver outras opções.";
   await saveAndReturn(business.id, conversation.id, [{ text: fallback }]);
   return [{ text: fallback }];
 }
@@ -691,7 +739,7 @@ async function routeMenuAction(
   ctx: BotContext,
   business: any,
   conversation: Conversation,
-  sessionKey: string
+  sessionKey: string,
 ): Promise<BotResponse[]> {
   switch (action) {
     case "EXIT":
@@ -710,7 +758,10 @@ async function routeMenuAction(
   }
 }
 
-async function saveHumanHandoff(businessId: string, conversationId: string): Promise<BotResponse[]> {
+async function saveHumanHandoff(
+  businessId: string,
+  conversationId: string,
+): Promise<BotResponse[]> {
   const msg = "Certo! Vou chamar um atendente. Aguarde um momento... 👤";
   await saveAndReturn(businessId, conversationId, [{ text: msg }]);
   return [{ text: msg }];
@@ -719,7 +770,7 @@ async function saveHumanHandoff(businessId: string, conversationId: string): Pro
 async function handleBotExit(
   business: any,
   conversation: Conversation,
-  sessionKey: string
+  sessionKey: string,
 ): Promise<BotResponse[]> {
   conversationState.delete(sessionKey);
   botPausedSessions.add(sessionKey);
@@ -736,7 +787,7 @@ async function handleBotExit(
 async function sendPresentation(
   business: any,
   conversation: Conversation,
-  customerName?: string
+  customerName?: string,
 ): Promise<BotResponse[]> {
   const text = renderTemplate(business.greetingMsg, {
     nome: customerName ?? "cliente",
@@ -749,8 +800,14 @@ async function sendPresentation(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function buildMainMenu(business: { name: string; botMenu?: unknown[] }): string {
-  const entries = getEnabledMenuEntries(business).map((e, i) => ({ ...e, num: i + 1 }));
+function buildMainMenu(business: {
+  name: string;
+  botMenu?: unknown[];
+}): string {
+  const entries = getEnabledMenuEntries(business).map((e, i) => ({
+    ...e,
+    num: i + 1,
+  }));
   if (!entries.length) {
     return (
       `*${business.name}*\n\n` +
@@ -776,7 +833,17 @@ function buildFallbackMessage(business?: { botMenu?: unknown[] }): string {
 }
 
 function isGreeting(text: string): boolean {
-  const greetings = ["oi", "olá", "ola", "bom dia", "boa tarde", "boa noite", "hello", "hi", "menu"];
+  const greetings = [
+    "oi",
+    "olá",
+    "ola",
+    "bom dia",
+    "boa tarde",
+    "boa noite",
+    "hello",
+    "hi",
+    "menu",
+  ];
   return greetings.some((g) => text.toLowerCase().trim().startsWith(g));
 }
 
@@ -797,11 +864,11 @@ function matchFaq(text: string, faqs: any[] | undefined): any | null {
 async function saveAndReturn(
   businessId: string,
   conversationId: string,
-  responses: BotResponse[]
+  responses: BotResponse[],
 ): Promise<void> {
   await createMessages(
     businessId,
     conversationId,
-    responses.map((r) => ({ role: "BOT", content: r.text }))
+    responses.map((r) => ({ role: "BOT", content: r.text })),
   );
 }
