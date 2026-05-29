@@ -8,6 +8,9 @@ if (!firebaseHost) {
 const staticHosting = process.env.FIREBASE_STATIC === "1";
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_FIREBASE_STATIC: staticHosting ? "1" : "",
+  },
   output: staticHosting ? "export" : undefined,
   trailingSlash: staticHosting ? true : undefined,
   transpilePackages: ["@zapflow/shared", "@zapflow/firebase"],

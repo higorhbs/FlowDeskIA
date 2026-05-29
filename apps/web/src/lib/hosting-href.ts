@@ -1,15 +1,11 @@
+import { isStaticHostingClient } from "@/lib/static-hosting";
+
 export function isFirebaseHostingClient(): boolean {
-  if (typeof window === "undefined") return false;
-  const host = window.location.hostname;
-  return (
-    host.endsWith(".web.app") ||
-    host.endsWith(".firebaseapp.com") ||
-    (process.env.NODE_ENV === "production" && !host.includes("localhost"))
-  );
+  return isStaticHostingClient();
 }
 
 export function hostingHref(href: string): string {
-  if (!isFirebaseHostingClient()) return href;
+  if (!isStaticHostingClient()) return href;
 
   const hashIdx = href.indexOf("#");
   const hash = hashIdx >= 0 ? href.slice(hashIdx) : "";
@@ -28,7 +24,13 @@ export function hostingHref(href: string): string {
   return normalized + search + hash;
 }
 
+export function toHostingAbsoluteUrl(href: string): string {
+  const path = hostingHref(href);
+  if (typeof window === "undefined") return path;
+  return new URL(path, window.location.origin).href;
+}
+
 export function hardNavigateHosting(href: string): void {
-  const url = hostingHref(href);
-  window.location.href = new URL(url, window.location.origin).href;
+  if (typeof window === "undefined") return;
+  window.location.assign(toHostingAbsoluteUrl(href));
 }

@@ -2,16 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo } from "react";
-import { hostingHref } from "@/lib/hosting-href";
+import { hardNavigateHosting, hostingHref } from "@/lib/hosting-href";
+import { isStaticHostingClient } from "@/lib/static-hosting";
 
 type AppRouter = ReturnType<typeof useRouter>;
 
 function useHardDocumentNav() {
-  return (
-    typeof window !== "undefined" &&
-    process.env.NODE_ENV === "production" &&
-    !window.location.hostname.includes("localhost")
-  );
+  return typeof window !== "undefined" && isStaticHostingClient();
 }
 
 export function useAppRouter(): AppRouter {
@@ -21,7 +18,7 @@ export function useAppRouter(): AppRouter {
   const push = useCallback(
     (href: string, options?: Parameters<AppRouter["push"]>[1]) => {
       if (hard) {
-        window.location.assign(hostingHref(href));
+        hardNavigateHosting(href);
         return;
       }
       router.push(href, options);
@@ -32,7 +29,7 @@ export function useAppRouter(): AppRouter {
   const replace = useCallback(
     (href: string, options?: Parameters<AppRouter["replace"]>[1]) => {
       if (hard) {
-        window.location.replace(hostingHref(href));
+        window.location.replace(new URL(hostingHref(href), window.location.origin).href);
         return;
       }
       router.replace(href, options);
