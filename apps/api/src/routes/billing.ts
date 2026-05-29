@@ -191,13 +191,16 @@ async function findActiveSubscriptionForCustomer(
   customerId: string,
   subscriptionId?: string
 ): Promise<StripeSubWithInvoice | null> {
+  const load = (id: string) =>
+    stripe.subscriptions.retrieve(id, {
+      expand: [...SUBSCRIPTION_EXPAND],
+    }) as Promise<StripeSubWithInvoice>;
+
   if (subscriptionId) {
     try {
-      const sub = await stripe.subscriptions.retrieve(subscriptionId, {
-        expand: [...SUBSCRIPTION_EXPAND],
-      });
+      const sub = await load(subscriptionId);
       if (ACTIVE_SUB_STATUSES.includes(sub.status as (typeof ACTIVE_SUB_STATUSES)[number])) {
-        return sub as StripeSubWithInvoice;
+        return sub;
       }
     } catch {
       /* tenta listar pelo customer */
@@ -208,13 +211,12 @@ async function findActiveSubscriptionForCustomer(
     customer: customerId,
     status: "all",
     limit: 20,
-    expand: [...SUBSCRIPTION_EXPAND],
   });
-  return (
-    (list.data.find((item) =>
-      ACTIVE_SUB_STATUSES.includes(item.status as (typeof ACTIVE_SUB_STATUSES)[number])
-    ) as StripeSubWithInvoice | undefined) ?? null
+  const hit = list.data.find((item) =>
+    ACTIVE_SUB_STATUSES.includes(item.status as (typeof ACTIVE_SUB_STATUSES)[number])
   );
+  if (!hit) return null;
+  return load(hit.id);
 }
 
 async function resolveStripeCustomerId(

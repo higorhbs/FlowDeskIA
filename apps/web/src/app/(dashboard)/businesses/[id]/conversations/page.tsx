@@ -41,6 +41,7 @@ export default function ConversationsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["conversations", businessId],
     queryFn: () => conversationApi.list(businessId, { page: 1 }),
+    enabled: !!businessId,
     refetchInterval: 10_000,
   });
 

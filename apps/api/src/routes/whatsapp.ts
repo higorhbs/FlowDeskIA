@@ -9,15 +9,13 @@ import {
 import { requireAuth } from "../middleware/auth";
 import type { WhatsAppClient } from "@zapflow/whatsapp-client";
 import { isWhatsAppRuntime, waManager } from "../wa-manager.js";
-import { processMessage } from "../services/bot.js";
+import { ensureWhatsAppClient, hasStoredSession } from "../wa-lifecycle.js";
 
 type ConnectResult = {
   status: string;
   qr?: string;
   message?: string;
 };
-
-const lifecycleAttached = new WeakSet<WhatsAppClient>();
 
 function waUnavailable(reply: FastifyReply) {
   return reply.status(503).send({
@@ -64,53 +62,6 @@ export async function whatsappRoutes(app: FastifyInstance) {
   const sessionsRoot = process.env.WA_SESSION_PATH?.trim();
   if (!sessionsRoot) throw new Error("WA_SESSION_PATH é obrigatório.");
 
-  function attachLifecycle(id: string, client: WhatsAppClient) {
-    if (lifecycleAttached.has(client)) return;
-    lifecycleAttached.add(client);
-
-    client.on("connected", async () => {
-      try {
-        await setBusinessConnected(id, true);
-      } catch (err) {
-        console.error(`[whatsapp] failed to mark connected for ${id}:`, err);
-      }
-    });
-
-    client.on("disconnected", async () => {
-      try {
-        await setBusinessConnected(id, false);
-      } catch (err) {
-        console.error(`[whatsapp] failed to mark disconnected for ${id}:`, err);
-      }
-    });
-  }
-
-  function attachMessageHandler(id: string, client: WhatsAppClient) {
-    if (client.listenerCount("message") > 0) return;
-
-    client.on("message", async (msg) => {
-      try {
-        const responses = await processMessage({
-          businessId: id,
-          customerPhone: msg.from,
-          customerName: msg.pushName,
-          messageBody: msg.body,
-        });
-
-        for (const resp of responses) {
-          if (resp.imageUrl) {
-            await client.sendImage(msg.from, resp.imageUrl, resp.text);
-          } else {
-            await client.sendText(msg.from, resp.text);
-          }
-          await new Promise((r) => setTimeout(r, 800));
-        }
-      } catch (err) {
-        console.error(`[whatsapp] Failed to process inbound message for business ${id}:`, err);
-      }
-    });
-  }
-
   app.post("/businesses/:id/whatsapp/connect", async (req, reply) => {
     if (!isWhatsAppRuntime()) return waUnavailable(reply);
 
@@ -129,9 +80,7 @@ export async function whatsappRoutes(app: FastifyInstance) {
       waManager.remove(id);
     }
 
-    const client = waManager.getOrCreate(id, sessionsRoot);
-    attachLifecycle(id, client);
-    attachMessageHandler(id, client);
+    const client = ensureWhatsAppClient(waManager, sessionsRoot, id);
 
     if (client.isConnected()) {
       await setBusinessConnected(id, true);
@@ -166,7 +115,15 @@ export async function whatsappRoutes(app: FastifyInstance) {
     const business = await getBusiness(id, req.tenantId);
     if (!business) return reply.status(404).send({ error: "Negócio não encontrado" });
 
-    const client = waManager.get(id);
+    let client = waManager.get(id);
+    if (!client && hasStoredSession(sessionsRoot, id)) {
+      client = ensureWhatsAppClient(waManager, sessionsRoot, id);
+      if (!client.isConnected()) {
+        void client.connect().catch((err) => {
+          req.log.error({ err }, "whatsapp lazy restore failed");
+        });
+      }
+    }
     const connected = client?.isConnected() ?? false;
     if (connected !== business.isConnected) {
       await setBusinessConnected(id, connected);

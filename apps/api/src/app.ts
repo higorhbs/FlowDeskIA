@@ -75,6 +75,11 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   if (process.env.ENABLE_WORKERS === "true") {
     const { waManager } = await import("./wa-manager.js");
+    const sessionsRoot = process.env.WA_SESSION_PATH?.trim();
+    if (sessionsRoot) {
+      const { restoreWhatsAppSessions } = await import("./wa-lifecycle.js");
+      void restoreWhatsAppSessions(waManager, sessionsRoot);
+    }
     const { startReminderWorker, startMessageWorker } = await import(
       "./workers/message-worker.js"
     );
