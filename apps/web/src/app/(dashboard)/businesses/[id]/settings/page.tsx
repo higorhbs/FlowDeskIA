@@ -30,16 +30,23 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+function normalizeWorkingHours(raw: unknown): WorkingHoursValue {
+  if (!raw || typeof raw !== "object") return defaultWorkingHours();
+  const wh = raw as WorkingHoursValue;
+  return Object.keys(wh).length > 0 ? wh : defaultWorkingHours();
+}
+
 export default function SettingsPage() {
   const businessId = useBusinessId();
   const queryClient = useQueryClient();
 
-  const { data: business, isLoading } = useQuery({
+  const { data: business, isLoading, isError } = useQuery({
     queryKey: ["business", businessId],
     queryFn: () => businessApi.get(businessId),
+    enabled: !!businessId,
   });
 
-  const [workingHours, setWorkingHours] = useState<WorkingHoursValue>(defaultWorkingHours);
+  const [workingHours, setWorkingHours] = useState<WorkingHoursValue>(defaultWorkingHours());
   const [hoursDirty, setHoursDirty] = useState(false);
 
   const { register, control, handleSubmit, reset, formState: { errors, isDirty } } = useForm<FormData>({
@@ -49,9 +56,18 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!business) return;
     if (business.id && business.type) persistBusinessSnapshot({ id: business.id, type: business.type });
-    reset(business);
-    const wh = business.workingHours as WorkingHoursValue;
-    setWorkingHours(wh && Object.keys(wh).length > 0 ? wh : defaultWorkingHours());
+    reset({
+      name: business.name ?? "",
+      type: schema.shape.type.safeParse(business.type).success
+        ? (business.type as FormData["type"])
+        : "OTHER",
+      phone: business.phone ?? "",
+      address: business.address ?? "",
+      description: business.description ?? "",
+      greetingMsg: business.greetingMsg ?? "Olá! Como posso ajudar?",
+      awayMsg: business.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
+    });
+    setWorkingHours(normalizeWorkingHours(business.workingHours));
     setHoursDirty(false);
   }, [business, reset]);
 
@@ -67,10 +83,18 @@ export default function SettingsPage() {
     onError: () => toast.error("Erro ao salvar"),
   });
 
-  if (isLoading) {
+  if (!businessId || isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (isError || !business) {
+    return (
+      <div className="p-4 md:p-8 max-w-2xl">
+        <p className="text-red-600">Não foi possível carregar as configurações do negócio.</p>
       </div>
     );
   }

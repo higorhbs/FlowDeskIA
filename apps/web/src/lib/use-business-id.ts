@@ -17,9 +17,15 @@ export { HOSTING_PLACEHOLDER_BUSINESS_ID, persistBusinessId, persistBusinessSnap
 
 type UseBusinessIdOptions = { required?: boolean };
 
+function clientPathname(fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  return window.location.pathname || fallback;
+}
+
 export function useBusinessId(opts: UseBusinessIdOptions = { required: true }): string {
   const pathname = useEffectivePathname();
-  const onBusinessRoute = inBusinessArea(pathname);
+  const routePath = clientPathname(pathname);
+  const onBusinessRoute = inBusinessArea(routePath);
 
   const { uid, ready } = useAuth();
 
@@ -35,12 +41,9 @@ export function useBusinessId(opts: UseBusinessIdOptions = { required: true }): 
     if (tenant) persistBusinessSnapshot(tenant);
   }, [tenant?.id, tenant?.type]);
 
-  if (!onBusinessRoute) {
-    if (opts.required) throw new Error("ID do negócio não encontrado na URL.");
-    return "";
-  }
+  if (!onBusinessRoute) return "";
 
-  const id = resolveBusinessId(pathname, businesses);
+  const id = resolveBusinessId(routePath, businesses);
 
   if (id && id !== HOSTING_PLACEHOLDER_BUSINESS_ID) {
     return id;
@@ -50,6 +53,5 @@ export function useBusinessId(opts: UseBusinessIdOptions = { required: true }): 
     return "";
   }
 
-  if (opts.required) throw new Error("ID do negócio não encontrado na URL.");
   return "";
 }
