@@ -155,11 +155,17 @@ export async function whatsappRoutes(app: FastifyInstance) {
     let client = waManager.get(id);
     if (!client && hasStoredSession(sessionsRoot, id)) {
       client = ensureWhatsAppClient(waManager, sessionsRoot, id);
-      if (!client.isConnected()) {
-        void client.connect().catch((err) => {
-          req.log.error({ err }, "whatsapp lazy restore failed");
-        });
-      }
+    }
+    if (
+      client &&
+      !client.isConnected() &&
+      client.status !== "connecting" &&
+      client.status !== "qr" &&
+      hasStoredSession(sessionsRoot, id)
+    ) {
+      void client.connect().catch((err) => {
+        req.log.error({ err }, "whatsapp reconnect failed");
+      });
     }
     const connected = client?.isConnected() ?? false;
     if (connected !== business.isConnected) {

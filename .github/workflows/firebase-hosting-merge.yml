@@ -1,0 +1,50 @@
+name: Deploy to Firebase Hosting on merge
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create production env
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_STRIPE_PAYMENT_LINK_STARTER: ${{ secrets.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_STARTER }}
+          NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO: ${{ secrets.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO }}
+          NEXT_PUBLIC_STRIPE_PAYMENT_LINK_UNLIMITED: ${{ secrets.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_UNLIMITED }}
+          NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL: ${{ secrets.NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL }}
+        run: node scripts/ci-write-web-env.mjs
+
+      - name: Build hosting
+        run: pnpm run build:hosting
+
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ZAPFLOW_HIGOR_2026 }}
+          projectId: zapflow-higor-2026
+          channelId: live

@@ -197,6 +197,9 @@ importers:
 
   packages/whatsapp-client:
     dependencies:
+      '@cacheable/node-cache':
+        specifier: ^1.4.0
+        version: 1.7.6
       '@hapi/boom':
         specifier: ^10.0.1
         version: 10.0.1

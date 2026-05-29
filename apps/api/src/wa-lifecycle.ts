@@ -53,9 +53,9 @@ export function attachWhatsAppMessageHandler(businessId: string, client: WhatsAp
 
       for (const resp of responses) {
         if (resp.imageUrl) {
-          await client.sendImage(msg.from, resp.imageUrl, resp.text);
+          await client.sendImage(msg.replyJid, resp.imageUrl, resp.text);
         } else if (resp.text) {
-          await client.sendText(msg.from, resp.text);
+          await client.sendText(msg.replyJid, resp.text);
         }
         await new Promise((r) => setTimeout(r, 800));
       }
