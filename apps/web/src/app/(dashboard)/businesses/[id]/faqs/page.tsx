@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { businessApi, faqApi } from "@/lib/api";
+import { tenantApi } from "@/lib/api";
 import { useBusinessId } from "@/lib/use-business-id";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -42,8 +43,8 @@ function legacyMenuResponse(type: string | undefined, action: string): string {
   return map[action] ?? "";
 }
 
-function defaultMenuItems(type?: string): BotMenuItemConfig[] {
-  return buildBotMenuEntries(type).map((e, index) => ({
+function defaultMenuItems(type?: string, plan?: string): BotMenuItemConfig[] {
+  return buildBotMenuEntries(type, plan).map((e, index) => ({
     num: e.num,
     label: e.label,
     response: legacyMenuResponse(type, e.action),
@@ -73,9 +74,10 @@ function migrateMenuItem(
   };
 }
 
-function migrateMenu(saved?: Partial<BotMenuItemConfig>[], businessType?: string): BotMenuItemConfig[] {
-  if (!saved?.length) return defaultMenuItems(businessType);
-  return saved.map((raw, i) => migrateMenuItem(raw, i, businessType));
+function migrateMenu(saved?: Partial<BotMenuItemConfig>[], businessType?: string, plan?: string): BotMenuItemConfig[] {
+  const entries = !saved?.length ? defaultMenuItems(businessType, plan) : saved.map((raw, i) => migrateMenuItem(raw, i, businessType));
+  if (plan === "PRO" || plan === "UNLIMITED") return entries;
+  return entries.filter((item) => item.action !== "PAYMENT" && !/pix|pagar|pagamento|sinal/i.test(`${item.label} ${item.response ?? ""}`));
 }
 
 const faqSchema = z.object({
@@ -947,8 +949,13 @@ export default function BotPage() {
     queryFn: () => businessApi.get(businessId),
   });
 
+  const { data: tenant } = useQuery({
+    queryKey: ["tenant"],
+    queryFn: () => tenantApi.get(),
+  });
+
   const savedMenu = (business as any)?.botMenu as Partial<BotMenuItemConfig>[] | undefined;
-  const initialMenu = migrateMenu(savedMenu, business?.type);
+  const initialMenu = migrateMenu(savedMenu, business?.type, tenant?.plan);
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">

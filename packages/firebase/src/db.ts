@@ -169,7 +169,8 @@ export async function getBusinessWithRelations(
   const business = await getBusiness(id, tenantId);
   if (!business) return null;
   const [catalog, faqs] = await Promise.all([fetchCatalogItems(id), fetchFaqs(id)]);
-  return { ...business, catalog, faqs };
+  const tenant = await getTenant(business.tenantId);
+  return { ...business, catalog, faqs, tenantPlan: tenant?.plan };
 }
 
 async function resolveCatalogForBot(business: Business): Promise<CatalogItem[]> {
@@ -227,10 +228,12 @@ export async function getBusinessForBot(id: string): Promise<BusinessWithRelatio
     resolveFaqsForBot(business),
     getBusinessAsaasIntegration(id),
   ]);
+  const tenant = await getTenant(business.tenantId);
   return {
     ...business,
     catalog,
     faqs,
+    tenantPlan: tenant?.plan,
     asaasConfigured: Boolean(asaas?.apiKey),
   };
 }

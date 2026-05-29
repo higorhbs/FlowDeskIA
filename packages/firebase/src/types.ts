@@ -150,6 +150,7 @@ export interface BusinessAsaasIntegration {
 export interface BusinessWithRelations extends Business {
   catalog: CatalogItem[];
   faqs: FAQ[];
+  tenantPlan?: Plan;
   /** Preenchido só no servidor (bot); nunca expor ao client web */
   asaasConfigured?: boolean;
 }

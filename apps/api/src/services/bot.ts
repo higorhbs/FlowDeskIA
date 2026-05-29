@@ -670,12 +670,13 @@ function getEnabledMenuEntries(business?: {
   botMenu?: unknown[];
   type?: string;
   asaasConfigured?: boolean;
+  tenantPlan?: string;
 }): MenuPick[] {
   let entries: MenuPick[];
   if (business?.botMenu && Array.isArray(business.botMenu) && business.botMenu.length > 0) {
     entries = (business.botMenu as MenuPick[]).filter((e) => e.enabled !== false);
   } else {
-    entries = buildBotMenuEntries(business?.type).map((e) => ({
+    entries = buildBotMenuEntries(business?.type, business?.tenantPlan).map((e) => ({
       num: e.num,
       label: e.label,
       response: legacyMenuResponse(e.action, business?.type),
@@ -683,18 +684,22 @@ function getEnabledMenuEntries(business?: {
       enabled: true,
     }));
   }
-  return ensurePixMenuEntry(entries, business?.asaasConfigured);
+  return ensurePixMenuEntry(entries, business?.asaasConfigured, business?.tenantPlan);
 }
 
-function ensurePixMenuEntry(entries: MenuPick[], asaasConfigured?: boolean): MenuPick[] {
-  if (!asaasConfigured) return entries;
-  const hasPix = entries.some(
+function ensurePixMenuEntry(entries: MenuPick[], asaasConfigured?: boolean, tenantPlan?: string): MenuPick[] {
+  const allowsPix = tenantPlan === "PRO" || tenantPlan === "UNLIMITED";
+  const filtered = allowsPix
+    ? entries
+    : entries.filter((e) => e.action !== "PAYMENT" && !/pix|pagar|pagamento|sinal/i.test(`${e.label} ${e.response ?? ""}`));
+  if (!asaasConfigured || !allowsPix) return filtered;
+  const hasPix = filtered.some(
     (e) => e.action === "PAYMENT" || /pix|pagar|pagamento|sinal/i.test(`${e.label} ${e.response ?? ""}`)
   );
-  if (hasPix) return entries;
-  const maxNum = entries.reduce((m, e) => Math.max(m, e.num), 0);
+  if (hasPix) return filtered;
+  const maxNum = filtered.reduce((m, e) => Math.max(m, e.num), 0);
   return [
-    ...entries,
+    ...filtered,
     {
       num: maxNum + 1,
       label: "Pagar com PIX",

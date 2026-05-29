@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -7,6 +8,8 @@ import {
   authErrorMessage,
   loginWithEmail,
   registerWithEmail,
+  resendVerificationEmail,
+  refreshVerifiedSession,
 } from "@/lib/firebase-auth";
 import { getClientAuth } from "@zapflow/firebase/client";
 import { setToken } from "@/lib/auth";
@@ -18,7 +21,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MessageSquare, Loader2, ShieldCheck, X } from "lucide-react";
+import { MessageSquare, Loader2, ShieldCheck, MailCheck, RefreshCw, X } from "lucide-react";
 
 function AuthLegalNotice() {
   return (
@@ -84,6 +87,7 @@ type AuthDrawerProps = {
 
 function LoginForm({ onSwitch }: { onSwitch: () => void }) {
   const router = useRouter();
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -93,11 +97,20 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
   async function onSubmit(data: LoginData) {
     try {
       const res = await loginWithEmail(data.email, data.password);
+      if (res.status === "VERIFICATION_REQUIRED") {
+        setVerificationEmail(res.email);
+        toast.warning("Enviamos um e-mail de confirmação. Verifique sua caixa de entrada.");
+        return;
+      }
       setToken(res.token);
       router.push("/dashboard");
     } catch (err: unknown) {
       toast.error(authErrorMessage(err, "Falha ao entrar"));
     }
+  }
+
+  if (verificationEmail) {
+    return <VerificationPrompt email={verificationEmail} onBack={() => setVerificationEmail(null)} />;
   }
 
   return (
@@ -158,6 +171,7 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
 
 function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
   const router = useRouter();
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -167,19 +181,25 @@ function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
   async function onSubmit(data: RegisterData) {
     try {
       const res = await registerWithEmail(data.name, data.email, data.password);
+      if (res.status === "VERIFICATION_REQUIRED") {
+        setVerificationEmail(res.email);
+        toast.success("Enviamos um link de confirmação para seu e-mail.");
+        return;
+      }
       setToken(res.token);
       router.replace("/dashboard");
     } catch (err: unknown) {
       const user = getClientAuth().currentUser;
       if (user) {
-        const token = await user.getIdToken();
-        setToken(token);
-        router.replace("/dashboard");
-        toast.warning("Conta criada. Se algo faltar, recarregue a página.");
+        toast.warning("Conta criada, mas ainda falta confirmar o e-mail.");
         return;
       }
       toast.error(authErrorMessage(err, "Falha ao criar conta"));
     }
+  }
+
+  if (verificationEmail) {
+    return <VerificationPrompt email={verificationEmail} onBack={() => setVerificationEmail(null)} />;
   }
 
   return (
@@ -248,6 +268,68 @@ function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
       </p>
 
       <AuthLegalNotice />
+    </div>
+  );
+}
+
+function VerificationPrompt({ email, onBack }: { email: string; onBack: () => void }) {
+  const router = useRouter();
+  const [loadingResend, setLoadingResend] = useState(false);
+  const [loadingConfirm, setLoadingConfirm] = useState(false);
+
+  async function handleResend() {
+    setLoadingResend(true);
+    try {
+      await resendVerificationEmail();
+      toast.success("E-mail de confirmação reenviado.");
+    } catch (err: unknown) {
+      toast.error(authErrorMessage(err, "Não foi possível reenviar o e-mail"));
+    } finally {
+      setLoadingResend(false);
+    }
+  }
+
+  async function handleConfirm() {
+    setLoadingConfirm(true);
+    try {
+      const res = await refreshVerifiedSession();
+      setToken(res.token);
+      toast.success("E-mail confirmado. Abrindo o painel...");
+      router.replace("/dashboard");
+    } catch (err: unknown) {
+      toast.error(authErrorMessage(err, "Ainda não conseguimos validar sua confirmação"));
+    } finally {
+      setLoadingConfirm(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      <h2 className="text-xl font-semibold text-gray-900 mb-1">Confirme seu e-mail</h2>
+      <p className="text-sm text-gray-500 mb-6">
+        Enviamos um link para <strong>{email}</strong>. O acesso ao painel fica liberado apenas após a confirmação.
+      </p>
+
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-6 text-sm text-amber-900">
+        <div className="flex gap-2 items-start">
+          <MailCheck className="w-4 h-4 mt-0.5" />
+          <p>Abra sua caixa de entrada, confirme o endereço e volte aqui para liberar o acesso.</p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <Button type="button" className="h-10 w-full" onClick={handleConfirm} disabled={loadingConfirm || loadingResend}>
+          {loadingConfirm ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+          Já confirmei, entrar
+        </Button>
+        <Button type="button" variant="secondary" className="h-10 w-full" onClick={handleResend} disabled={loadingResend || loadingConfirm}>
+          {loadingResend ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          Reenviar e-mail
+        </Button>
+        <Button type="button" variant="ghost" className="h-10 w-full" onClick={onBack} disabled={loadingResend || loadingConfirm}>
+          Voltar ao formulário
+        </Button>
+      </div>
     </div>
   );
 }

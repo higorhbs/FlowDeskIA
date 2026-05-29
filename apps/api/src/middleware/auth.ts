@@ -23,6 +23,9 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
   }
   try {
     const decoded = await getAdminAuth().verifyIdToken(token);
+    if (decoded.email_verified !== true) {
+      return reply.status(403).send({ error: "Confirme seu e-mail antes de acessar o painel." });
+    }
     request.tenantId = decoded.uid;
     request.tenantEmail = decoded.email;
   } catch (err) {

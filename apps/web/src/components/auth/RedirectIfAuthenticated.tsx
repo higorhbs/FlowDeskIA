@@ -9,7 +9,8 @@ export function RedirectIfAuthenticated({ children }: { children: React.ReactNod
 
   useEffect(() => {
     void waitForAuthReady().then((auth) => {
-      if (auth.currentUser) router.replace("/dashboard");
+      const user = auth.currentUser;
+      if (user?.emailVerified) router.replace("/dashboard");
     });
   }, [router]);
 

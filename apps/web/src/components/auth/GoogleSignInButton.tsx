@@ -20,6 +20,10 @@ export function GoogleSignInButton() {
         toast.message("Redirecionando para o Google…");
         return;
       }
+      if (res.status === "VERIFICATION_REQUIRED") {
+        toast.warning("Confirme seu e-mail antes de acessar o painel.");
+        return;
+      }
       setToken(res.token);
       router.replace("/dashboard");
     } catch (err: unknown) {

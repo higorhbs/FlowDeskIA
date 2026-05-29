@@ -39,6 +39,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
     const unsub = watchAuth(async (user) => {
       if (user) {
+        await user.reload();
+        if (!user.emailVerified) {
+          removeToken();
+          return;
+        }
         const token = await user.getIdToken();
         setToken(token);
       } else {

@@ -6,6 +6,7 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { getClientAuth } from "@zapflow/firebase/client";
 import { authApi } from "@/lib/api";
 import { AuthContext } from "@/contexts/auth-context";
+import { removeToken } from "@/lib/auth";
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const router = useAppRouter();
@@ -23,11 +24,20 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
         router.replace("/?auth=login");
         return;
       }
-      setUid(user.uid);
-      authApi
-        .sync(user.displayName ?? undefined)
-        .catch(() => {})
-        .finally(() => setReady(true));
+      void user.reload().then(() => {
+        if (!user.emailVerified) {
+          removeToken();
+          setUid(null);
+          setReady(false);
+          router.replace("/?auth=register");
+          return;
+        }
+        setUid(user.uid);
+        authApi
+          .sync(user.displayName ?? undefined)
+          .catch(() => {})
+          .finally(() => setReady(true));
+      });
     };
 
     void auth.authStateReady().then(() => {

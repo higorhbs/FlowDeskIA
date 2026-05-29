@@ -4,11 +4,17 @@ service cloud.firestore {
     function signedIn() {
       return request.auth != null;
     }
+    function emailVerified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+    function signedInAndVerified() {
+      return emailVerified();
+    }
     function isOwner(tenantId) {
-      return signedIn() && request.auth.uid == tenantId;
+      return signedInAndVerified() && request.auth.uid == tenantId;
     }
     function businessOwned(businessId) {
-      return signedIn() &&
+      return signedInAndVerified() &&
         get(/databases/$(database)/documents/businesses/$(businessId)).data.tenantId == request.auth.uid;
     }
 
@@ -19,9 +25,9 @@ service cloud.firestore {
     }
 
     match /businesses/{businessId} {
-      allow read: if signedIn() && resource.data.tenantId == request.auth.uid;
-      allow create: if signedIn() && request.resource.data.tenantId == request.auth.uid;
-      allow update, delete: if resource.data.tenantId == request.auth.uid;
+      allow read: if signedInAndVerified() && resource.data.tenantId == request.auth.uid;
+      allow create: if signedInAndVerified() && request.resource.data.tenantId == request.auth.uid;
+      allow update, delete: if signedInAndVerified() && resource.data.tenantId == request.auth.uid;
 
       match /catalog/{itemId} {
         allow read, write: if businessOwned(businessId);

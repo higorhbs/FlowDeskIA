@@ -10,6 +10,8 @@ import {
   updateEmail,
   updatePassword,
   reauthenticateWithCredential,
+  sendEmailVerification,
+  reload,
   type User,
 } from "firebase/auth";
 import {
@@ -79,6 +81,43 @@ async function ensureTenantProfile(user: User, name?: string) {
   await ensureClientTenant(user.uid, { name: displayName, email });
 }
 
+function verificationContinueUrl(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  return `${window.location.origin}/?auth=register`;
+}
+
+async function sendVerificationLink(user: User) {
+  const url = verificationContinueUrl();
+  await sendEmailVerification(user, url ? { url } : undefined);
+}
+
+async function ensureVerified(user: User): Promise<boolean> {
+  await reload(user);
+  return user.emailVerified === true;
+}
+
+export async function resendVerificationEmail() {
+  const user = getClientAuth().currentUser;
+  if (!user) throw new Error("Faça login para continuar.");
+  await sendVerificationLink(user);
+}
+
+export async function refreshVerifiedSession() {
+  const user = getClientAuth().currentUser;
+  if (!user) throw new Error("Faça login para continuar.");
+  const verified = await ensureVerified(user);
+  if (!verified) {
+    throw new Error("Seu e-mail ainda não foi confirmado.");
+  }
+  await ensureTenantProfile(user);
+  const token = await user.getIdToken(true);
+  return { token, user };
+}
+
+export type EmailAuthResult =
+  | { status: "VERIFIED"; token: string; user: User }
+  | { status: "VERIFICATION_REQUIRED"; email: string; user: User };
+
 export function authErrorMessage(err: unknown, fallback: string): string {
   const code = err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
   const map: Record<string, string> = {
@@ -100,6 +139,9 @@ export function authErrorMessage(err: unknown, fallback: string): string {
     "permission-denied": "Sem permissão no Firestore. Confira as regras e o login.",
   };
   const raw = err instanceof Error ? err.message : fallback;
+  if (raw.toLowerCase().includes("confirme seu e-mail")) {
+    return "Confirme seu e-mail antes de acessar o painel.";
+  }
   if (raw.toLowerCase().includes("requested action is invalid")) {
     const origin =
       typeof window !== "undefined" ? window.location.origin : "sua URL";
@@ -121,23 +163,32 @@ export function authErrorMessage(err: unknown, fallback: string): string {
   return map[code] ?? raw;
 }
 
-export async function registerWithEmail(name: string, email: string, password: string) {
+export async function registerWithEmail(name: string, email: string, password: string): Promise<EmailAuthResult> {
   const auth = getClientAuth();
   const cred = await createUserWithEmailAndPassword(auth, email, password);
-  await ensureTenantProfile(cred.user, name);
-  const token = await cred.user.getIdToken();
+  await updateProfile(cred.user, { displayName: name });
+  await sendVerificationLink(cred.user);
   return {
-    token,
-    tenant: { id: cred.user.uid, name, email, plan: "STARTER" as const },
+    status: "VERIFICATION_REQUIRED",
+    email,
+    user: cred.user,
   };
 }
 
-export async function loginWithEmail(email: string, password: string) {
+export async function loginWithEmail(email: string, password: string): Promise<EmailAuthResult> {
   const auth = getClientAuth();
   const cred = await signInWithEmailAndPassword(auth, email, password);
+  if (!(await ensureVerified(cred.user))) {
+    await sendVerificationLink(cred.user);
+    return {
+      status: "VERIFICATION_REQUIRED",
+      email: cred.user.email ?? email,
+      user: cred.user,
+    };
+  }
   await ensureTenantProfile(cred.user);
   const token = await cred.user.getIdToken();
-  return { token, user: cred.user };
+  return { status: "VERIFIED", token, user: cred.user };
 }
 
 function googleProvider() {
@@ -166,13 +217,16 @@ function assertGoogleAuthOrigin(): void {
   }
 }
 
-async function finishGoogleLogin(user: User) {
+async function finishGoogleLogin(user: User): Promise<EmailAuthResult> {
+  if (!(await ensureVerified(user))) {
+    throw new Error("Confirme seu e-mail antes de continuar.");
+  }
   await ensureTenantProfile(user);
   const token = await user.getIdToken();
-  return { token, user };
+  return { status: "VERIFIED" as const, token, user };
 }
 
-async function signInWithGoogleIdentity(): Promise<{ token: string; user: User }> {
+async function signInWithGoogleIdentity(): Promise<EmailAuthResult> {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   if (!clientId) throw new Error("Configure NEXT_PUBLIC_GOOGLE_CLIENT_ID no .env");
 
@@ -224,7 +278,7 @@ async function signInWithGoogleIdentity(): Promise<{ token: string; user: User }
   return finishGoogleLogin(result.user);
 }
 
-export async function loginWithGoogle(): Promise<{ token: string; user: User } | null> {
+export async function loginWithGoogle(): Promise<EmailAuthResult | null> {
   assertGoogleAuthOrigin();
   return signInWithGoogleIdentity();
 }

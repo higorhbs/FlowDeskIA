@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { createTenant, getTenant, getAdminAuth } from "@zapflow/firebase";
+import { createTenant, getTenant } from "@zapflow/firebase";
 import { requireAuth } from "../middleware/auth";
 
 const syncBody = z.object({
@@ -14,14 +14,11 @@ export async function authRoutes(app: FastifyInstance) {
       let tenant = await getTenant(req.tenantId);
       if (tenant) return tenant;
 
-      let email = req.tenantEmail;
-      if (!email) {
-        const user = await getAdminAuth().getUser(req.tenantId);
-        email = user.email;
-      }
-      if (!email) {
+      if (!req.tenantEmail) {
         return reply.status(400).send({ error: "E-mail não encontrado na conta Firebase" });
       }
+
+      let email = req.tenantEmail;
 
       tenant = await createTenant(req.tenantId, {
         name: body.name ?? email.split("@")[0] ?? "Usuário",
