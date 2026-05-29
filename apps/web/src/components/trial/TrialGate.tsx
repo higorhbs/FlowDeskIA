@@ -10,6 +10,7 @@ import {
   isStarterTrialActive,
   isStarterTrialExpired,
   starterTrialDaysLeft,
+  hasSubscriptionGraceAccess,
   STARTER_TRIAL_DAYS,
 } from "@zapflow/shared";
 import type { Plan } from "@zapflow/firebase/client";
@@ -126,7 +127,7 @@ export function TrialGate() {
   const isBlocked =
     trialExpired ||
     tenant.planStatus === "PAST_DUE" ||
-    tenant.planStatus === "CANCELED";
+    (tenant.planStatus === "CANCELED" && !hasSubscriptionGraceAccess(tenant));
 
   const showBanner = isStarterTrialActive(tenant) && daysLeft <= 3;
 

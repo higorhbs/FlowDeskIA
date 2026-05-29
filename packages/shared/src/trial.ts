@@ -41,3 +41,28 @@ export function isActivePaidPlan(tenant: TrialTenantLike, plan: string): boolean
   if (plan === "STARTER" && isStarterTrialActive(tenant)) return false;
   return true;
 }
+
+export type SubscriptionCancelTenantLike = {
+  planStatus: string;
+  cancelAtPeriodEnd?: boolean;
+  currentPeriodEnd?: string;
+  canceledAt?: string;
+};
+
+export function isSubscriptionCancelScheduled(
+  tenant: SubscriptionCancelTenantLike,
+  now = new Date()
+): boolean {
+  const accessEnd = tenant.currentPeriodEnd ? new Date(tenant.currentPeriodEnd).getTime() : 0;
+  const accessRemaining = accessEnd > now.getTime();
+  if (tenant.cancelAtPeriodEnd === true && accessRemaining) return true;
+  if (tenant.canceledAt && accessRemaining && tenant.planStatus !== "TRIALING") return true;
+  return false;
+}
+
+export function hasSubscriptionGraceAccess(
+  tenant: SubscriptionCancelTenantLike,
+  now = new Date()
+): boolean {
+  return isSubscriptionCancelScheduled(tenant, now);
+}

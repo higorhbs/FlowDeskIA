@@ -16,6 +16,7 @@ export interface Tenant {
   stripeSubscriptionId?: string;
   stripePriceId?: string;
   currentPeriodEnd?: string;
+  cancelAtPeriodEnd?: boolean;
   canceledAt?: string;
   cancellationReason?: string;
   cancellationUsageDays?: number;

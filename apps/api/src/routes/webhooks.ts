@@ -10,6 +10,12 @@ import {
 } from "@zapflow/firebase";
 import { optionalEnv } from "../env";
 import { notifyPaymentReceived } from "../services/payment-notify";
+import {
+  getSubscriptionAccessEndIso,
+  getSubscriptionCanceledAtIso,
+  isSubscriptionCancelPending,
+  subscriptionCancelPatch,
+} from "../services/stripe-subscription.js";
 
 function planFromPriceId(priceId: string | null | undefined): "STARTER" | "PRO" | "UNLIMITED" | null {
   if (!priceId) return null;
@@ -104,6 +110,7 @@ export async function webhookRoutes(app: FastifyInstance) {
           stripeSubscriptionId: subscriptionId ?? undefined,
           plan: (plan as any) ?? tenant.plan,
           planStatus: "ACTIVE",
+          cancelAtPeriodEnd: false,
         });
       }
     }
@@ -129,13 +136,22 @@ export async function webhookRoutes(app: FastifyInstance) {
         if (tenant) {
           const resolvedPlan = (plan as any) ?? tenant.plan;
           if (resolvedPlan !== "STARTER" && planStatus === "TRIALING") planStatus = "ACTIVE";
-          await updateTenant(tenant.id, {
+          const cancelPending = isSubscriptionCancelPending(sub);
+          if (cancelPending && sub.status === "active") planStatus = "ACTIVE";
+          const accessEnd = getSubscriptionAccessEndIso(sub);
+          const patch: Record<string, unknown> = {
             stripeSubscriptionId: sub.id,
             stripePriceId: priceId,
-            currentPeriodEnd: new Date(sub.current_period_end * 1000).toISOString(),
+            currentPeriodEnd: accessEnd ?? new Date(sub.current_period_end * 1000).toISOString(),
             plan: resolvedPlan,
             planStatus,
-          });
+            ...subscriptionCancelPatch(sub, tenant),
+          };
+          if (sub.status === "canceled") {
+            patch.planStatus = "CANCELED";
+            patch.cancelAtPeriodEnd = false;
+          }
+          await updateTenant(tenant.id, patch as Parameters<typeof updateTenant>[1]);
         }
       }
     }
@@ -146,9 +162,14 @@ export async function webhookRoutes(app: FastifyInstance) {
       if (customerId) {
         const tenant = await getTenantByStripeCustomerId(customerId);
         if (tenant) {
+          const accessEnd = getSubscriptionAccessEndIso(sub);
+          const stillHasAccess = accessEnd ? Date.now() < new Date(accessEnd).getTime() : false;
           await updateTenant(tenant.id, {
-            planStatus: "CANCELED",
-            stripeSubscriptionId: undefined,
+            planStatus: stillHasAccess ? "ACTIVE" : "CANCELED",
+            stripeSubscriptionId: stillHasAccess ? sub.id : undefined,
+            cancelAtPeriodEnd: stillHasAccess,
+            currentPeriodEnd: accessEnd ?? tenant.currentPeriodEnd,
+            canceledAt: tenant.canceledAt ?? getSubscriptionCanceledAtIso(sub) ?? new Date().toISOString(),
           });
         }
       }

@@ -292,55 +292,6 @@ export const billingApi = {
     await authApi.sync();
     return api.post("/billing/portal").then((r) => r.data as { url?: string });
   },
-  cancellationPreview: async () => {
-    if (!hasPublicApi()) {
-      return {
-        canCancel: false,
-        reason: "API de cobrança indisponível no ambiente atual.",
-      };
-    }
-    await authApi.sync();
-    return api.get("/billing/cancel/preview").then(
-      (r) =>
-        r.data as {
-          canCancel: boolean;
-          reason?: string;
-          subscriptionStatus?: string;
-          periodStart?: string;
-          periodEnd?: string;
-          usedDays?: number;
-          totalCycleDays?: number;
-          remainingDays?: number;
-          refundEstimateCents?: number;
-          refundEstimateBrl?: number;
-          currency?: string;
-          lgpd?: {
-            requiresConsent: boolean;
-            legalBasis: string;
-            retentionDays: number;
-          };
-        }
-    );
-  },
-  cancelPlan: async (data: { reason?: string; lgpdConsent: boolean }) => {
-    if (!hasPublicApi()) {
-      throw new Error("API de cobrança indisponível no ambiente atual.");
-    }
-    await authApi.sync();
-    return api.post("/billing/cancel", data).then(
-      (r) =>
-        r.data as {
-          ok: boolean;
-          canceledAt: string;
-          usedDays: number;
-          totalCycleDays: number;
-          refundAmountCents: number;
-          refundAmountBrl: number;
-          refundId: string | null;
-          refundStatus: string;
-        }
-    );
-  },
   sync: async () => {
     if (!hasPublicApi()) {
       return { ok: false as const, planStatus: null, subscriptionStatus: null };
@@ -355,6 +306,9 @@ export const billingApi = {
           stripeCustomerId?: string | null;
           stripeSubscriptionId?: string | null;
           subscriptionStatus?: string | null;
+          cancelAtPeriodEnd?: boolean;
+          currentPeriodEnd?: string | null;
+          canceledAt?: string | null;
         }
     );
   },
