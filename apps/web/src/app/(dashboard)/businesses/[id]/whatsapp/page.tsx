@@ -7,7 +7,6 @@ import { useBusinessId } from "@/lib/use-business-id";
 import { markWhatsAppConnected, useSyncWhatsAppBusiness } from "@/lib/use-sync-wa-business";
 import { toast } from "sonner";
 import { Smartphone, Wifi, WifiOff, QrCode, RefreshCw, Loader2, AlertTriangle } from "lucide-react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -78,13 +77,27 @@ export default function WhatsAppPage() {
   const { mutate: startConnect, isPending: isConnectPending } = connectMutation;
 
   useEffect(() => {
-    if (isLoading || waUnavailable || status?.connected) return;
-    if (qrCode || status?.qr) return;
+    if (isLoading || waUnavailable || status?.connected || qrCode || status?.qr) return;
     if (connectStarted.current || isConnectPending) return;
-    connectStarted.current = true;
-    silentConnect.current = true;
-    startConnect(false);
+    const t = setTimeout(() => {
+      if (connectStarted.current) return;
+      connectStarted.current = true;
+      silentConnect.current = true;
+      startConnect(false);
+    }, 400);
+    return () => clearTimeout(t);
   }, [isLoading, waUnavailable, status?.connected, status?.qr, qrCode, isConnectPending, startConnect]);
+
+  useEffect(() => {
+    if (qrCode || status?.qr || status?.connected || waUnavailable) return;
+    const t = setTimeout(() => {
+      if (qrCode || status?.qr || connectStarted.current) return;
+      connectStarted.current = true;
+      silentConnect.current = true;
+      startConnect(true);
+    }, 40_000);
+    return () => clearTimeout(t);
+  }, [qrCode, status?.qr, status?.connected, waUnavailable, startConnect]);
 
   const isConnected = status?.connected;
 
@@ -160,7 +173,7 @@ export default function WhatsAppPage() {
         {qrCode && !isConnected && (
           <div className="mb-8">
             <div className="inline-block p-4 bg-white border-2 border-gray-200 rounded-2xl shadow-sm">
-              <Image src={qrCode} alt="QR Code WhatsApp" width={250} height={250} unoptimized />
+              <img src={qrCode} alt="QR Code WhatsApp" width={250} height={250} className="mx-auto" />
             </div>
             <div className="mt-4 text-sm text-gray-500 space-y-1">
               <p>1. Abra o WhatsApp no celular</p>

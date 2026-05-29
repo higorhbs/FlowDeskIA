@@ -28,7 +28,7 @@ export class WhatsAppClient extends EventEmitter {
   private sock: WASocket | null = null;
   private sessionPath: string;
   private logger = pino({ level: "silent" });
-  public status: ConnectionStatus = "connecting";
+  public status: ConnectionStatus = "close";
   public lastQrDataUrl?: string;
   private connecting = false;
 
@@ -42,6 +42,7 @@ export class WhatsAppClient extends EventEmitter {
     if (this.status === "open") return;
     if (this.connecting) return;
     this.connecting = true;
+    this.status = "connecting";
     try {
     if (this.sock) {
       try {

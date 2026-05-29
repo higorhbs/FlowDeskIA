@@ -1,4 +1,6 @@
 import { FastifyInstance, FastifyReply } from "fastify";
+import fs from "fs";
+import path from "path";
 import {
   getBusiness,
   setBusinessConnected,
@@ -25,7 +27,7 @@ function waUnavailable(reply: FastifyReply) {
   });
 }
 
-function waitForQr(client: WhatsAppClient, timeoutMs = 12_000): Promise<ConnectResult> {
+function waitForQr(client: WhatsAppClient, timeoutMs = 35_000): Promise<ConnectResult> {
   if (client.isConnected()) {
     return Promise.resolve({ status: "already_connected" });
   }
@@ -56,6 +58,62 @@ function waitForQr(client: WhatsAppClient, timeoutMs = 12_000): Promise<ConnectR
   });
 }
 
+async function resetWhatsAppSession(businessId: string, sessionsRoot: string) {
+  const existing = waManager.get(businessId);
+  if (existing) {
+    try {
+      await existing.logout();
+    } catch {
+      const sessionDir = path.join(sessionsRoot, businessId);
+      if (fs.existsSync(sessionDir)) fs.rmSync(sessionDir, { recursive: true, force: true });
+    }
+    waManager.remove(businessId);
+    return;
+  }
+  const sessionDir = path.join(sessionsRoot, businessId);
+  if (fs.existsSync(sessionDir)) fs.rmSync(sessionDir, { recursive: true, force: true });
+}
+
+async function connectForQr(
+  businessId: string,
+  sessionsRoot: string,
+  force: boolean,
+  log: FastifyInstance["log"]
+): Promise<ConnectResult> {
+  if (force) await resetWhatsAppSession(businessId, sessionsRoot);
+
+  const client = ensureWhatsAppClient(waManager, sessionsRoot, businessId);
+
+  if (client.isConnected()) {
+    await setBusinessConnected(businessId, true);
+    return { status: "already_connected" };
+  }
+
+  if (client.lastQrDataUrl && !force) {
+    return { status: "qr", qr: client.lastQrDataUrl };
+  }
+
+  void client.connect().catch((err) => {
+    log.error({ err }, "whatsapp connect failed");
+  });
+
+  let result = await waitForQr(client, 30_000);
+  if (result.qr || client.isConnected()) return result;
+
+  const staleSession =
+    !force && hasStoredSession(sessionsRoot, businessId) && !client.lastQrDataUrl;
+  if (staleSession) {
+    await resetWhatsAppSession(businessId, sessionsRoot);
+    const fresh = ensureWhatsAppClient(waManager, sessionsRoot, businessId);
+    void fresh.connect().catch((err) => {
+      log.error({ err }, "whatsapp fresh connect failed");
+    });
+    result = await waitForQr(fresh, 45_000);
+  }
+
+  return result;
+}
+
 export async function whatsappRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
 
@@ -70,32 +128,11 @@ export async function whatsappRoutes(app: FastifyInstance) {
     const business = await getBusiness(id, req.tenantId);
     if (!business) return reply.status(404).send({ error: "Negócio não encontrado" });
 
-    const prev = waManager.get(id);
-    if (prev && force) {
-      try {
-        await prev.logout();
-      } catch {
-        /* sessão anterior pode já estar inválida */
-      }
-      waManager.remove(id);
-    }
-
-    const client = ensureWhatsAppClient(waManager, sessionsRoot, id);
-
-    if (client.isConnected()) {
-      await setBusinessConnected(id, true);
-      return reply.send({ status: "already_connected" });
-    }
-
-    if (client.lastQrDataUrl && !force) {
-      return reply.send({ status: "qr", qr: client.lastQrDataUrl });
-    }
-
     try {
-      void client.connect().catch((err) => {
-        req.log.error({ err }, "whatsapp background connect failed");
-      });
-      const result = await waitForQr(client, 12_000);
+      const result = await connectForQr(id, sessionsRoot, force, req.log);
+      if (result.status === "already_connected" || waManager.get(id)?.isConnected()) {
+        await setBusinessConnected(id, true);
+      }
       return reply.send(result);
     } catch (err) {
       req.log.error({ err }, "whatsapp connect failed");

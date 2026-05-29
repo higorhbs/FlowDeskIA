@@ -237,8 +237,10 @@ export const conversationApi = {
 
 async function wakeProductionApi() {
   if (!hasPublicApi()) return;
+  const base = getApiBaseUrl();
+  if (/localhost|127\.0\.0\.1/.test(base)) return;
   try {
-    await api.get("/health", { timeout: 120_000 });
+    await api.get("/health", { timeout: 15_000 });
   } catch {
     /* cold start */
   }
@@ -249,7 +251,7 @@ export const whatsappApi = {
     await wakeProductionApi();
     return api
       .post(`/businesses/${businessId}/whatsapp/connect${force ? "?force=1" : ""}`, undefined, {
-        timeout: 25_000,
+        timeout: 90_000,
       })
       .then((r) => r.data);
   },
