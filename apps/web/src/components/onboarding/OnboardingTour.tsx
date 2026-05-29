@@ -6,13 +6,15 @@ import { tenantApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import {
   CheckCircle2, ChevronLeft, ChevronRight,
-  Bot, CalendarClock, BookOpen, HelpCircle,
+  CalendarClock, BookOpen, HelpCircle,
   Clock, Users, TrendingUp, Star, MessageSquareText, Zap,
+  QrCode, Banknote, Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { IaIcon } from "@/lib/ia-brand";
 
 interface ChatMsg {
-  from: "customer" | "bot";
+  from: "customer" | "ia";
   text: string;
   time: string;
 }
@@ -31,12 +33,12 @@ const STEPS: StepDef[] = [
   {
     badge: "Atendimento automático",
     title: "Seu WhatsApp trabalhando 24h por dia",
-    subtitle: "O bot responde instantaneamente com um menu personalizado, apresentando tudo que seu negócio oferece — mesmo quando você dorme.",
+    subtitle: "A IA responde instantaneamente com um menu personalizado, apresentando tudo que seu negócio oferece — mesmo quando você dorme.",
     color: "from-brand-500 to-brand-700",
     accentColor: "bg-brand-600",
     features: [
       { icon: Clock, text: "Respostas imediatas fora do horário" },
-      { icon: Bot, text: "Menu configurável com até 4 opções" },
+      { icon: IaIcon, text: "Menu configurável com até 4 opções" },
       { icon: Star, text: "Experiência profissional para o cliente" },
     ],
     chat: {
@@ -44,7 +46,7 @@ const STEPS: StepDef[] = [
       messages: [
         { from: "customer", text: "Oi, boa noite! Vocês ainda atendem?", time: "21:42" },
         {
-          from: "bot",
+          from: "ia",
           text: "Olá! 👋 Sou o assistente da *Barbearia do João*\n\nComo posso ajudar?\n\n*1* — 📅 Agendamentos\n*2* — 🛍️ Catálogo\n*3* — ❓ Dúvidas\n*0* — 👤 Falar com atendente",
           time: "21:42",
         },
@@ -54,7 +56,7 @@ const STEPS: StepDef[] = [
   {
     badge: "Agendamentos",
     title: "Clientes agendam sem precisar ligar",
-    subtitle: "O bot guia o cliente pelo fluxo completo: escolha do serviço, data disponível e confirmação — tudo via WhatsApp.",
+    subtitle: "A IA guia o cliente pelo fluxo completo: escolha do serviço, data disponível e confirmação — tudo via WhatsApp.",
     color: "from-blue-500 to-blue-700",
     accentColor: "bg-blue-600",
     features: [
@@ -66,11 +68,11 @@ const STEPS: StepDef[] = [
       businessName: "Barbearia do João",
       messages: [
         { from: "customer", text: "1", time: "10:05" },
-        { from: "bot", text: "Qual serviço deseja?\n\n*1* — ✂️ Corte Masculino  R$ 40\n*2* — 🪒 Barba  R$ 25\n*3* — ✂️🪒 Corte + Barba  R$ 60", time: "10:05" },
+        { from: "ia", text: "Qual serviço deseja?\n\n*1* — ✂️ Corte Masculino  R$ 40\n*2* — 🪒 Barba  R$ 25\n*3* — ✂️🪒 Corte + Barba  R$ 60", time: "10:05" },
         { from: "customer", text: "1", time: "10:06" },
-        { from: "bot", text: "Disponibilidade:\n\n▸ Seg 02/06 — 09h, 11h, 14h\n▸ Ter 03/06 — 10h, 15h, 17h\n\nQual prefere?", time: "10:06" },
+        { from: "ia", text: "Disponibilidade:\n\n▸ Seg 02/06 — 09h, 11h, 14h\n▸ Ter 03/06 — 10h, 15h, 17h\n\nQual prefere?", time: "10:06" },
         { from: "customer", text: "terça 10h", time: "10:07" },
-        { from: "bot", text: "✅ Agendado!\n\n📅 Terça, 03/06 às 10:00\n✂️ Corte Masculino\n\nAté lá! 💈", time: "10:07" },
+        { from: "ia", text: "✅ Agendado!\n\n📅 Terça, 03/06 às 10:00\n✂️ Corte Masculino\n\nAté lá! 💈", time: "10:07" },
       ],
     },
   },
@@ -90,7 +92,7 @@ const STEPS: StepDef[] = [
       messages: [
         { from: "customer", text: "2", time: "14:30" },
         {
-          from: "bot",
+          from: "ia",
           text: "🛍️ *Nosso Catálogo*\n\n✂️ *Corte Masculino*\nAcabamento preciso e moderno\n💰 R$ 40,00\n\n🪒 *Barba*\nModelagem completa\n💰 R$ 25,00\n\n✂️🪒 *Corte + Barba*\nCombo completo com desconto\n💰 R$ 60,00\n\nDigite *1* para agendar!",
           time: "14:30",
         },
@@ -98,9 +100,38 @@ const STEPS: StepDef[] = [
     },
   },
   {
+    badge: "Pagamentos PIX",
+    title: "Clientes pagam com PIX direto no WhatsApp",
+    subtitle: "A IA gera uma cobrança PIX no momento do pedido, o cliente paga no app do banco e a confirmação chega automática — sem links externos, sem atrito.",
+    color: "from-emerald-500 to-emerald-700",
+    accentColor: "bg-emerald-600",
+    features: [
+      { icon: QrCode, text: "PIX gerado e enviado direto no chat" },
+      { icon: CheckCircle2, text: "Confirmação automática quando pago" },
+      { icon: Wallet, text: "Dinheiro cai na sua conta Asaas na hora" },
+    ],
+    chat: {
+      businessName: "Barbearia do João",
+      messages: [
+        { from: "customer", text: "Quero pagar pelo WhatsApp mesmo", time: "11:20" },
+        {
+          from: "ia",
+          text: "💰 Cobrança PIX gerada!\n\n💵 *R$ 60,00* — Corte + Barba\n\nCopie o código abaixo e cole no app do seu banco 👇\n\n`00020126580014BR.GOV.BCB.PIX0136...`\n\n⏰ Válido por 1 hora",
+          time: "11:20",
+        },
+        { from: "customer", text: "Paguei!", time: "11:23" },
+        {
+          from: "ia",
+          text: "✅ *Pagamento confirmado!*\n\nRecebemos R$ 60,00 com sucesso 🙌\n\nAté terça-feira, 03/06 às 10h!\n💈 Barbearia do João",
+          time: "11:23",
+        },
+      ],
+    },
+  },
+  {
     badge: "Perguntas & Respostas",
-    title: "Bot resolve dúvidas na hora certa",
-    subtitle: "Cadastre as perguntas mais frequentes. O bot identifica palavras-chave e responde automaticamente, transferindo ao atendente quando necessário.",
+    title: "A IA resolve dúvidas na hora certa",
+    subtitle: "Cadastre as perguntas mais frequentes. A IA identifica palavras-chave e responde automaticamente, transferindo ao atendente quando necessário.",
     color: "from-amber-500 to-orange-600",
     accentColor: "bg-amber-500",
     features: [
@@ -113,13 +144,13 @@ const STEPS: StepDef[] = [
       messages: [
         { from: "customer", text: "Aceita cartão de crédito?", time: "16:15" },
         {
-          from: "bot",
+          from: "ia",
           text: "💳 Sim! Aceitamos:\n\n• Cartão de crédito e débito\n• PIX (5% de desconto!)\n• Dinheiro\n\nTem mais alguma dúvida? 😊",
           time: "16:15",
         },
         { from: "customer", text: "Qual o endereço?", time: "16:16" },
         {
-          from: "bot",
+          from: "ia",
           text: "📍 Rua das Flores, 123 — Centro\n\n🕐 Horários:\nSeg–Sex: 9h às 20h\nSáb: 9h às 18h",
           time: "16:16",
         },
@@ -173,12 +204,12 @@ function WaChat({ businessName, messages }: { businessName: string; messages: Ch
         }}
       >
         {messages.map((msg, i) => {
-          const isBot = msg.from === "bot";
+          const isIa = msg.from === "ia";
           return (
-            <div key={i} className={`flex ${isBot ? "justify-end" : "justify-start"}`}>
+            <div key={i} className={`flex ${isIa ? "justify-end" : "justify-start"}`}>
               <div
                 className={`max-w-[85%] rounded-2xl px-3 py-2 shadow-sm text-[12.5px] leading-relaxed relative ${
-                  isBot
+                  isIa
                     ? "bg-[#DCF8C6] text-gray-800 rounded-tr-sm"
                     : "bg-white text-gray-800 rounded-tl-sm"
                 }`}
@@ -186,7 +217,7 @@ function WaChat({ businessName, messages }: { businessName: string; messages: Ch
                 <div>{parseWaText(msg.text)}</div>
                 <div className="flex items-center justify-end gap-1 mt-1">
                   <span className="text-[10px] text-gray-400">{msg.time}</span>
-                  {isBot && (
+                  {isIa && (
                     <svg viewBox="0 0 16 11" className="w-4 h-3 fill-[#53BDEB]">
                       <path d="M11.071.653a.75.75 0 0 0-1.142 0L5.857 5.726 4.07 3.939a.75.75 0 1 0-1.06 1.06L5.326 7.31a.75.75 0 0 0 1.06 0l4.685-4.957M15.07.653a.75.75 0 0 0-1.142 0L9.857 5.726l-.571-.571" />
                     </svg>
@@ -217,24 +248,32 @@ function lsKey(uid: string) {
   return `zapflow_onboarding_done_${uid}`;
 }
 
-export function OnboardingTour() {
+type OnboardingTourProps = {
+  variant?: "dashboard" | "public";
+};
+
+export function OnboardingTour({ variant = "dashboard" }: OnboardingTourProps) {
+  const isPublic = variant === "public";
   const { uid, ready } = useAuth();
   const [step, setStep] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const [forceOpen, setForceOpen] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
+  const [hydrated, setHydrated] = useState(isPublic);
 
-  // Persist dismiss in localStorage so it survives reloads even if Firestore write fails
   useEffect(() => {
+    if (isPublic) {
+      setHydrated(true);
+      return;
+    }
     if (!uid) return;
     setDismissed(localStorage.getItem(lsKey(uid)) === "1");
     setHydrated(true);
-  }, [uid]);
+  }, [uid, isPublic]);
 
   const { data: tenant, isLoading } = useQuery({
     queryKey: ["tenant", uid],
     queryFn: () => tenantApi.get(),
-    enabled: ready && !!uid,
+    enabled: !isPublic && ready && !!uid,
   });
 
   const complete = useMutation({
@@ -242,15 +281,18 @@ export function OnboardingTour() {
   });
 
   function dismiss() {
-    if (uid) localStorage.setItem(lsKey(uid), "1");
+    if (!isPublic && uid) localStorage.setItem(lsKey(uid), "1");
     setDismissed(true);
     setForceOpen(false);
-    complete.mutate();
+    if (!isPublic) complete.mutate();
   }
 
   const current = STEPS[step];
   const done = Boolean((tenant as any)?.onboardingCompletedAt);
-  const visible = hydrated && !dismissed && !isLoading && !!tenant && (!done || forceOpen);
+  const visible =
+    hydrated &&
+    !dismissed &&
+    (isPublic ? forceOpen : !isLoading && !!tenant && (!done || forceOpen));
   const canBack = step > 0;
   const isLast = step === STEPS.length - 1;
   const progress = useMemo(() => ((step + 1) / STEPS.length) * 100, [step]);

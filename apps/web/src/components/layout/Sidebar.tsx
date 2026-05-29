@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Store,
   Calendar,
-  Bot,
   Settings,
   LogOut,
   CreditCard,
@@ -30,6 +29,7 @@ import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { VocabLabel } from "@/components/layout/VocabLabel";
 import { BusinessNavLink } from "@/components/layout/BusinessNavLink";
 import { panelHref } from "@/lib/business-nav";
+import { IaIcon } from "@/lib/ia-brand";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 
@@ -80,7 +80,7 @@ export function Sidebar() {
         { href: panelHref(businessId, "appointments"), icon: Calendar, label: v.bookingsNav, vocab: true },
         { href: panelHref(businessId, "catalog"), icon: BookOpen, label: v.catalogNav, vocab: true },
         { href: panelHref(businessId, "payments"), icon: Banknote, label: "Pagamentos", vocab: false },
-        { href: panelHref(businessId, "faqs"), icon: Bot, label: "Bot", vocab: false },
+        { href: panelHref(businessId, "faqs"), icon: IaIcon, label: "IA", vocab: false },
         { href: panelHref(businessId, "whatsapp"), icon: MessageSquare, label: "WhatsApp", vocab: false },
         { href: panelHref(businessId, "settings"), icon: Settings, label: "Configurações", vocab: false },
       ]

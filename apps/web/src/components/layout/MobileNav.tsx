@@ -2,7 +2,8 @@
 
 import { AppLink as Link } from "@/components/AppLink";
 import { useQuery } from "@tanstack/react-query";
-import { MessageSquare, Calendar, BookOpen, Bot, Settings, Banknote } from "lucide-react";
+import { MessageSquare, Calendar, BookOpen, Settings, Banknote } from "lucide-react";
+import { IaIcon } from "@/lib/ia-brand";
 import { businessApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
@@ -29,7 +30,7 @@ export function MobileNav() {
     { href: panelHref(navId, "appointments"), icon: Calendar, label: v.bookingsNavShort, vocab: true },
     { href: panelHref(navId, "catalog"), icon: BookOpen, label: v.catalogNavShort, vocab: true },
     { href: panelHref(navId, "payments"), icon: Banknote, label: "Pagto", vocab: false },
-    { href: panelHref(navId, "faqs"), icon: Bot, label: "FAQ", vocab: false },
+    { href: panelHref(navId, "faqs"), icon: IaIcon, label: "IA", vocab: false },
     { href: panelHref(navId, "settings"), icon: Settings, label: "Ajustes", vocab: false },
   ];
 

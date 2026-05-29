@@ -25,7 +25,7 @@ export async function notifyBookingAccepted(
   try {
     const convId = apt.conversationId ?? (await upsertConversation(business.id, apt.customerPhone)).id;
     await client.sendText(apt.customerPhone, text);
-    await createMessage(business.id, convId, { role: "BOT", content: text });
+    await createMessage(business.id, convId, { role: "IA", content: text });
   } catch (err) {
     console.warn("[booking-notify] failed", business.id, apt.id, err);
   }

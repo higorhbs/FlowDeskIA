@@ -10,13 +10,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import {
-  Bot, MessageSquare, HelpCircle, Plus, Trash2, Loader2, X,
+  MessageSquare, HelpCircle, Plus, Trash2, Loader2, X,
   ChevronUp, ChevronDown, Eye, Save, Pencil, Check,
   Sparkles, Hash, MessageCircleQuestion, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BotMenuItemConfig } from "@zapflow/firebase/client";
 import { buildBotMenuEntries, getBusinessVocabulary } from "@zapflow/shared";
+import { IaIcon } from "@/lib/ia-brand";
 
 const LEGACY_EMOJI: Record<string, string> = {
   APPOINTMENT: "📅",
@@ -187,7 +188,7 @@ function BotMenuEditor({ businessId, initialMenu, businessName, businessType }: 
       } as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["business", businessId] });
-      toast.success("Menu do bot salvo!");
+      toast.success("Menu da IA salvo!");
     },
     onError: () => toast.error("Erro ao salvar menu"),
   });
@@ -265,7 +266,7 @@ function BotMenuEditor({ businessId, initialMenu, businessName, businessType }: 
                     {modal.index === null ? "Nova opção do menu" : "Editar opção"}
                   </h3>
                   <p className="text-brand-200 text-xs mt-0.5">
-                    Nome que aparece no menu + o que o bot responde
+                    Nome que aparece no menu + o que a IA responde
                   </p>
                 </div>
               </div>
@@ -314,7 +315,7 @@ function BotMenuEditor({ businessId, initialMenu, businessName, businessType }: 
               {/* Resposta */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Resposta do bot
+                  Resposta da IA
                   <span className="ml-1.5 text-xs font-normal text-gray-400">— enviada quando o cliente digitar o número</span>
                 </label>
                 <textarea
@@ -352,7 +353,7 @@ function BotMenuEditor({ businessId, initialMenu, businessName, businessType }: 
       <div>
         <p className="text-sm text-gray-500 mb-5">
           Cada opção tem um <strong className="font-medium text-gray-700">nome</strong> que aparece no menu e uma{" "}
-          <strong className="font-medium text-gray-700">resposta</strong> que o bot envia quando o cliente escolhe aquele número.
+          <strong className="font-medium text-gray-700">resposta</strong> que a IA envia quando o cliente escolhe aquele número.
         </p>
 
         <div className="rounded-2xl border border-gray-200 overflow-hidden mb-4 shadow-sm divide-y divide-gray-100">
@@ -682,7 +683,7 @@ function FAQsEditor({ businessId, businessType }: { businessId: string; business
         <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200">
           <Zap className="w-4 h-4 text-amber-600 flex-shrink-0" />
           <p className="text-xs text-amber-700 font-medium">
-            O bot responde 24h por palavras-chave — tolera erros de digitação e texto sem acento
+            A IA responde 24h por palavras-chave — tolera erros de digitação e texto sem acento
           </p>
         </div>
         <button className="btn-primary ml-4 flex-shrink-0" onClick={openCreate}>
@@ -736,7 +737,7 @@ function FAQsEditor({ businessId, businessType }: { businessId: string; business
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   <span className="flex items-center gap-1.5">
                     <MessageSquare className="w-3.5 h-3.5 text-brand-500" />
-                    Resposta do bot
+                    Resposta da IA
                   </span>
                 </label>
                 <textarea className="input h-28 resize-none"
@@ -756,7 +757,7 @@ function FAQsEditor({ businessId, businessType }: { businessId: string; business
                   placeholder="horário, funcionamento, abre, fecha" {...register("keywords")} />
                 <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-amber-400" />
-                  O bot reconhece com ou sem acento e com pequenos erros de digitação
+                  A IA reconhece com ou sem acento e com pequenos erros de digitação
                 </p>
                 {errors.keywords && <p className="text-xs text-red-500 mt-1">{errors.keywords.message}</p>}
               </div>
@@ -788,7 +789,7 @@ function FAQsEditor({ businessId, businessType }: { businessId: string; business
             </div>
             <h3 className="text-base font-semibold text-gray-800 mb-1">Nenhuma pergunta ainda</h3>
             <p className="text-sm text-gray-400 max-w-xs">
-              Adicione perguntas frequentes para o bot responder automaticamente 24 horas por dia.
+              Adicione perguntas frequentes para a IA responder automaticamente 24 horas por dia.
             </p>
           </div>
 
@@ -950,12 +951,12 @@ export default function BotPage() {
 
         <div className="relative flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-sm flex-shrink-0">
-            <Bot className="w-7 h-7 text-white" />
+            <IaIcon className="w-7 h-7 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Configuração do Bot</h1>
+            <h1 className="text-2xl font-bold text-white">Configuração da IA</h1>
             <p className="text-brand-100 text-sm mt-0.5">
-              Personalize o menu e as respostas automáticas do seu bot no WhatsApp
+              Personalize o menu e as respostas automáticas da IA no WhatsApp
             </p>
           </div>
         </div>
@@ -964,7 +965,7 @@ export default function BotPage() {
       {/* Tabs */}
       <div className="flex gap-1 p-1.5 bg-gray-100 rounded-2xl w-fit mb-8 shadow-inner">
         {([
-          { id: "menu", label: "Menu do Bot", icon: MessageSquare },
+          { id: "menu", label: "Menu da IA", icon: MessageSquare },
           { id: "faqs", label: "Perguntas & Respostas", icon: HelpCircle },
         ] as const).map(({ id, label, icon: Icon }) => (
           <button

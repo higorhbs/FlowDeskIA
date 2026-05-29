@@ -606,7 +606,7 @@ async function handleFAQ(
 ): Promise<BotResponse[]> {
   if (!business.faqs?.length) {
     const text =
-      "Ainda não há perguntas no *FAQ*.\n\nCadastre no painel AtendeJa (menu FAQ) para o bot responder automaticamente.";
+      "Ainda não há perguntas no *FAQ*.\n\nCadastre no painel AtendeJa (menu FAQ) para a IA responder automaticamente.";
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
@@ -904,7 +904,7 @@ function buildMainMenu(business: {
   if (!entries.length) {
     return (
       `*${business.name}*\n\n` +
-      `_Menu ainda não configurado no painel. Enquanto isso, envie sua mensagem que o bot tenta ajudar._`
+      `_Menu ainda não configurado no painel. Enquanto isso, envie sua mensagem que a IA tenta ajudar._`
     );
   }
   let text = `*Menu — ${business.name}*\n\n`;
@@ -962,6 +962,6 @@ async function saveAndReturn(
   await createMessages(
     businessId,
     conversationId,
-    responses.map((r) => ({ role: "BOT", content: r.text })),
+    responses.map((r) => ({ role: "IA", content: r.text })),
   );
 }

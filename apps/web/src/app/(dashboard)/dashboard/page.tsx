@@ -6,12 +6,13 @@ import { useAuth } from "@/contexts/auth-context";
 import { formatCurrency, cn } from "@/lib/utils";
 import {
   MessageSquare, Calendar, DollarSign, TrendingUp,
-  Store, ArrowRight, Plus, Bot, Settings,
+  Store, ArrowRight, Plus, Settings,
   ShoppingBag, Zap,
 } from "lucide-react";
 import { AppLink as Link } from "@/components/AppLink";
 import { useState, useEffect, useRef } from "react";
 import { getBusinessVocabulary } from "@/lib/use-business-vocabulary";
+import { IaIcon } from "@/lib/ia-brand";
 
 // ── Seeded deterministic data ──────────────────────────────────────────────────
 function seeded(n: number) {
@@ -582,7 +583,7 @@ function DashboardContent({ business }: { business: any }) {
           {/* Quick links */}
           <div className="space-y-2">
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-1">Acesso rápido</p>
-            <QuickLink href={`/businesses/${business.id}/faqs`}       icon={Bot}         label="Configurar bot"  iconColor="text-brand-600"   iconBg="bg-brand-50" />
+            <QuickLink href={`/businesses/${business.id}/faqs`}       icon={IaIcon}      label="Configurar IA"   iconColor="text-brand-600"   iconBg="bg-brand-50" />
             <QuickLink href={`/businesses/${business.id}/catalog`}    icon={ShoppingBag} label="Catálogo"         iconColor="text-violet-600"  iconBg="bg-violet-50" />
             <QuickLink href={`/businesses/${business.id}/appointments`} icon={Calendar}  label="Agendamentos"    iconColor="text-emerald-600" iconBg="bg-emerald-50" />
             <QuickLink href={`/businesses/${business.id}/settings`}   icon={Settings}    label="Configurações"   iconColor="text-gray-500"    iconBg="bg-gray-100" />

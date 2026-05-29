@@ -2,7 +2,7 @@ export type Plan = "STARTER" | "PRO" | "UNLIMITED";
 export type PlanStatus = "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED";
 export type BusinessType = "BARBERSHOP" | "SALON" | "RESTAURANT" | "DENTAL" | "STORE" | "OTHER";
 export type ConversationStatus = "OPEN" | "ATTENDING" | "CLOSED";
-export type MessageRole = "CUSTOMER" | "BOT" | "HUMAN";
+export type MessageRole = "CUSTOMER" | "IA" | "HUMAN";
 export type AppointmentStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED" | "NO_SHOW";
 export type PaymentStatus = "PENDING" | "PAID" | "OVERDUE" | "CANCELLED";
 

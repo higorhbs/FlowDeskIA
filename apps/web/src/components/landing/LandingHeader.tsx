@@ -1,18 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowUpRight, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthDrawer } from "@/contexts/auth-drawer-context";
 
-const NAV_LINKS = [
-  { href: "#hero", label: "Início" },
-] as const;
+function scrollToSection(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 
 export function LandingHeader() {
   const { openAuth } = useAuthDrawer();
-  const router = useRouter();
 
   return (
     <header className="relative z-50">
@@ -47,7 +45,15 @@ export function LandingHeader() {
 
           <button
             type="button"
-            onClick={() => router.push("/plans")}
+            onClick={() => scrollToSection("clientes")}
+            className="rounded-full px-5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-background hover:text-primary"
+          >
+            Relatos
+          </button>
+
+          <button
+            type="button"
+            onClick={() => scrollToSection("precos")}
             className="rounded-full px-5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-background hover:text-primary"
           >
             Preços

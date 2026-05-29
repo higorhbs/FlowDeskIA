@@ -231,9 +231,9 @@ function TestimonialCard({
 export function LandingSocialProof() {
   return (
     <section
-      id="prova-social"
+      id="clientes"
       aria-labelledby="social-proof-heading"
-      className="relative overflow-x-hidden border-t border-brand-200/50 bg-gradient-to-b from-brand-50 via-white to-[#f0f7f2] py-16 sm:py-24"
+      className="relative scroll-mt-24 overflow-x-hidden border-t border-brand-200/50 bg-gradient-to-b from-brand-50 via-white to-[#f0f7f2] py-16 sm:py-24"
     >
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(34,197,94,0.12),transparent)]"

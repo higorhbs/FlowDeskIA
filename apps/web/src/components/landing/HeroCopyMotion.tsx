@@ -65,9 +65,9 @@ export function HeroCopyMotion() {
         variants={v.subtitle}
         className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:mt-5 sm:text-lg"
       >
-        Automatize seu atendimento no WhatsApp com um chatbot inteligente. O
-        AtendeJa responde clientes, agenda horários, envia confirmações e cobra
-        via PIX automaticamente.
+        Automatize seu atendimento no WhatsApp com IA. O AtendeJa responde
+        clientes, agenda horários, envia confirmações e cobra via PIX
+        automaticamente.
       </motion.p>
     </motion.div>
   );

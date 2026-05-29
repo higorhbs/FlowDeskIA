@@ -7,7 +7,8 @@ import { useBusinessId } from "@/lib/use-business-id";
 import { formatPhone, STATUS_LABELS, cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { MessageSquare, Send, Bot, User, Loader2, Search } from "lucide-react";
+import { MessageSquare, Send, User, Loader2, Search } from "lucide-react";
+import { IaIcon, IA_DISPLAY_NAME, isIaMessageRole } from "@/lib/ia-brand";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,7 @@ type Conversation = {
 
 type Message = {
   id: string;
-  role: "CUSTOMER" | "BOT" | "HUMAN";
+  role: "CUSTOMER" | "IA" | "HUMAN" | "BOT";
   content: string;
   createdAt: string;
 };
@@ -54,7 +55,7 @@ export default function ConversationsPage() {
     mutationFn: (convId: string) => conversationApi.attend(businessId, convId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["conversation-detail", businessId, selected] });
-      toast.success("Atendimento assumido — o bot pausou para esta conversa.");
+      toast.success("Atendimento assumido — a IA pausou para esta conversa.");
     },
   });
 
@@ -62,7 +63,7 @@ export default function ConversationsPage() {
     mutationFn: (convId: string) => conversationApi.release(businessId, convId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["conversation-detail", businessId, selected] });
-      toast.success("Bot reativado para esta conversa.");
+      toast.success("IA reativada para esta conversa.");
     },
   });
 
@@ -191,8 +192,8 @@ export default function ConversationsPage() {
                     onClick={() => releaseMutation.mutate(selectedConv.id)}
                     disabled={releaseMutation.isPending}
                   >
-                    <Bot className="w-3 h-3" />
-                    Devolver ao bot
+                    <IaIcon className="w-3 h-3" />
+                    Devolver à IA
                   </Button>
                 )}
               </div>
@@ -210,14 +211,14 @@ export default function ConversationsPage() {
                       "max-w-sm rounded-2xl px-4 py-2.5 text-sm",
                       msg.role === "CUSTOMER"
                         ? "bg-white border border-gray-200 text-gray-900 rounded-tl-sm"
-                        : msg.role === "BOT"
+                        : isIaMessageRole(msg.role)
                         ? "bg-brand-600 text-white rounded-tr-sm"
                         : "bg-blue-600 text-white rounded-tr-sm"
                     )}
                   >
                     {msg.role !== "CUSTOMER" && (
                       <p className="text-xs opacity-70 mb-1 flex items-center gap-1">
-                        {msg.role === "BOT" ? <><Bot className="w-3 h-3" /> Bot</> : <><User className="w-3 h-3" /> Você</>}
+                        {isIaMessageRole(msg.role) ? <><IaIcon className="w-3 h-3" /> {IA_DISPLAY_NAME}</> : <><User className="w-3 h-3" /> Você</>}
                       </p>
                     )}
                     <p className="whitespace-pre-wrap">{msg.content}</p>

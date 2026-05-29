@@ -12,8 +12,9 @@ import { panelHref } from "@/lib/business-nav";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Wifi, WifiOff, Store, MessageSquare, Calendar,
-  BookOpen, Bot, Settings, Phone, ChevronRight, Banknote,
+  BookOpen, Settings, Phone, ChevronRight, Banknote,
 } from "lucide-react";
+import { IaIcon } from "@/lib/ia-brand";
 
 function businessSections(type?: string) {
   const v = getBusinessVocabulary(type);
@@ -22,7 +23,7 @@ function businessSections(type?: string) {
     { href: "appointments", icon: Calendar, label: v.bookingsNav, desc: v.bookingsSectionDesc, color: "bg-violet-50 text-violet-600" },
     { href: "catalog", icon: BookOpen, label: v.catalogNav, desc: `${v.catalogItemPlural} no ${v.catalogNav.toLowerCase()}`, color: "bg-amber-50 text-amber-600" },
     { href: "payments", icon: Banknote, label: "Pagamentos", desc: "PIX e recebimentos", color: "bg-emerald-50 text-emerald-600" },
-    { href: "faqs", icon: Bot, label: "Bot", desc: "Menu e perguntas automáticas", color: "bg-green-50 text-green-600" },
+    { href: "faqs", icon: IaIcon, label: "IA", desc: "Menu e perguntas automáticas", color: "bg-green-50 text-green-600" },
     { href: "whatsapp", icon: Phone, label: "WhatsApp", desc: "Conectar dispositivo", color: "bg-emerald-50 text-emerald-600" },
     { href: "settings", icon: Settings, label: "Configurações", desc: "Dados, horários e mensagens", color: "bg-gray-100 text-gray-600" },
   ];

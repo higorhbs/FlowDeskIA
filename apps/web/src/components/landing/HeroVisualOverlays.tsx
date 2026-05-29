@@ -1,4 +1,5 @@
-import { Bot, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
+import { IaIcon } from "@/lib/ia-brand";
 import { HeroAreaChart, HeroBarChart } from "@/components/landing/HeroCharts";
 import { HeroGlassCard } from "@/components/landing/HeroGlassCard";
 import { WhatsAppInset } from "@/components/landing/WhatsAppInset";
@@ -21,7 +22,7 @@ export function HeroOnlineBadge() {
   return (
     <div className="hero-glass flex w-fit items-center gap-2.5 px-3 py-2">
       <span className="flex size-7 items-center justify-center rounded-full bg-white/25">
-        <Bot className="size-3.5 text-white" />
+        <IaIcon className="size-3.5 text-white" />
       </span>
       <div className="leading-none">
         <p className="text-sm font-semibold text-white">24h</p>

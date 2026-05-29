@@ -4,6 +4,7 @@ import { LandingHero } from "@/components/landing/LandingHero";
 import { LandingPageBackground } from "@/components/landing/LandingPageBackground";
 import { LandingPlans } from "@/components/landing/LandingPlans";
 import { LandingSocialProof } from "@/components/landing/LandingSocialProof";
+import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 
 export default function HomePage() {
   return (
@@ -16,6 +17,7 @@ export default function HomePage() {
           <LandingSocialProof />
           <LandingPlans />
         </div>
+        <OnboardingTour variant="public" />
       </div>
     </RedirectIfAuthenticated>
   );

@@ -122,7 +122,7 @@ export function LandingPlans() {
     <section
       id="precos"
       aria-labelledby="plans-heading"
-      className="relative overflow-hidden border-t border-slate-200/80 bg-gradient-to-b from-slate-100/90 via-[#f3f0fa] to-white py-16 sm:py-24"
+      className="relative scroll-mt-24 overflow-hidden border-t border-slate-200/80 bg-gradient-to-b from-slate-100/90 via-[#f3f0fa] to-white py-16 sm:py-24"
     >
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_45%_at_50%_0%,rgba(124,58,237,0.1),transparent)]"
