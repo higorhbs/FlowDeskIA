@@ -12,11 +12,15 @@
     "site": "zapflow-higor-2026",
     "public": "apps/web/out",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "trailingSlash": false,
+    "trailingSlash": true,
     "headers": [
       {
-        "source": "/index.html",
+        "source": "**",
         "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+      },
+      {
+        "source": "/_next/static/**",
+        "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
       },
       {
         "source": "**/*.txt",
