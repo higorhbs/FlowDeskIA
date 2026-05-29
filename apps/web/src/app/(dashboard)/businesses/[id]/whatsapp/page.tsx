@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { whatsappApi } from "@/lib/api";
 import { useBusinessId } from "@/lib/use-business-id";
-import { markWhatsAppConnected, useSyncWhatsAppBusiness } from "@/hooks/use-sync-wa-business";
+import { markWhatsAppConnected, useSyncWhatsAppBusiness } from "@/lib/use-sync-wa-business";
 import { toast } from "sonner";
 import { Smartphone, Wifi, WifiOff, QrCode, RefreshCw, Loader2, AlertTriangle } from "lucide-react";
 import Image from "next/image";
