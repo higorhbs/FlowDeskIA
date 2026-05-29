@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tenantApi, businessApi, billingApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { PLAN_LABELS, PLAN_STATUS_LABELS, cn, formatCurrency } from "@/lib/utils";
-import { PLAN_LIMITS, PLAN_PRICES, planMarketingFeatures, formatPlanLimit, effectivePlanStatus, isStarterTrialActive, starterTrialDaysLeft } from "@zapflow/shared";
+import { PLAN_LIMITS, PLAN_PRICES, planMarketingFeatures, formatPlanLimit, effectivePlanStatus, isStarterTrialActive, isActivePaidPlan, starterTrialDaysLeft } from "@zapflow/shared";
 import type { Plan } from "@zapflow/firebase/client";
 import { toast } from "sonner";
 import { Check, Crown, Loader2, Sparkles, Zap, ArrowRight, CalendarDays, BookOpen, CreditCard, ShieldCheck, AlertTriangle } from "lucide-react";
@@ -314,7 +314,8 @@ export default function PlanPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {PLANS.map(({ id, highlight, extras = [] }) => {
-          const isCurrent = tenant.plan === id;
+          const isPaidCurrent = isActivePaidPlan(tenant, id);
+          const isTrialStarter = id === "STARTER" && inTrial;
           const price = PLAN_PRICES[id];
           const features = [...planMarketingFeatures(id), ...extras];
 
@@ -323,14 +324,18 @@ export default function PlanPage() {
               key={id}
               className={cn(
                 "card flex flex-col transition-shadow",
-                isCurrent && "border-2 border-brand-400 shadow-brand-100 shadow-md",
-                highlight && !isCurrent && "border-brand-200 ring-1 ring-brand-200",
+                (isPaidCurrent || isTrialStarter) && "border-2 border-brand-400 shadow-brand-100 shadow-md",
+                highlight && !isPaidCurrent && !isTrialStarter && "border-brand-200 ring-1 ring-brand-200",
               )}
             >
               <div className="flex items-center justify-between mb-3">
-                {isCurrent ? (
+                {isPaidCurrent ? (
                   <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">
                     <Check className="w-3 h-3" /> Plano atual
+                  </span>
+                ) : isTrialStarter ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">
+                    <Sparkles className="w-3 h-3" /> Teste grátis
                   </span>
                 ) : highlight ? (
                   <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600">
@@ -358,15 +363,21 @@ export default function PlanPage() {
 
               <Button
                 type="button"
-                variant={isCurrent ? "secondary" : highlight ? "default" : "secondary"}
-                className={cn("w-full", isCurrent && "cursor-default opacity-60")}
-                disabled={isCurrent || selectPlan.isPending}
-                onClick={() => !isCurrent && selectPlan.mutate(id)}
+                variant={isPaidCurrent ? "secondary" : highlight ? "default" : "secondary"}
+                className={cn("w-full", isPaidCurrent && "cursor-default opacity-60")}
+                disabled={isPaidCurrent || selectPlan.isPending}
+                onClick={() => !isPaidCurrent && selectPlan.mutate(id)}
               >
                 {selectPlan.isPending && selectPlan.variables === id ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
-                ) : isCurrent ? (
+                ) : isPaidCurrent ? (
                   "Plano atual"
+                ) : isTrialStarter ? (
+                  <>
+                    <Zap className="w-4 h-4" />
+                    Assinar Starter
+                    <ArrowRight className="w-4 h-4" />
+                  </>
                 ) : (
                   <>
                     <Zap className="w-4 h-4" />

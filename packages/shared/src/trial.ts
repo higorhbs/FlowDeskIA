@@ -33,3 +33,11 @@ export function effectivePlanStatus(tenant: TrialTenantLike): string {
   if (tenant.plan !== "STARTER" && tenant.planStatus === "TRIALING") return "ACTIVE";
   return tenant.planStatus;
 }
+
+export function isActivePaidPlan(tenant: TrialTenantLike, plan: string): boolean {
+  if (tenant.plan !== plan) return false;
+  if (tenant.planStatus === "CANCELED") return false;
+  if (tenant.planStatus === "TRIALING") return false;
+  if (plan === "STARTER" && isStarterTrialActive(tenant)) return false;
+  return true;
+}
