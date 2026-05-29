@@ -23,8 +23,14 @@ export default function WhatsAppPage() {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const lastSyncedConnected = useRef<boolean | null>(null);
   const wasConnected = useRef(false);
+  const connectStarted = useRef(false);
+  const silentConnect = useRef(false);
 
   const { data: status, isLoading } = useSyncWhatsAppBusiness(id);
+
+  useEffect(() => {
+    connectStarted.current = false;
+  }, [id]);
 
   useEffect(() => {
     if (status?.connected && !wasConnected.current) {
@@ -43,37 +49,64 @@ export default function WhatsAppPage() {
   const connectMutation = useMutation({
     mutationFn: (force?: boolean) => whatsappApi.connect(id, force) as Promise<ConnectResponse>,
     onSuccess: (data) => {
+      const silent = silentConnect.current;
+      silentConnect.current = false;
       if (data.status === "qr" && data.qr) {
         setQrCode(data.qr);
-        toast.info("QR Code gerado! Escaneie com seu WhatsApp.");
+        if (!silent) toast.info("QR Code gerado! Escaneie com seu WhatsApp.");
       } else if (data.status === "already_connected" || data.status === "connected") {
         setQrCode(null);
         void queryClient.invalidateQueries({ queryKey: ["wa-status", id] });
       } else if (data.status === "connecting" || data.status === "pending") {
-        toast.info(data.message ?? "Gerando QR Code… aguarde nesta tela.");
+        if (!silent) toast.info(data.message ?? "Gerando QR Code… aguarde nesta tela.");
         void queryClient.invalidateQueries({ queryKey: ["wa-status", id] });
       } else if (data.status === "timeout") {
         toast.error(data.message ?? "QR expirou. Gere outro código.");
       } else if (data.status === "error") {
         toast.error(data.message ?? "Erro ao conectar");
-      } else {
+      } else if (!silent) {
         toast.error(data.message ?? "Resposta inesperada da API");
       }
     },
-    onError: (err: Error) => toast.error(err.message ?? "Erro ao iniciar conexão"),
+    onError: (err: Error) => {
+      silentConnect.current = false;
+      connectStarted.current = false;
+      toast.error(err.message ?? "Erro ao iniciar conexão");
+    },
   });
+
+  const { mutate: startConnect, isPending: isConnectPending } = connectMutation;
+
+  useEffect(() => {
+    if (isLoading || waUnavailable || status?.connected) return;
+    if (qrCode || status?.qr) return;
+    if (connectStarted.current || isConnectPending) return;
+    connectStarted.current = true;
+    silentConnect.current = true;
+    startConnect(false);
+  }, [isLoading, waUnavailable, status?.connected, status?.qr, qrCode, isConnectPending, startConnect]);
+
+  const isConnected = status?.connected;
 
   const disconnectMutation = useMutation({
     mutationFn: () => whatsappApi.disconnect(id),
     onSuccess: () => {
       setQrCode(null);
+      connectStarted.current = false;
       void markWhatsAppConnected(queryClient, id, false, lastSyncedConnected);
       toast.success("WhatsApp desconectado");
+      silentConnect.current = true;
+      connectStarted.current = true;
+      startConnect(false);
     },
     onError: (err: Error) => toast.error(err.message ?? "Erro ao desconectar"),
   });
 
-  const isConnected = status?.connected;
+  const isGeneratingQr =
+    !isConnected &&
+    !waUnavailable &&
+    !qrCode &&
+    (isConnectPending || status?.status === "connecting" || status?.status === "qr");
 
   return (
     <div className="p-4 md:p-8 max-w-xl mx-auto">
@@ -112,8 +145,17 @@ export default function WhatsAppPage() {
         <p className="text-gray-500 text-sm mb-8">
           {isConnected
             ? "Seu WhatsApp está ativo e respondendo automaticamente."
-            : "Escaneie o QR Code para ativar o atendimento."}
+            : isGeneratingQr
+              ? "Gerando QR Code… aguarde nesta tela."
+              : "Escaneie o QR Code para ativar o atendimento."}
         </p>
+
+        {isGeneratingQr && (
+          <div className="mb-8 flex flex-col items-center gap-3">
+            <Loader2 className="w-10 h-10 animate-spin text-brand-600" />
+            <p className="text-sm text-gray-500">Preparando conexão com WhatsApp…</p>
+          </div>
+        )}
 
         {qrCode && !isConnected && (
           <div className="mb-8">
@@ -140,7 +182,7 @@ export default function WhatsAppPage() {
             {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <WifiOff className="w-4 h-4" />}
             Desconectar
           </Button>
-        ) : (
+        ) : isGeneratingQr ? null : (
           <Button
             onClick={() => connectMutation.mutate(!!qrCode)}
             disabled={connectMutation.isPending || waUnavailable}
@@ -157,7 +199,7 @@ export default function WhatsAppPage() {
         )}
       </Card>
 
-      {!isConnected && !qrCode && !waUnavailable && (
+      {!isConnected && !qrCode && !waUnavailable && !isGeneratingQr && (
         <Card className="mt-6 border-brand-100 bg-brand-50">
           <h3 className="font-medium text-brand-900 mb-3 flex items-center gap-2">
             <Smartphone className="w-4 h-4" />
