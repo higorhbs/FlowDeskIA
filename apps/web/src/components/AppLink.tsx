@@ -1,7 +1,7 @@
 "use client";
 
 import NextLink, { type LinkProps } from "next/link";
-import type { ComponentProps } from "react";
+import type { ComponentProps, MouseEvent } from "react";
 import { hostingHref, isFirebaseHostingClient } from "@/lib/hosting-href";
 
 type AppLinkProps = LinkProps & Omit<ComponentProps<"a">, "href">;
@@ -19,14 +19,41 @@ function toHref(href: LinkProps["href"]): string {
   return qs ? `${path}?${qs}` : path;
 }
 
-export function AppLink({ href, prefetch, replace, scroll, ...rest }: AppLinkProps) {
+function isModifiedClick(e: MouseEvent<HTMLAnchorElement>): boolean {
+  const target = e.currentTarget.target;
+  return (
+    e.metaKey ||
+    e.ctrlKey ||
+    e.shiftKey ||
+    e.altKey ||
+    e.button !== 0 ||
+    (!!target && target !== "_self")
+  );
+}
+
+export function AppLink({
+  href,
+  prefetch,
+  replace,
+  scroll,
+  onClick,
+  ...rest
+}: AppLinkProps) {
   const path = hostingHref(toHref(href));
 
   if (isFirebaseHostingClient()) {
-    return <a href={path} {...rest} />;
+    const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
+      onClick?.(e);
+      if (e.defaultPrevented || isModifiedClick(e)) return;
+      e.preventDefault();
+      if (replace) window.location.replace(path);
+      else window.location.assign(path);
+    };
+
+    return <a href={path} onClick={handleClick} {...rest} />;
   }
 
   return (
-    <NextLink href={href} prefetch={prefetch} replace={replace} scroll={scroll} {...rest} />
+    <NextLink href={href} prefetch={prefetch} replace={replace} scroll={scroll} onClick={onClick} {...rest} />
   );
 }
