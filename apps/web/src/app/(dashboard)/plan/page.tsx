@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tenantApi, billingApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { PLAN_LABELS, PLAN_STATUS_LABELS, cn, formatCurrency } from "@/lib/utils";
-import { PLAN_LIMITS, PLAN_PRICES, planMarketingFeatures, formatPlanLimit, effectivePlanStatus, isStarterTrialActive, isActivePaidPlan, starterTrialDaysLeft, isSubscriptionCancelScheduled } from "@zapflow/shared";
+import { PLAN_LIMITS, PLAN_PRICES, planMarketingFeatures, formatPlanLimit, effectivePlanStatus, isStarterTrialActive, isActivePaidPlan, starterTrialDaysLeft, isSubscriptionCancelScheduled, APP_DISPLAY_NAME } from "@zapflow/shared";
 import type { Plan } from "@zapflow/firebase/client";
 import { toast } from "sonner";
 import { Check, Crown, Loader2, Sparkles, Zap, ArrowRight, CalendarDays, BookOpen, ExternalLink, CalendarX2 } from "lucide-react";
@@ -242,7 +242,7 @@ export default function PlanPage() {
           <p className="text-sm text-gray-700">
             Sua assinatura foi encerrada
             {canceledOn ? ` em ${fmtDateTime(canceledOn)}` : ""}.
-            {accessUntil ? ` O acesso expirou em ${fmtDate(accessUntil)}.` : ""} Escolha um plano abaixo para voltar a usar o AtendeJa.
+            {accessUntil ? ` O acesso expirou em ${fmtDate(accessUntil)}.` : ""} Escolha um plano abaixo para voltar a usar o {APP_DISPLAY_NAME}.
           </p>
         </div>
       )}

@@ -8,6 +8,7 @@ import {
   HERO_TITLE_WORDS,
 } from "@/components/landing/hero-motion";
 import { TextAnimate } from "@/components/ui/text-animate";
+import { APP_DISPLAY_NAME } from "@zapflow/shared";
 
 function useAnimateIn() {
   const [active, setActive] = useState(false);
@@ -65,7 +66,7 @@ export function HeroCopyMotion() {
         variants={v.subtitle}
         className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:mt-5 sm:text-lg"
       >
-        Automatize seu atendimento no WhatsApp com IA. O AtendeJa responde
+        Automatize seu atendimento no WhatsApp com IA. O {APP_DISPLAY_NAME} responde
         clientes, agenda horários, envia confirmações e cobra via PIX
         automaticamente.
       </motion.p>

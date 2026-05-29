@@ -71,7 +71,7 @@ function MockupApiKey() {
   );
 }
 
-function MockupAtendeJaForm() {
+function MockupFlowDeskForm() {
   return (
     <div className="rounded-lg border border-gray-200 overflow-hidden text-xs shadow-sm">
       <div className="bg-brand-600 px-3 py-2 text-[10px] font-semibold text-white">
@@ -216,7 +216,7 @@ const STEPS = [
       "Cole a chave no campo \"Chave API Asaas\" abaixo",
       "Clique em Salvar integração — você verá o saldo da conta Asaas se der certo",
     ],
-    mockup: <MockupAtendeJaForm />,
+    mockup: <MockupFlowDeskForm />,
   },
   {
     icon: "🔗",

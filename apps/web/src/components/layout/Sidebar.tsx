@@ -18,6 +18,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn, BUSINESS_TYPE_LABELS } from "@/lib/utils";
+import { APP_DISPLAY_NAME } from "@zapflow/shared";
 import { removeToken } from "@/lib/auth";
 import { logoutFirebase } from "@/lib/firebase-auth";
 import { useAppRouter } from "@/lib/app-navigation";
@@ -113,7 +114,7 @@ export function Sidebar() {
         <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
           <MessageSquare className="w-5 h-5 text-white" />
         </div>
-        <span className="font-bold text-gray-900">AtendeJa</span>
+        <span className="font-bold text-gray-900">{APP_DISPLAY_NAME}</span>
       </div>
 
       {/* Business context card */}

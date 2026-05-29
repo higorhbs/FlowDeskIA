@@ -1,3 +1,5 @@
+import { APP_DISPLAY_NAME } from "@zapflow/shared";
+
 export default function PrivacyPage() {
   return (
     <main className="min-h-screen bg-gray-50">
@@ -9,7 +11,7 @@ export default function PrivacyPage() {
 
         <section className="space-y-4 text-sm text-gray-700">
           <p>
-            O AtendeJa trata dados pessoais para operar automações de
+            O {APP_DISPLAY_NAME} trata dados pessoais para operar automações de
             atendimento via WhatsApp, incluindo cadastro da conta, dados do
             negócio, mensagens e agendamentos.
           </p>

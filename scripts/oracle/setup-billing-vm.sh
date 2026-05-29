@@ -90,7 +90,7 @@ PORTAL_RETURN="${CORS_ORIGIN%%,*}/plan"
 echo "→ Configurando Customer Portal (return: ${PORTAL_RETURN})..."
 PORTAL_RESP=$(curl -sS -X POST https://api.stripe.com/v1/billing_portal/configurations \
   -u "${STRIPE_SECRET_KEY}:" \
-  -d "business_profile[headline]=AtendeJa" \
+  -d "business_profile[headline]=FlowDesk" \
   -d "features[invoice_history][enabled]=true" \
   -d "features[payment_method_update][enabled]=true" \
   -d "features[subscription_cancel][enabled]=true" \

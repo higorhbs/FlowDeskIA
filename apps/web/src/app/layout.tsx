@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Geist } from "next/font/google";
+import { APP_META_DESCRIPTION, APP_PAGE_TITLE } from "@zapflow/shared";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { ToasterHost } from "@/components/toaster-host";
@@ -10,8 +11,8 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AtendeJa — Atendimento automático no WhatsApp",
-  description: "Resposta automática para WhatsApp de pequenos negócios",
+  title: APP_PAGE_TITLE,
+  description: APP_META_DESCRIPTION,
 };
 
 export default function RootLayout({

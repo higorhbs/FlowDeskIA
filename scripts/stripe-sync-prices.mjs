@@ -2,10 +2,12 @@ import { readFileSync, writeFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import Stripe from "stripe";
 
+const BRAND = "FlowDesk";
+
 const PLANS = [
-  { env: "STRIPE_PRICE_STARTER", plan: "STARTER", brl: 9.99, name: "AtendeJa Starter" },
-  { env: "STRIPE_PRICE_PRO", plan: "PRO", brl: 99, name: "AtendeJa Pro" },
-  { env: "STRIPE_PRICE_UNLIMITED", plan: "UNLIMITED", brl: 199, name: "AtendeJa Unlimited" },
+  { env: "STRIPE_PRICE_STARTER", plan: "STARTER", brl: 9.99, name: `${BRAND} Starter` },
+  { env: "STRIPE_PRICE_PRO", plan: "PRO", brl: 99, name: `${BRAND} Pro` },
+  { env: "STRIPE_PRICE_UNLIMITED", plan: "UNLIMITED", brl: 199, name: `${BRAND} Unlimited` },
 ];
 
 function loadEnv(filePath) {
@@ -40,6 +42,20 @@ function upsertEnv(filePath, updates) {
   writeFileSync(filePath, out.join("\n").replace(/\n*$/, "\n"));
 }
 
+function planMeta(price) {
+  return price.metadata?.flowdesk_plan || price.metadata?.atendeja_plan || price.metadata?.zapflow_plan;
+}
+
+async function renameProduct(stripe, productRef, plan) {
+  const productId = typeof productRef === "string" ? productRef : productRef?.id;
+  if (!productId) return;
+  await stripe.products.update(productId, {
+    name: plan.name,
+    metadata: { flowdesk_plan: plan.plan, zapflow_plan: plan.plan },
+  });
+  console.log(`Produto renomeado: ${plan.name} (${productId})`);
+}
+
 const root = resolve(import.meta.dirname, "..");
 const envPath = resolve(root, ".env");
 const fileEnv = loadEnv(envPath);
@@ -51,36 +67,51 @@ if (!key) {
 
 const stripe = new Stripe(key);
 const amountMap = new Map(PLANS.map((p) => [p.brl * 100, p]));
+const updates = {};
+
+const configuredIds = PLANS.map((p) => fileEnv[p.env]?.trim()).filter(Boolean);
+for (const priceId of configuredIds) {
+  try {
+    const price = await stripe.prices.retrieve(priceId, { expand: ["product"] });
+    const meta = planMeta(price);
+    const match = PLANS.find((p) => p.plan === meta) || amountMap.get(price.unit_amount ?? -1);
+    if (!match) continue;
+    updates[match.env] = price.id;
+    await renameProduct(stripe, price.product, match);
+  } catch (err) {
+    console.warn(`Preço ${priceId} ignorado:`, err.message);
+  }
+}
 
 const prices = await stripe.prices.list({ active: true, limit: 100, expand: ["data.product"] });
-const updates = {};
 
 for (const price of prices.data) {
   if (price.currency !== "brl" || price.type !== "recurring") continue;
-  const planMeta = price.metadata?.zapflow_plan;
+  const meta = planMeta(price);
   const match =
-    (planMeta && PLANS.find((p) => p.plan === planMeta)) ||
+    (meta && PLANS.find((p) => p.plan === meta)) ||
     amountMap.get(price.unit_amount ?? -1);
   if (!match || updates[match.env]) continue;
   if ((price.unit_amount ?? 0) !== match.brl * 100) continue;
   updates[match.env] = price.id;
+  await renameProduct(stripe, price.product, match);
 }
 
 for (const p of PLANS) {
   if (updates[p.env]) continue;
   const product = await stripe.products.create({
     name: p.name,
-    metadata: { zapflow_plan: p.plan },
+    metadata: { flowdesk_plan: p.plan, zapflow_plan: p.plan },
   });
   const price = await stripe.prices.create({
     product: product.id,
     currency: "brl",
     unit_amount: p.brl * 100,
     recurring: { interval: "month" },
-    metadata: { zapflow_plan: p.plan },
+    metadata: { flowdesk_plan: p.plan, zapflow_plan: p.plan },
   });
   updates[p.env] = price.id;
-  console.log(`Criado ${p.plan}: ${price.id}`);
+  console.log(`Criado ${p.name}: ${price.id}`);
 }
 
 upsertEnv(envPath, updates);

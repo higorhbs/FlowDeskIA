@@ -12,6 +12,7 @@ import {
   starterTrialDaysLeft,
   hasSubscriptionGraceAccess,
   STARTER_TRIAL_DAYS,
+  APP_DISPLAY_NAME,
 } from "@zapflow/shared";
 import type { Plan } from "@zapflow/firebase/client";
 import { toast } from "sonner";
@@ -168,7 +169,7 @@ export function TrialGate() {
                     <>
                       <h2 className="text-xl font-bold text-gray-900">Assinatura cancelada</h2>
                       <p className="text-gray-500 text-sm mt-1">
-                        Sua assinatura foi cancelada. Escolha um plano abaixo para voltar a usar o AtendeJa.
+                        Sua assinatura foi cancelada. Escolha um plano abaixo para voltar a usar o {APP_DISPLAY_NAME}.
                       </p>
                     </>
                   ) : (
@@ -177,7 +178,7 @@ export function TrialGate() {
                       <p className="text-gray-500 text-sm mt-1">
                         O período de {STARTER_TRIAL_DAYS} dias do plano Starter expirou em{" "}
                         <strong>{format(trialEnd, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</strong>.
-                        Escolha um plano para continuar usando o AtendeJa.
+                        Escolha um plano para continuar usando o {APP_DISPLAY_NAME}.
                       </p>
                     </>
                   )}

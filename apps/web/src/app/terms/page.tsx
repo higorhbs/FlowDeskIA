@@ -1,3 +1,5 @@
+import { APP_DISPLAY_NAME } from "@zapflow/shared";
+
 export default function TermsPage() {
   return (
     <main className="min-h-screen bg-gray-50">
@@ -7,7 +9,7 @@ export default function TermsPage() {
 
         <section className="space-y-4 text-sm text-gray-700">
           <p>
-            Ao utilizar o AtendeJa, você concorda com o uso da plataforma para
+            Ao utilizar o {APP_DISPLAY_NAME}, você concorda com o uso da plataforma para
             gestão de atendimento, automação de mensagens e operação comercial
             do seu negócio.
           </p>

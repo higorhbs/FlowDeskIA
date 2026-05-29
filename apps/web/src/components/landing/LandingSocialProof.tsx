@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Marquee } from "@/components/ui/marquee";
+import { APP_DISPLAY_NAME } from "@zapflow/shared";
 import { cn } from "@/lib/utils";
 
 const STATS = [
@@ -251,7 +252,7 @@ export function LandingSocialProof() {
             Negócios locais que já automatizaram o WhatsApp
           </h2>
           <p className="mt-3 text-base text-muted-foreground sm:text-lg">
-            Barbearias, salões, restaurantes e clínicas usando o AtendeJa todos
+            Barbearias, salões, restaurantes e clínicas usando o {APP_DISPLAY_NAME} todos
             os dias.
           </p>
         </div>

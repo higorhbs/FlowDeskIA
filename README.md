@@ -1,4 +1,4 @@
-# AtendeJa — Atendimento Automático para WhatsApp
+# FlowDesk — Atendimento Automático para WhatsApp
 
 SaaS de resposta automática para WhatsApp voltado a pequenos negócios (barbearia, salão, hamburgueria, dentista, comércio local).
 

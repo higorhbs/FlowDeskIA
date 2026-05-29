@@ -1,5 +1,5 @@
 /**
- * Motor de resposta automática do AtendeJa.
+ * Motor de resposta automática do FlowDesk.
  * Recebe a mensagem, detecta intenção, busca dados do negócio e retorna resposta.
  */
 

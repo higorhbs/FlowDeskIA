@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { APP_DISPLAY_NAME } from "@zapflow/shared";
 import { cn } from "@/lib/utils";
 
 export function WhatsAppInset({ className }: { className?: string }) {
@@ -21,7 +22,7 @@ export function WhatsAppInset({ className }: { className?: string }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium text-white">
-            AtendeJa IA
+            {APP_DISPLAY_NAME} IA
           </p>
           <p className="text-[10px] text-white/70">online</p>
         </div>

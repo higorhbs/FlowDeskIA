@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { businessApi, tenantApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { BUSINESS_TYPE_LABELS } from "@/lib/utils";
+import { APP_DISPLAY_NAME } from "@zapflow/shared";
 import { getBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { AppLink as Link } from "@/components/AppLink";
 import { persistBusinessSnapshot } from "@/lib/use-business-id";
@@ -81,7 +82,7 @@ export default function BusinessesPage() {
           <Store className="w-8 h-8 text-gray-400" />
         </div>
         <h2 className="text-lg font-semibold text-gray-900 mb-2">Nenhum negócio cadastrado</h2>
-        <p className="text-gray-500 mb-6">Cadastre seu negócio para começar a usar o AtendeJa.</p>
+        <p className="text-gray-500 mb-6">Cadastre seu negócio para começar a usar o {APP_DISPLAY_NAME}.</p>
         <Link href="/businesses/new" className={buttonVariants()}>
           Cadastrar meu negócio
         </Link>

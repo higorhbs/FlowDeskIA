@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { paymentApi } from "@/lib/api";
 import { formatCurrency, cn } from "@/lib/utils";
+import { APP_DISPLAY_NAME } from "@zapflow/shared";
 import { Loader2, QrCode, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -36,7 +37,7 @@ export function PaymentsPixPanel({ businessId }: { businessId: string }) {
   return (
     <div className="space-y-6">
       <p className="text-sm text-gray-500 leading-relaxed">
-        Conecte a conta Asaas do negócio. Os PIX gerados no WhatsApp caem na carteira do lojista, não no AtendeJa.
+        Conecte a conta Asaas do negócio. Os PIX gerados no WhatsApp caem na carteira do lojista, não no {APP_DISPLAY_NAME}.
       </p>
       <AsaasMerchantForm businessId={businessId} />
       <div>

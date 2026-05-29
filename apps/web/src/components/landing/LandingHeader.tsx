@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowUpRight, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { APP_DISPLAY_NAME } from "@zapflow/shared";
 import { useAuthDrawer } from "@/contexts/auth-drawer-context";
 
 function scrollToSection(id: string) {
@@ -17,7 +18,7 @@ export function LandingHeader() {
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 py-5 sm:px-6 lg:px-10">
         <Link href="/" className="flex shrink-0 items-center gap-2">
           <span className="text-lg font-bold tracking-tight text-primary">
-            AtendeJa
+            {APP_DISPLAY_NAME}
           </span>
           <span className="flex size-9 items-center justify-center rounded-full border border-primary/20 bg-primary/10">
             <MessageSquare className="size-4 text-primary" />

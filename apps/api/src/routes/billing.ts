@@ -1,7 +1,7 @@
 import { FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { z } from "zod";
 import Stripe from "stripe";
-import { PLAN_PRICES } from "@zapflow/shared";
+import { PLAN_PRICES, APP_DISPLAY_NAME } from "@zapflow/shared";
 import { createTenant, getAdminAuth, getTenant, updateTenant } from "@zapflow/firebase";
 import type { Tenant } from "@zapflow/firebase";
 import { requireAuth } from "../middleware/auth";
@@ -299,6 +299,7 @@ export async function billingRoutes(app: FastifyInstance) {
         metadata: { tenantId: tenant.id, plan, planPriceId: priceId },
         subscription_data: {
           metadata: { tenantId: tenant.id, plan, planPriceId: priceId },
+          description: `${APP_DISPLAY_NAME} ${PLAN_PRICES[plan].label}`,
         },
       });
 

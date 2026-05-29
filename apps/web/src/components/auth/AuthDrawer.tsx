@@ -12,6 +12,7 @@ import {
   refreshVerifiedSession,
 } from "@/lib/firebase-auth";
 import { getClientAuth } from "@zapflow/firebase/client";
+import { APP_DISPLAY_NAME } from "@zapflow/shared";
 import { setToken } from "@/lib/auth";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { AuthDivider } from "@/components/auth/AuthDivider";
@@ -361,7 +362,7 @@ export function AuthDrawer({
             <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
               <MessageSquare className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-gray-900">AtendeJa</span>
+            <span className="font-bold text-gray-900">{APP_DISPLAY_NAME}</span>
           </div>
           <button
             onClick={onClose}
