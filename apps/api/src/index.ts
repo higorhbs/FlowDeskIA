@@ -9,7 +9,7 @@ async function bootstrap() {
   const app = await buildApp();
   const port = parseInt(requireEnv("API_PORT"), 10);
   await app.listen({ port, host: "0.0.0.0" });
-  console.log(`ZapFlow API running on port ${port}`);
+  console.log(`AtendeJa API running on port ${port}`);
 }
 
 bootstrap().catch((err) => {

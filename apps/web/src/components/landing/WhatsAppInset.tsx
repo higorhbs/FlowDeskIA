@@ -6,7 +6,7 @@ export function WhatsAppInset({ className }: { className?: string }) {
     <div
       className={cn(
         "hero-glass-border overflow-hidden rounded-2xl bg-[#e5ddd5]",
-        className
+        className,
       )}
     >
       <div className="flex items-center gap-2 bg-[#075e54] px-3 py-2">
@@ -20,7 +20,9 @@ export function WhatsAppInset({ className }: { className?: string }) {
           />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium text-white">Cliente</p>
+          <p className="truncate text-xs font-medium text-white">
+            AtendeJa Bot
+          </p>
           <p className="text-[10px] text-white/70">online</p>
         </div>
       </div>

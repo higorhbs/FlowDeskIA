@@ -1,17 +1,17 @@
-# ZapFlow — Atendimento Automático para WhatsApp
+# AtendeJa — Atendimento Automático para WhatsApp
 
 SaaS de resposta automática para WhatsApp voltado a pequenos negócios (barbearia, salão, hamburgueria, dentista, comércio local).
 
 ## Funcionalidades
 
-| Feature | Como funciona |
-|---|---|
-| **Catálogo automático** | Cliente digita "catálogo" ou "preço" → bot envia lista de serviços com valores |
-| **Agendamento** | Cliente digita "agendar" → fluxo guiado (serviço → data → horário) → confirmação |
-| **Orçamento** | Cliente digita "orçamento" → bot envia tabela de preços |
-| **PIX automático** | Gera QR Code + copia-e-cola direto na conversa via Asaas |
-| **FAQ inteligente** | Detecta palavras-chave e responde perguntas frequentes configuradas |
-| **Atendimento humano** | Cliente pede "atendente" → bot pausa, operador assume pelo dashboard |
+| Feature                 | Como funciona                                                                    |
+| ----------------------- | -------------------------------------------------------------------------------- |
+| **Catálogo automático** | Cliente digita "catálogo" ou "preço" → bot envia lista de serviços com valores   |
+| **Agendamento**         | Cliente digita "agendar" → fluxo guiado (serviço → data → horário) → confirmação |
+| **Orçamento**           | Cliente digita "orçamento" → bot envia tabela de preços                          |
+| **PIX automático**      | Gera QR Code + copia-e-cola direto na conversa via Asaas                         |
+| **FAQ inteligente**     | Detecta palavras-chave e responde perguntas frequentes configuradas              |
+| **Atendimento humano**  | Cliente pede "atendente" → bot pausa, operador assume pelo dashboard             |
 
 ## Stack
 
@@ -66,9 +66,9 @@ Credencial Admin: `GOOGLE_APPLICATION_CREDENTIALS=.secrets/firebase-adminsdk.jso
 
 ## Deploy
 
-| App | Onde |
-|-----|------|
-| **Web** | Firebase Hosting — https://zapflow-higor-2026.web.app |
+| App     | Onde                                                                    |
+| ------- | ----------------------------------------------------------------------- |
+| **Web** | Firebase Hosting — https://zapflow-higor-2026.web.app                   |
 | **API** | Local (`pnpm dev`) ou Docker/VPS/Railway/Render (`apps/api/Dockerfile`) |
 
 ```bash
@@ -91,8 +91,8 @@ Antes do deploy do front, crie `apps/web/.env.production` (veja `.env.production
 
 ## Planos
 
-| Plano | WhatsApp | Mensagens | Catálogo | Agendamentos |
-|-------|----------|-----------|----------|--------------|
-| Starter | 1 | 500/mês | 20 itens | 50/mês |
-| Pro | 3 | 5.000/mês | 100 itens | 500/mês |
-| Unlimited | 10 | Ilimitado | Ilimitado | Ilimitado |
+| Plano     | WhatsApp | Mensagens | Catálogo  | Agendamentos |
+| --------- | -------- | --------- | --------- | ------------ |
+| Starter   | 1        | 500/mês   | 20 itens  | 50/mês       |
+| Pro       | 3        | 5.000/mês | 100 itens | 500/mês      |
+| Unlimited | 10       | Ilimitado | Ilimitado | Ilimitado    |

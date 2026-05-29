@@ -279,7 +279,7 @@ export function AuthDrawer({
             <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
               <MessageSquare className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-gray-900">ZapFlow</span>
+            <span className="font-bold text-gray-900">AtendeJa</span>
           </div>
           <button
             onClick={onClose}

@@ -168,7 +168,7 @@ export function TrialGate() {
                     <>
                       <h2 className="text-xl font-bold text-gray-900">Assinatura cancelada</h2>
                       <p className="text-gray-500 text-sm mt-1">
-                        Sua assinatura foi cancelada. Escolha um plano abaixo para voltar a usar o ZapFlow.
+                        Sua assinatura foi cancelada. Escolha um plano abaixo para voltar a usar o AtendeJa.
                       </p>
                     </>
                   ) : (
@@ -177,7 +177,7 @@ export function TrialGate() {
                       <p className="text-gray-500 text-sm mt-1">
                         O período de 7 dias expirou em{" "}
                         <strong>{format(trialEnd, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</strong>.
-                        Escolha um plano para continuar usando o ZapFlow.
+                        Escolha um plano para continuar usando o AtendeJa.
                       </p>
                     </>
                   )}
