@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Geist } from "next/font/google";
 import "./globals.css";
-import { Providers } from "./providers";
-import { ToasterHost } from "./toaster-host";
+import { Providers } from "@/components/providers";
+import { ToasterHost } from "@/components/toaster-host";
 import { cn } from "@/lib/utils";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});

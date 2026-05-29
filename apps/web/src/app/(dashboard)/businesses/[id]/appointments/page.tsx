@@ -8,7 +8,7 @@ import { ptBR } from "date-fns/locale";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useBusinessId } from "@/lib/use-business-id";
+import { useBusinessId } from "@/hooks/use-business-id";
 import { toast } from "sonner";
 
 const STATUS_COLORS: Record<string, string> = {

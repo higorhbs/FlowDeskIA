@@ -15,7 +15,7 @@ import { Loader2, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
 import { WorkingHoursEditor, defaultWorkingHours, type WorkingHoursValue } from "@/components/business/WorkingHoursEditor";
-import { useBusinessId } from "@/lib/use-business-id";
+import { useBusinessId } from "@/hooks/use-business-id";
 
 const schema = z.object({
   name: z.string().min(2),

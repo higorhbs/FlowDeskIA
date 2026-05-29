@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { conversationApi, whatsappApi } from "@/lib/api";
-import { useBusinessId } from "@/lib/use-business-id";
+import { useBusinessId } from "@/hooks/use-business-id";
 import { formatPhone, STATUS_LABELS, cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
