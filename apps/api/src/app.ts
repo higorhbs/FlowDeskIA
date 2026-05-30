@@ -48,6 +48,17 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   app.get("/health", () => ({ ok: true, ts: new Date().toISOString() }));
+  app.get("/health/whatsapp", async () => {
+    if (process.env.ENABLE_WORKERS !== "true") {
+      return { enabled: false, sessions: [] as unknown[] };
+    }
+    const { waManager } = await import("./wa-manager.js");
+    const sessionsRoot = process.env.WA_SESSION_PATH?.trim() ?? "";
+    const { listStoredSessionBusinessIds } = await import("./wa-lifecycle.js");
+    const stored = sessionsRoot ? listStoredSessionBusinessIds(sessionsRoot) : [];
+    const live = [...waManager.all().entries()].map(([id, client]) => client.getDebugInfo());
+    return { enabled: true, stored, live };
+  });
   app.get("/health/admin", () => ({
     ok: hasAdminCredential(),
     adminConfigured: hasAdminCredential(),

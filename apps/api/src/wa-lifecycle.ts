@@ -25,6 +25,7 @@ export function attachWhatsAppLifecycle(businessId: string, client: WhatsAppClie
   client.on("connected", async () => {
     try {
       await setBusinessConnected(businessId, true);
+      attachWhatsAppMessageHandler(businessId, client);
     } catch (err) {
       console.error(`[whatsapp] failed to mark connected for ${businessId}:`, err);
     }
@@ -40,16 +41,26 @@ export function attachWhatsAppLifecycle(businessId: string, client: WhatsAppClie
 }
 
 export function attachWhatsAppMessageHandler(businessId: string, client: WhatsAppClient) {
-  if (client.listenerCount("message") > 0) return;
+  const flag = "__zapflowMsgHandler" as const;
+  if ((client as unknown as Record<string, boolean>)[flag]) return;
+  (client as unknown as Record<string, boolean>)[flag] = true;
 
   client.on("message", async (msg) => {
     try {
+      console.log(
+        `[whatsapp] inbound business=${businessId} from=${msg.from} reply=${msg.replyJid} body=${msg.body.slice(0, 60)}`
+      );
       const responses = await processMessage({
         businessId,
         customerPhone: msg.from,
         customerName: msg.pushName,
         messageBody: msg.body,
       });
+
+      if (responses.length === 0) {
+        console.log(`[whatsapp] no bot reply business=${businessId} from=${msg.from}`);
+        return;
+      }
 
       for (const resp of responses) {
         if (resp.imageUrl) {
@@ -59,6 +70,7 @@ export function attachWhatsAppMessageHandler(businessId: string, client: WhatsAp
         }
         await new Promise((r) => setTimeout(r, 800));
       }
+      console.log(`[whatsapp] replied business=${businessId} to=${msg.replyJid} count=${responses.length}`);
     } catch (err) {
       console.error(`[whatsapp] Failed to process inbound message for business ${businessId}:`, err);
     }
