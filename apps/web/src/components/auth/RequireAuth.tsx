@@ -34,7 +34,6 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
         }
         setUid(user.uid);
         setReady(true);
-        void user.reload().catch(() => {});
         void authApi.sync(user.displayName ?? undefined).catch(() => {});
       });
     };

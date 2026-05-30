@@ -10,6 +10,7 @@ import {
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AuthDrawer, type AuthMode } from "@/components/auth/AuthDrawer";
+import { hostingHref } from "@/lib/hosting-href";
 
 type AuthDrawerContextValue = {
   openAuth: (mode: AuthMode) => void;
@@ -38,7 +39,8 @@ export function AuthDrawerProvider({ children }: { children: React.ReactNode }) 
       if (mode) params.set("auth", mode);
       else params.delete("auth");
       const query = params.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+      const target = query ? `${pathname}?${query}` : pathname;
+      router.replace(hostingHref(target), { scroll: false });
     },
     [pathname, router, searchParams],
   );

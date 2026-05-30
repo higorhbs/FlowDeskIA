@@ -18,14 +18,19 @@ export function HostingRouteGuard({ children }: { children: React.ReactNode }) {
 
     const txtFix = sanitizeHostingPath(pathname);
     if (txtFix) {
-      window.location.replace(txtFix);
+      window.location.replace(
+        `${hostingHref(txtFix)}${window.location.search}${window.location.hash}`
+      );
       return;
     }
 
     const path = window.location.pathname;
-    const canonical = hostingHref(path);
-    if (canonical !== path) {
-      window.location.replace(`${canonical}${window.location.search}${window.location.hash}`);
+    const search = window.location.search;
+    const hash = window.location.hash;
+    const current = `${path}${search}${hash}`;
+    const canonical = hostingHref(current);
+    if (canonical !== current) {
+      window.location.replace(canonical);
     }
   }, [pathname]);
 

@@ -18,10 +18,12 @@ export function hostingHref(href: string): string {
     return pathname + search + hash;
   }
 
-  const normalized =
-    pathname.length > 1 && pathname.endsWith("/") ? pathname.replace(/\/+$/, "") : pathname;
+  if (!pathname || pathname === "/") {
+    return "/" + search + hash;
+  }
 
-  return normalized + search + hash;
+  const withSlash = pathname.endsWith("/") ? pathname : `${pathname}/`;
+  return withSlash + search + hash;
 }
 
 export function toHostingAbsoluteUrl(href: string): string {
