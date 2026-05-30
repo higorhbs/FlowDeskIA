@@ -1,8 +1,9 @@
 import fs from "fs";
 import path from "path";
-import type { WhatsAppClient, WhatsAppManager } from "@zapflow/whatsapp-client";
+import type { WhatsAppClient, WhatsAppManager, WhatsAppMessage } from "@zapflow/whatsapp-client";
 import { setBusinessConnected } from "@zapflow/firebase";
 import { processMessage } from "./services/bot.js";
+import { getMessageQueue } from "./workers/message-worker.js";
 
 const lifecycleAttached = new WeakSet<WhatsAppClient>();
 
@@ -40,40 +41,74 @@ export function attachWhatsAppLifecycle(businessId: string, client: WhatsAppClie
   });
 }
 
+async function deliverBotReplies(businessId: string, client: WhatsAppClient, msg: WhatsAppMessage) {
+  const responses = await processMessage({
+    businessId,
+    customerPhone: msg.from,
+    customerName: msg.pushName,
+    messageBody: msg.body,
+  });
+
+  if (responses.length === 0) {
+    console.log(`[whatsapp] no bot reply business=${businessId} from=${msg.from}`);
+    return;
+  }
+
+  const dest = msg.replyJid || msg.from;
+  for (const resp of responses) {
+    if (resp.imageUrl) {
+      await client.sendImage(dest, resp.imageUrl, resp.text);
+    } else if (resp.text) {
+      await client.sendText(dest, resp.text);
+    }
+    await new Promise((r) => setTimeout(r, 800));
+  }
+  console.log(`[whatsapp] replied business=${businessId} to=${dest} count=${responses.length}`);
+}
+
+async function enqueueInbound(businessId: string, msg: WhatsAppMessage) {
+  const queue = getMessageQueue();
+  const jobId = msg.messageId ? `${businessId}:${msg.messageId}` : undefined;
+  await queue.add(
+    "inbound",
+    {
+      businessId,
+      customerPhone: msg.from,
+      customerName: msg.pushName,
+      messageBody: msg.body,
+      replyJid: msg.replyJid,
+    },
+    {
+      jobId,
+      removeOnComplete: true,
+      removeOnFail: 50,
+      attempts: 3,
+      backoff: { type: "exponential", delay: 1500 },
+    }
+  );
+}
+
 export function attachWhatsAppMessageHandler(businessId: string, client: WhatsAppClient) {
   const flag = "__zapflowMsgHandler" as const;
   if ((client as unknown as Record<string, boolean>)[flag]) return;
   (client as unknown as Record<string, boolean>)[flag] = true;
 
-  client.on("message", async (msg) => {
-    try {
+  client.on("message", (msg) => {
+    void (async () => {
       console.log(
         `[whatsapp] inbound business=${businessId} from=${msg.from} reply=${msg.replyJid} body=${msg.body.slice(0, 60)}`
       );
-      const responses = await processMessage({
-        businessId,
-        customerPhone: msg.from,
-        customerName: msg.pushName,
-        messageBody: msg.body,
-      });
-
-      if (responses.length === 0) {
-        console.log(`[whatsapp] no bot reply business=${businessId} from=${msg.from}`);
-        return;
-      }
-
-      for (const resp of responses) {
-        if (resp.imageUrl) {
-          await client.sendImage(msg.replyJid, resp.imageUrl, resp.text);
-        } else if (resp.text) {
-          await client.sendText(msg.replyJid, resp.text);
+      try {
+        await enqueueInbound(businessId, msg);
+      } catch (err) {
+        console.error(`[whatsapp] queue failed business=${businessId}, direct fallback:`, err);
+        try {
+          await deliverBotReplies(businessId, client, msg);
+        } catch (directErr) {
+          console.error(`[whatsapp] direct fallback failed business=${businessId}:`, directErr);
         }
-        await new Promise((r) => setTimeout(r, 800));
       }
-      console.log(`[whatsapp] replied business=${businessId} to=${msg.replyJid} count=${responses.length}`);
-    } catch (err) {
-      console.error(`[whatsapp] Failed to process inbound message for business ${businessId}:`, err);
-    }
+    })();
   });
 }
 

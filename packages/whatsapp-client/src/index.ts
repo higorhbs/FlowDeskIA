@@ -2,6 +2,7 @@ import makeWASocket, {
   DisconnectReason,
   extractMessageContent,
   fetchLatestBaileysVersion,
+  getContentType,
   isJidBroadcast,
   isJidGroup,
   isJidNewsletter,
@@ -84,7 +85,10 @@ function resolveAddress(key: MsgKey, remoteJid: string, lidToPhone: Map<string, 
 function extractBody(message: proto.IMessage | null | undefined): string {
   const content = extractMessageContent(message ?? undefined);
   if (!content) return "";
-  if (content.protocolMessage && !content.conversation && !content.extendedTextMessage) return "";
+
+  const type = getContentType(content);
+  if (type === "conversation") return content.conversation?.trim() ?? "";
+  if (type === "extendedTextMessage") return content.extendedTextMessage?.text?.trim() ?? "";
 
   const text =
     content.conversation ??
@@ -95,7 +99,6 @@ function extractBody(message: proto.IMessage | null | undefined): string {
     content.buttonsResponseMessage?.selectedButtonId ??
     content.listResponseMessage?.singleSelectReply?.selectedRowId ??
     content.templateButtonReplyMessage?.selectedId ??
-    content.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson ??
     "";
 
   if (text.trim()) return text.trim();
@@ -109,8 +112,16 @@ function extractBody(message: proto.IMessage | null | undefined): string {
   return "";
 }
 
+function socketIsOpen(sock: WASocket | null): boolean {
+  if (!sock) return false;
+  const ws = (sock as { ws?: { readyState?: number } }).ws;
+  if (!ws) return true;
+  return ws.readyState === 1;
+}
+
 export class WhatsAppClient extends EventEmitter {
   private sock: WASocket | null = null;
+  private boundSock: WASocket | null = null;
   private sessionPath: string;
   private logger = pino({
     level: process.env.WA_LOG_LEVEL?.trim() || "warn",
@@ -132,18 +143,11 @@ export class WhatsAppClient extends EventEmitter {
     fs.mkdirSync(this.sessionPath, { recursive: true });
   }
 
-  private logSkip(reason: string, key: MsgKey) {
-    this.logger.warn(
-      { businessId: this.businessId, reason, remoteJid: key.remoteJid, id: key.id },
-      "whatsapp inbound skipped"
-    );
-  }
-
   private tryEmitInbound(msg: WAMessage) {
     if (msg.key.fromMe) return;
     const rawJid = msg.key.remoteJid ?? "";
     if (!rawJid || shouldSkipJid(rawJid)) {
-      this.logSkip("skip_jid", msg.key);
+      console.log(`[wa:${this.businessId}] skip_jid ${rawJid}`);
       return;
     }
 
@@ -157,7 +161,10 @@ export class WhatsAppClient extends EventEmitter {
 
     const body = extractBody(msg.message);
     if (!body) {
-      this.logSkip("empty_body", msg.key);
+      const inner = msg.message ? getContentType(extractMessageContent(msg.message) ?? {}) : null;
+      console.log(
+        `[wa:${this.businessId}] empty_body jid=${rawJid} stub=${msg.messageStubType ?? "-"} type=${inner ?? "-"}`
+      );
       return;
     }
 
@@ -172,22 +179,25 @@ export class WhatsAppClient extends EventEmitter {
       pushName: msg.pushName ?? undefined,
     };
 
-    this.logger.info(
-      { businessId: this.businessId, from: parsed.from, replyJid: parsed.replyJid, body: parsed.body.slice(0, 80) },
-      "whatsapp inbound"
+    console.log(
+      `[wa:${this.businessId}] inbound from=${parsed.from} reply=${parsed.replyJid} text=${parsed.body.slice(0, 80)}`
     );
     this.emit("message", parsed);
   }
 
   private bindSocketEvents(saveCreds: () => Promise<void>) {
-    if (!this.sock) return;
+    if (!this.sock || this.boundSock === this.sock) return;
+    this.boundSock = this.sock;
 
     this.sock.ev.on("creds.update", saveCreds);
 
     this.sock.ev.on("chats.phoneNumberShare", ({ lid, jid }) => {
       const lidJid = toSendJid(lid);
       const phoneJid = pnToJid(jid);
-      if (lidJid && phoneJid) this.lidToPhone.set(lidJid, phoneJid);
+      if (lidJid && phoneJid) {
+        this.lidToPhone.set(lidJid, phoneJid);
+        console.log(`[wa:${this.businessId}] lid_map ${lidJid} -> ${phoneJid}`);
+      }
     });
 
     this.sock.ev.on("connection.update", async (update) => {
@@ -204,16 +214,17 @@ export class WhatsAppClient extends EventEmitter {
         this.status = "open";
         this.lastQrDataUrl = undefined;
         this.connecting = false;
-        this.logger.info({ businessId: this.businessId }, "whatsapp connected");
+        console.log(`[wa:${this.businessId}] connected`);
         this.emit("connected");
       }
 
       if (connection === "close") {
         this.status = "close";
         this.connecting = false;
+        this.boundSock = null;
         const code = (lastDisconnect?.error as Boom)?.output?.statusCode;
         const shouldReconnect = code !== DisconnectReason.loggedOut;
-        this.logger.warn({ businessId: this.businessId, code, shouldReconnect }, "whatsapp disconnected");
+        console.log(`[wa:${this.businessId}] disconnected code=${code ?? "-"} reconnect=${shouldReconnect}`);
         this.emit("disconnected", { code, shouldReconnect });
         if (shouldReconnect) {
           setTimeout(() => {
@@ -223,12 +234,12 @@ export class WhatsAppClient extends EventEmitter {
       }
     });
 
-    this.sock.ev.on("messages.upsert", async ({ messages, type }) => {
-      if (type !== "notify" && type !== "append") return;
+    this.sock.ev.on("messages.upsert", ({ messages, type }) => {
+      console.log(`[wa:${this.businessId}] upsert type=${type} count=${messages.length}`);
       for (const msg of messages) this.tryEmitInbound(msg);
     });
 
-    this.sock.ev.on("messages.update", async (updates) => {
+    this.sock.ev.on("messages.update", (updates) => {
       for (const { key, update } of updates) {
         if (!key?.remoteJid || key.fromMe || !update.message) continue;
         this.tryEmitInbound({ key, message: update.message, messageTimestamp: Date.now() / 1000 });
@@ -237,7 +248,7 @@ export class WhatsAppClient extends EventEmitter {
   }
 
   async connect() {
-    if (this.status === "open") return;
+    if (this.isConnected()) return;
     if (this.connecting) return;
     this.connecting = true;
     this.status = "connecting";
@@ -249,6 +260,7 @@ export class WhatsAppClient extends EventEmitter {
           /* ignore */
         }
         this.sock = null;
+        this.boundSock = null;
         this.status = "close";
       }
 
@@ -271,6 +283,7 @@ export class WhatsAppClient extends EventEmitter {
         printQRInTerminal: false,
         generateHighQualityLinkPreview: false,
         markOnlineOnConnect: false,
+        shouldSyncHistoryMessage: () => false,
         msgRetryCounterCache: this.msgRetryCounterCache as any,
         getMessage: async (key) => this.messageStore.get(messageStoreKey(key)),
       });
@@ -278,6 +291,7 @@ export class WhatsAppClient extends EventEmitter {
       this.bindSocketEvents(saveCreds);
     } catch (err) {
       this.connecting = false;
+      this.status = "close";
       throw err;
     }
   }
@@ -302,6 +316,7 @@ export class WhatsAppClient extends EventEmitter {
   async logout() {
     await this.sock?.logout();
     this.sock = null;
+    this.boundSock = null;
     this.status = "close";
     this.messageStore.clear();
     this.lidToPhone.clear();
@@ -309,13 +324,14 @@ export class WhatsAppClient extends EventEmitter {
   }
 
   isConnected(): boolean {
-    return this.status === "open";
+    return this.status === "open" && socketIsOpen(this.sock);
   }
 
   getDebugInfo() {
     return {
       businessId: this.businessId,
       status: this.status,
+      socketOpen: socketIsOpen(this.sock),
       messageHandlers: this.listenerCount("message"),
       lidMappings: this.lidToPhone.size,
     };

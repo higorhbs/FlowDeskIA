@@ -8,6 +8,7 @@ export interface MessageJob {
   customerPhone: string;
   customerName?: string;
   messageBody: string;
+  replyJid: string;
 }
 
 export interface ReminderJob {
@@ -49,7 +50,8 @@ export function startMessageWorker(waManager: WhatsAppManager) {
   const worker = new Worker<MessageJob>(
     "messages",
     async (job) => {
-      const { businessId, customerPhone, customerName, messageBody } = job.data;
+      const { businessId, customerPhone, customerName, messageBody, replyJid } = job.data;
+      const dest = replyJid?.trim() || customerPhone;
 
       const ctx: BotContext = { businessId, customerPhone, customerName, messageBody };
       const responses = await processMessage(ctx);
@@ -57,17 +59,18 @@ export function startMessageWorker(waManager: WhatsAppManager) {
       const client = waManager.get(businessId);
       if (!client || !client.isConnected()) {
         console.warn(`[worker] WhatsApp not connected for business ${businessId}`);
-        return;
+        throw new Error("WhatsApp not connected");
       }
 
       for (const resp of responses) {
         if (resp.imageUrl) {
-          await client.sendImage(customerPhone, resp.imageUrl, resp.text);
-        } else {
-          await client.sendText(customerPhone, resp.text);
+          await client.sendImage(dest, resp.imageUrl, resp.text);
+        } else if (resp.text) {
+          await client.sendText(dest, resp.text);
         }
         await new Promise((r) => setTimeout(r, 800));
       }
+      console.log(`[worker] replied business=${businessId} to=${dest} count=${responses.length}`);
     },
     {
       connection: getRedisConnection(),
