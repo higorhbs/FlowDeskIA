@@ -15,10 +15,10 @@ export function useSyncWhatsAppBusiness(businessId: string) {
     enabled: !!businessId,
     refetchInterval: (q) => {
       if (q.state.data?.connected) return 15000;
-      if (q.state.data?.qr) return 1200;
-      if (q.state.data?.status === "connecting" || q.state.data?.status === "qr") return 1200;
+      if (q.state.data?.qr) return 800;
+      if (q.state.data?.status === "connecting" || q.state.data?.status === "qr") return 800;
       if (q.state.status === "error") return 4000;
-      return 2500;
+      return 2000;
     },
     retry: 2,
   });

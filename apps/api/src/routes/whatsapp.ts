@@ -11,7 +11,7 @@ import {
 import { requireAuth } from "../middleware/auth";
 import type { WhatsAppClient } from "@zapflow/whatsapp-client";
 import { isWhatsAppRuntime, waManager } from "../wa-manager.js";
-import { ensureWhatsAppClient, hasStoredSession } from "../wa-lifecycle.js";
+import { ensureWhatsAppClient } from "../wa-lifecycle.js";
 
 type ConnectResult = {
   status: string;
@@ -36,25 +36,29 @@ function waitForQr(client: WhatsAppClient, timeoutMs = 35_000): Promise<ConnectR
   }
 
   return new Promise((resolve) => {
-    const timer = setTimeout(() => {
+    const done = (result: ConnectResult) => {
+      clearTimeout(timer);
       client.off("qr", onQr);
+      client.off("connected", onConnected);
+      resolve(result);
+    };
+
+    const timer = setTimeout(() => {
       if (client.lastQrDataUrl) {
-        resolve({ status: "qr", qr: client.lastQrDataUrl });
+        done({ status: "qr", qr: client.lastQrDataUrl });
         return;
       }
-      resolve({
+      done({
         status: "connecting",
         message: "Gerando QR Code. Aguarde alguns segundos nesta tela.",
       });
     }, timeoutMs);
 
-    const onQr = (qrDataUrl: string) => {
-      clearTimeout(timer);
-      client.off("qr", onQr);
-      resolve({ status: "qr", qr: qrDataUrl });
-    };
+    const onQr = (qrDataUrl: string) => done({ status: "qr", qr: qrDataUrl });
+    const onConnected = () => done({ status: "already_connected" });
 
     client.once("qr", onQr);
+    client.once("connected", onConnected);
   });
 }
 
@@ -93,10 +97,12 @@ async function connectForQr(
     return { status: "qr", qr: client.lastQrDataUrl };
   }
 
-  if (client.status === "close") {
-    void client.connect().catch((err) => {
-      log.error({ err }, "whatsapp connect failed");
-    });
+  if (client.status === "close" || client.status === "connecting") {
+    if (client.status === "close") {
+      void client.connect().catch((err) => {
+        log.error({ err }, "whatsapp connect failed");
+      });
+    }
   }
 
   const result = await waitForQr(client, 12_000);
@@ -147,15 +153,10 @@ export async function whatsappRoutes(app: FastifyInstance) {
     if (!business) return reply.status(404).send({ error: "Negócio não encontrado" });
 
     let client = waManager.get(id);
-    if (!client && hasStoredSession(sessionsRoot, id)) {
+    if (!client) {
       client = ensureWhatsAppClient(waManager, sessionsRoot, id);
     }
-    if (
-      client &&
-      !client.isConnected() &&
-      client.status === "close" &&
-      hasStoredSession(sessionsRoot, id)
-    ) {
+    if (client && !client.isConnected() && client.status === "close") {
       void client.connect().catch((err) => {
         req.log.error({ err }, "whatsapp reconnect failed");
       });
