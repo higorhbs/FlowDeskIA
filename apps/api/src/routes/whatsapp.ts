@@ -11,7 +11,7 @@ import {
 import { requireAuth } from "../middleware/auth";
 import type { WhatsAppClient } from "@zapflow/whatsapp-client";
 import { isWhatsAppRuntime, waManager } from "../wa-manager.js";
-import { ensureWhatsAppClient } from "../wa-lifecycle.js";
+import { ensureWhatsAppClient, resolveWhatsAppClient } from "../wa-lifecycle.js";
 
 type ConnectResult = {
   status: string;
@@ -161,7 +161,7 @@ export async function whatsappRoutes(app: FastifyInstance) {
         req.log.error({ err }, "whatsapp reconnect failed");
       });
     }
-    const connected = client ? client.isConnected() || client.status === "open" : false;
+    const connected = client?.isConnected() ?? false;
     if (connected !== business.isConnected) {
       await setBusinessConnected(id, connected);
     }
@@ -204,8 +204,13 @@ export async function whatsappRoutes(app: FastifyInstance) {
     const business = await getBusiness(id, req.tenantId);
     if (!business) return reply.status(404).send({ error: "Negócio não encontrado" });
 
-    const client = waManager.get(id);
-    if (!client?.isConnected()) return reply.status(400).send({ error: "WhatsApp not connected" });
+    const client = await resolveWhatsAppClient(waManager, sessionsRoot, id, { waitMs: 12_000 });
+    if (!client) {
+      await setBusinessConnected(id, false);
+      return reply.status(400).send({
+        error: "WhatsApp desconectado. Abra Conexão WhatsApp e escaneie o QR de novo.",
+      });
+    }
 
     let convId = conversationId;
     let dest = to.trim();

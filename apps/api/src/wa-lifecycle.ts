@@ -124,6 +124,33 @@ export function ensureWhatsAppClient(
   return client;
 }
 
+export async function resolveWhatsAppClient(
+  waManager: WhatsAppManager,
+  sessionsRoot: string,
+  businessId: string,
+  opts?: { waitMs?: number }
+): Promise<WhatsAppClient | null> {
+  const client = ensureWhatsAppClient(waManager, sessionsRoot, businessId);
+  if (client.isConnected()) return client;
+
+  if (client.status === "close") {
+    void client.connect().catch((err) => {
+      console.error(`[whatsapp] resolve connect failed for ${businessId}:`, err);
+    });
+  }
+
+  const waitMs = opts?.waitMs ?? 0;
+  if (waitMs > 0) {
+    const deadline = Date.now() + waitMs;
+    while (Date.now() < deadline) {
+      if (client.isConnected()) return client;
+      await new Promise((r) => setTimeout(r, 400));
+    }
+  }
+
+  return client.isConnected() ? client : null;
+}
+
 export async function restoreWhatsAppSessions(
   waManager: WhatsAppManager,
   sessionsRoot: string

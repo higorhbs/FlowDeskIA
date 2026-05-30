@@ -2,6 +2,7 @@ import { Worker, Queue, type ConnectionOptions } from "bullmq";
 import { processMessage, BotContext } from "../services/bot";
 import { requireEnv } from "../env";
 import { WhatsAppManager } from "@zapflow/whatsapp-client";
+import { resolveWhatsAppClient } from "../wa-lifecycle.js";
 
 export interface MessageJob {
   businessId: string;
@@ -62,10 +63,15 @@ export function startMessageWorker(waManager: WhatsAppManager) {
       };
       const responses = await processMessage(ctx);
 
-      const client = waManager.get(businessId);
-      if (!client || !client.isConnected()) {
+      const sessionsRoot = process.env.WA_SESSION_PATH?.trim();
+      if (!sessionsRoot) throw new Error("WA_SESSION_PATH não configurado");
+
+      const client = await resolveWhatsAppClient(waManager, sessionsRoot, businessId, {
+        waitMs: 8_000,
+      });
+      if (!client) {
         console.warn(`[worker] WhatsApp not connected for business ${businessId}`);
-        throw new Error("WhatsApp not connected");
+        throw new Error("WhatsApp desconectado");
       }
 
       for (const resp of responses) {
@@ -92,12 +98,16 @@ export function startMessageWorker(waManager: WhatsAppManager) {
 }
 
 export function startReminderWorker(waManager: WhatsAppManager) {
+  const sessionsRoot = process.env.WA_SESSION_PATH?.trim();
   const worker = new Worker<ReminderJob>(
     "reminders",
     async (job) => {
       const { businessId, customerPhone, message } = job.data;
-      const client = waManager.get(businessId);
-      if (!client || !client.isConnected()) return;
+      if (!sessionsRoot) return;
+      const client = await resolveWhatsAppClient(waManager, sessionsRoot, businessId, {
+        waitMs: 5_000,
+      });
+      if (!client) return;
       await client.sendText(customerPhone, message);
     },
     { connection: getRedisConnection() }
