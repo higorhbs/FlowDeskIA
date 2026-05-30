@@ -51,6 +51,7 @@ export interface BotContext {
   customerPhone: string;
   customerName?: string;
   messageBody: string;
+  replyJid?: string;
 }
 
 export interface BotResponse {
@@ -67,7 +68,7 @@ const conversationState = new Map<
 const botPausedSessions = new Set<string>();
 
 export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
-  const { businessId, customerPhone, customerName, messageBody } = ctx;
+  const { businessId, customerPhone, customerName, messageBody, replyJid } = ctx;
   const sessionKey = `${businessId}:${customerPhone}`;
 
   // Busca negócio com relacionamentos necessários
@@ -79,6 +80,7 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
     businessId,
     customerPhone,
     customerName,
+    replyJid
   );
 
   await createMessage(businessId, conversation.id, {
@@ -212,13 +214,11 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
     return [{ text }];
   }
 
-  // ─── Respostas por intenção ────────────────────────────────────────────────
   if (!isBotMenuEnabled(business) && !state) {
-    const fallback = buildFallbackMessage(business);
-    await saveAndReturn(business.id, conversation.id, [{ text: fallback }]);
-    return [{ text: fallback }];
+    return [];
   }
 
+  // ─── Respostas por intenção ────────────────────────────────────────────────
   switch (intent) {
     case "CATALOG":
       return handleCatalog(business, conversation);
@@ -981,6 +981,12 @@ function buildFallbackMessage(business?: { botMenu?: unknown[]; botMenuEnabled?:
 }
 
 function isGreeting(text: string): boolean {
+  const normalized = text
+    .toLowerCase()
+    .trim()
+    .replace(/^[!?.,"']+|[!?.,"']+$/g, "");
+  if (!normalized) return false;
+
   const greetings = [
     "oi",
     "olá",
@@ -990,9 +996,16 @@ function isGreeting(text: string): boolean {
     "boa noite",
     "hello",
     "hi",
+    "hey",
+    "e aí",
+    "e ai",
+    "salve",
     "menu",
   ];
-  return greetings.some((g) => text.toLowerCase().trim().startsWith(g));
+
+  return greetings.some(
+    (g) => normalized === g || normalized.startsWith(`${g} `) || normalized.startsWith(`${g},`)
+  );
 }
 
 function looksLikeAppointmentDate(text: string): boolean {

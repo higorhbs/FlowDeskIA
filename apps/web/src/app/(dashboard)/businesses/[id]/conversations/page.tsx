@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { conversationApi, whatsappApi } from "@/lib/api";
 import { useBusinessId } from "@/lib/use-business-id";
-import { formatPhone, STATUS_LABELS, cn } from "@/lib/utils";
+import { formatCustomerLabel, STATUS_LABELS, cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MessageSquare, Send, User, Loader2, Search } from "lucide-react";
@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 type Conversation = {
   id: string;
   customerPhone: string;
+  replyJid?: string;
   customerName?: string;
   status: string;
   lastMessageAt: string;
@@ -46,10 +47,15 @@ export default function ConversationsPage() {
     refetchInterval: 10_000,
   });
 
-  const { data: detail } = useQuery({
+  const {
+    data: detail,
+    isLoading: detailLoading,
+    isError: detailError,
+    refetch: refetchDetail,
+  } = useQuery({
     queryKey: ["conversation-detail", businessId, selected],
-    queryFn: () => selected ? conversationApi.get(businessId, selected) : null,
-    enabled: !!selected,
+    queryFn: () => (selected ? conversationApi.get(businessId, selected) : null),
+    enabled: !!businessId && !!selected,
     refetchInterval: 5_000,
   });
 
@@ -95,20 +101,23 @@ export default function ConversationsPage() {
   });
 
   const conversations: Conversation[] = data?.conversations ?? [];
-  const filtered = conversations.filter((c) =>
-    c.customerName?.toLowerCase().includes(search.toLowerCase()) ||
-    c.customerPhone.includes(search)
-  );
+  const filtered = conversations.filter((c) => {
+    const label = formatCustomerLabel(c.customerPhone, c.customerName).toLowerCase();
+    return label.includes(search.toLowerCase()) || c.customerPhone.includes(search);
+  });
 
-  const selectedConv = detail as Conversation & { messages: Message[] } | null;
+  const selectedConv = detail as (Conversation & { messages: Message[] }) | null | undefined;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
   }, [selectedConv?.messages]);
 
+  function sendDest(conv: Conversation) {
+    return conv.replyJid?.trim() || conv.customerPhone;
+  }
+
   return (
     <div className="flex h-full">
-      {/* List */}
       <div className="w-80 flex-shrink-0 border-r border-gray-200 bg-white flex flex-col">
         <div className="p-4 border-b border-gray-100">
           <h1 className="font-semibold text-gray-900 mb-3">Conversas</h1>
@@ -134,6 +143,7 @@ export default function ConversationsPage() {
             filtered.map((conv) => (
               <button
                 key={conv.id}
+                type="button"
                 onClick={() => setSelected(conv.id)}
                 className={cn(
                   "w-full text-left p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors",
@@ -143,9 +153,11 @@ export default function ConversationsPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm text-gray-900 truncate">
-                      {conv.customerName ?? formatPhone(conv.customerPhone)}
+                      {formatCustomerLabel(conv.customerPhone, conv.customerName)}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">{conv.customerPhone}</p>
+                    {!conv.customerName && conv.customerPhone.includes("@lid") ? (
+                      <p className="text-xs text-gray-400 truncate">WhatsApp</p>
+                    ) : null}
                   </div>
                   <div className="flex-shrink-0 text-right">
                     <Badge variant="secondary" className={cn("text-xs", STATUS_LABELS[conv.status]?.color)}>
@@ -162,17 +174,25 @@ export default function ConversationsPage() {
         </div>
       </div>
 
-      {/* Chat */}
       <div className="flex-1 flex flex-col bg-gray-50">
-        {selectedConv ? (
+        {selected && detailLoading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+          </div>
+        ) : selected && detailError ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-6">
+            <p className="text-sm text-gray-600">Não foi possível carregar esta conversa.</p>
+            <Button type="button" variant="outline" onClick={() => void refetchDetail()}>
+              Tentar novamente
+            </Button>
+          </div>
+        ) : selectedConv ? (
           <>
-            {/* Header */}
             <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
               <div>
                 <h2 className="font-semibold text-gray-900">
-                  {selectedConv.customerName ?? formatPhone(selectedConv.customerPhone)}
+                  {formatCustomerLabel(selectedConv.customerPhone, selectedConv.customerName)}
                 </h2>
-                <p className="text-sm text-gray-500">{selectedConv.customerPhone}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className={STATUS_LABELS[selectedConv.status]?.color}>
@@ -205,7 +225,6 @@ export default function ConversationsPage() {
               </div>
             </div>
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto p-6 space-y-3">
               {selectedConv.messages?.map((msg) => (
                 <div
@@ -224,7 +243,15 @@ export default function ConversationsPage() {
                   >
                     {msg.role !== "CUSTOMER" && (
                       <p className="text-xs opacity-70 mb-1 flex items-center gap-1">
-                        {isIaMessageRole(msg.role) ? <><IaIcon className="w-3 h-3" /> {IA_DISPLAY_NAME}</> : <><User className="w-3 h-3" /> Você</>}
+                        {isIaMessageRole(msg.role) ? (
+                          <>
+                            <IaIcon className="w-3 h-3" /> {IA_DISPLAY_NAME}
+                          </>
+                        ) : (
+                          <>
+                            <User className="w-3 h-3" /> Você
+                          </>
+                        )}
                       </p>
                     )}
                     <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -237,7 +264,6 @@ export default function ConversationsPage() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Reply */}
             {selectedConv.status === "ATTENDING" && (
               <div className="bg-white border-t border-gray-200 p-4">
                 <div className="flex items-end gap-3">
@@ -251,7 +277,7 @@ export default function ConversationsPage() {
                         e.preventDefault();
                         if (replyText.trim()) {
                           sendMutation.mutate({
-                            to: selectedConv.customerPhone,
+                            to: sendDest(selectedConv),
                             text: replyText.trim(),
                             conversationId: selectedConv.id,
                           });
@@ -264,13 +290,17 @@ export default function ConversationsPage() {
                     disabled={!replyText.trim() || sendMutation.isPending}
                     onClick={() =>
                       sendMutation.mutate({
-                        to: selectedConv.customerPhone,
+                        to: sendDest(selectedConv),
                         text: replyText.trim(),
                         conversationId: selectedConv.id,
                       })
                     }
                   >
-                    {sendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    {sendMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
                   </Button>
                 </div>
                 <p className="text-xs text-gray-400 mt-2">Enter para enviar • Shift+Enter para nova linha</p>

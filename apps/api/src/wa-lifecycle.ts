@@ -47,6 +47,7 @@ async function deliverBotReplies(businessId: string, client: WhatsAppClient, msg
     customerPhone: msg.from,
     customerName: msg.pushName,
     messageBody: msg.body,
+    replyJid: msg.replyJid,
   });
 
   if (responses.length === 0) {

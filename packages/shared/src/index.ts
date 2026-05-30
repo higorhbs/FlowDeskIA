@@ -87,6 +87,24 @@ export function phonesMatch(a: string, b: string): boolean {
   return da.endsWith(db) || db.endsWith(da);
 }
 
+export function customerConversationKey(phone: string): string {
+  const raw = phone.trim().toLowerCase();
+  if (raw.includes("@lid")) {
+    const id = raw.split("@")[0]?.replace(/\D/g, "") ?? "";
+    return id ? `lid:${id}` : raw;
+  }
+  const digits = phoneDigits(raw);
+  if (digits.length >= 10) return `tel:${digits.slice(-11)}`;
+  return digits ? `tel:${digits}` : raw;
+}
+
+export function formatCustomerLabel(phone: string, name?: string | null): string {
+  if (name?.trim()) return name.trim();
+  const raw = phone.trim();
+  if (raw.includes("@lid")) return "Contato WhatsApp";
+  return formatPhone(raw);
+}
+
 /** Opção numérica do menu WhatsApp (ex: "1", "2.", "3)") */
 export function parseOptionNumber(text: string, min: number, max: number): number | null {
   const trimmed = text.trim();

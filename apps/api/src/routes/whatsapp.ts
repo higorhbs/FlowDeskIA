@@ -214,14 +214,18 @@ export async function whatsappRoutes(app: FastifyInstance) {
     if (!client?.isConnected()) return reply.status(400).send({ error: "WhatsApp not connected" });
 
     let convId = conversationId;
+    let dest = to.trim();
     if (convId) {
       const conv = await getConversation(id, convId);
       if (!conv) return reply.status(404).send({ error: "Conversa não encontrada" });
+      dest = conv.replyJid?.trim() || conv.customerPhone?.trim() || dest;
     } else {
-      convId = (await upsertConversation(id, to.trim())).id;
+      const conv = await upsertConversation(id, to.trim());
+      convId = conv.id;
+      dest = conv.replyJid?.trim() || conv.customerPhone?.trim() || dest;
     }
 
-    const waMessageId = await client.sendText(to.trim(), text.trim());
+    const waMessageId = await client.sendText(dest, text.trim());
     const message = await createMessage(id, convId, {
       role: "HUMAN",
       content: text.trim(),

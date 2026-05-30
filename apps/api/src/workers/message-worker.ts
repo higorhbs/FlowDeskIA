@@ -53,7 +53,13 @@ export function startMessageWorker(waManager: WhatsAppManager) {
       const { businessId, customerPhone, customerName, messageBody, replyJid } = job.data;
       const dest = replyJid?.trim() || customerPhone;
 
-      const ctx: BotContext = { businessId, customerPhone, customerName, messageBody };
+      const ctx: BotContext = {
+        businessId,
+        customerPhone,
+        customerName,
+        messageBody,
+        replyJid,
+      };
       const responses = await processMessage(ctx);
 
       const client = waManager.get(businessId);

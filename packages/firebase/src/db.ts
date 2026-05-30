@@ -15,7 +15,7 @@ import type {
   PlanStatus,
   BusinessAsaasIntegration,
 } from "./types.js";
-import type { Query } from "firebase-admin/firestore";
+import type { Query, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { FieldValue as AdminFieldValue } from "firebase-admin/firestore";
 import { getDb, newId, nowIso } from "./admin.js";
 
@@ -353,10 +353,141 @@ export async function deleteFaq(businessId: string, faqId: string): Promise<void
 
 // ─── Conversations ───────────────────────────────────────────────────────────
 
+function normalizePhoneDigits(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
+function customerConversationKey(phone: string): string {
+  const raw = phone.trim().toLowerCase();
+  if (raw.includes("@lid")) {
+    const id = raw.split("@")[0]?.replace(/\D/g, "") ?? "";
+    return id ? `lid:${id}` : raw;
+  }
+  const digits = normalizePhoneDigits(raw);
+  if (digits.length >= 10) return `tel:${digits.slice(-11)}`;
+  return digits ? `tel:${digits}` : raw;
+}
+
+function customerPhonesMatch(a: string, b: string): boolean {
+  if (customerConversationKey(a) === customerConversationKey(b)) return true;
+  const da = normalizePhoneDigits(a);
+  const db = normalizePhoneDigits(b);
+  if (!da || !db) return false;
+  if (da === db) return true;
+  if (da.length >= 10 && db.length >= 10) return da.slice(-10) === db.slice(-10);
+  return da.endsWith(db) || db.endsWith(da);
+}
+
+async function findConversationDoc(businessId: string, customerPhone: string) {
+  const col = conversationsCol(businessId);
+  const key = customerConversationKey(customerPhone);
+
+  const byKey = await col.where("customerKey", "==", key).limit(1).get();
+  if (!byKey.empty) return byKey.docs[0]!;
+
+  const exact = await col.where("customerPhone", "==", customerPhone).limit(1).get();
+  if (!exact.empty) return exact.docs[0]!;
+
+  const all = await col.get();
+  return all.docs.find((d) => customerPhonesMatch(String(d.data().customerPhone ?? ""), customerPhone)) ?? null;
+}
+
+export async function mergeDuplicateConversations(businessId: string): Promise<number> {
+  const col = conversationsCol(businessId);
+  const snap = await col.get();
+  const groups = new Map<string, QueryDocumentSnapshot[]>();
+
+  for (const doc of snap.docs) {
+    const phone = String(doc.data().customerPhone ?? "");
+    const key = String(doc.data().customerKey ?? customerConversationKey(phone));
+    const list = groups.get(key) ?? [];
+    list.push(doc);
+    groups.set(key, list);
+  }
+
+  let mergedGroups = 0;
+  const db = getDb();
+
+  for (const [key, docs] of groups) {
+    if (docs.length <= 1) {
+      const only = docs[0]!;
+      if (!only.data().customerKey) await only.ref.update({ customerKey: key });
+      continue;
+    }
+
+    mergedGroups += 1;
+
+    const scored = await Promise.all(
+      docs.map(async (doc) => {
+        const msgSnap = await messagesCol(businessId, doc.id).get();
+        return { doc, msgCount: msgSnap.size };
+      })
+    );
+
+    scored.sort((a, b) => {
+      if (b.msgCount !== a.msgCount) return b.msgCount - a.msgCount;
+      return String(b.doc.data().lastMessageAt ?? "").localeCompare(String(a.doc.data().lastMessageAt ?? ""));
+    });
+
+    const primary = scored[0]!.doc;
+    const primaryId = primary.id;
+
+    for (const { doc } of scored.slice(1)) {
+      const dupId = doc.id;
+      const msgSnap = await messagesCol(businessId, dupId).get();
+      if (!msgSnap.empty) {
+        const batch = db.batch();
+        for (const msgDoc of msgSnap.docs) {
+          const data = msgDoc.data();
+          const nextId = newId();
+          batch.set(messagesCol(businessId, primaryId).doc(nextId), {
+            ...data,
+            id: nextId,
+            conversationId: primaryId,
+          });
+          batch.delete(msgDoc.ref);
+        }
+        await batch.commit();
+      }
+
+      const apts = await appointmentsCol(businessId).where("conversationId", "==", dupId).get();
+      for (const apt of apts.docs) await apt.ref.update({ conversationId: primaryId });
+
+      const pays = await paymentsCol(businessId).where("conversationId", "==", dupId).get();
+      for (const pay of pays.docs) await pay.ref.update({ conversationId: primaryId });
+
+      await doc.ref.delete();
+    }
+
+    const bestName = scored.reduce<string | undefined>((best, { doc }) => {
+      const name = String(doc.data().customerName ?? "").trim();
+      if (name && (!best || name.length > best.length)) return name;
+      return best;
+    }, String(primary.data().customerName ?? "").trim() || undefined);
+
+    const bestReplyJid = scored.reduce<string | undefined>((best, { doc }) => {
+      const reply = String(doc.data().replyJid ?? doc.data().customerPhone ?? "").trim();
+      if (reply.includes("@")) return reply;
+      return best;
+    }, String(primary.data().replyJid ?? "").trim() || undefined);
+
+    await primary.ref.update({
+      customerKey: key,
+      customerName: bestName,
+      replyJid: bestReplyJid,
+      lastMessageAt: nowIso(),
+    });
+  }
+
+  return mergedGroups;
+}
+
 export async function listConversations(
   businessId: string,
   opts?: { status?: ConversationStatus; page?: number; limit?: number }
 ): Promise<{ conversations: (Conversation & { messages?: Message[] })[]; total: number }> {
+  await mergeDuplicateConversations(businessId).catch(() => undefined);
+
   let q: Query = conversationsCol(businessId).orderBy("lastMessageAt", "desc");
   if (opts?.status) q = q.where("status", "==", opts.status);
   const snap = await q.get();
@@ -402,21 +533,32 @@ export async function getConversation(
 export async function upsertConversation(
   businessId: string,
   customerPhone: string,
-  customerName?: string
+  customerName?: string,
+  replyJid?: string
 ): Promise<Conversation> {
-  const snap = await conversationsCol(businessId).where("customerPhone", "==", customerPhone).limit(1).get();
+  const existing = await findConversationDoc(businessId, customerPhone);
+  const key = customerConversationKey(customerPhone);
   const ts = nowIso();
-  if (!snap.empty) {
-    const doc = snap.docs[0]!;
-    const patch = { customerName: customerName ?? doc.data().customerName, lastMessageAt: ts };
-    await doc.ref.update(patch);
-    return { id: doc.id, businessId, ...doc.data(), ...patch } as Conversation;
+  const dest = replyJid?.trim() || customerPhone;
+
+  if (existing) {
+    const patch: Record<string, unknown> = {
+      customerName: customerName ?? existing.data().customerName,
+      lastMessageAt: ts,
+      customerKey: key,
+    };
+    if (dest.includes("@")) patch.replyJid = dest;
+    await existing.ref.update(patch);
+    return { id: existing.id, businessId, ...existing.data(), ...patch } as Conversation;
   }
+
   const id = newId();
   const conversation: Conversation = {
     id,
     businessId,
     customerPhone,
+    customerKey: key,
+    replyJid: dest.includes("@") ? dest : undefined,
     customerName,
     status: "OPEN",
     lastMessageAt: ts,
@@ -485,19 +627,6 @@ function appointmentOverlaps(
   const startB = new Date(other.scheduledAt).getTime();
   const endB = startB + (other.durationMins ?? 60) * 60_000;
   return startA < endB && startB < endA;
-}
-
-function normalizePhoneDigits(phone: string): string {
-  return phone.replace(/\D/g, "");
-}
-
-function customerPhonesMatch(a: string, b: string): boolean {
-  const da = normalizePhoneDigits(a);
-  const db = normalizePhoneDigits(b);
-  if (!da || !db) return false;
-  if (da === db) return true;
-  if (da.length >= 10 && db.length >= 10) return da.slice(-10) === db.slice(-10);
-  return da.endsWith(db) || db.endsWith(da);
 }
 
 export async function findConflictingAppointment(

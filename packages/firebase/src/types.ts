@@ -93,6 +93,8 @@ export interface Conversation {
   id: string;
   businessId: string;
   customerPhone: string;
+  customerKey?: string;
+  replyJid?: string;
   customerName?: string;
   status: ConversationStatus;
   lastMessageAt: string;
