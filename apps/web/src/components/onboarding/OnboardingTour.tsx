@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { tenantApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
+import { useAppRouter } from "@/lib/app-navigation";
+import { CREATE_BUSINESS_PATH } from "@/components/business/RequireBusinessGate";
 import {
   CheckCircle2, ChevronLeft, ChevronRight,
   CalendarClock, BookOpen, HelpCircle,
@@ -254,6 +256,7 @@ type OnboardingTourProps = {
 
 export function OnboardingTour({ variant = "dashboard" }: OnboardingTourProps) {
   const isPublic = variant === "public";
+  const router = useAppRouter();
   const { uid, ready } = useAuth();
   const [step, setStep] = useState(0);
   const [dismissed, setDismissed] = useState(false);
@@ -284,7 +287,12 @@ export function OnboardingTour({ variant = "dashboard" }: OnboardingTourProps) {
     if (!isPublic && uid) localStorage.setItem(lsKey(uid), "1");
     setDismissed(true);
     setForceOpen(false);
-    if (!isPublic) complete.mutate();
+    if (!isPublic) {
+      complete.mutate(undefined, {
+        onSettled: () => router.replace(CREATE_BUSINESS_PATH),
+      });
+      return;
+    }
   }
 
   const current = STEPS[step];

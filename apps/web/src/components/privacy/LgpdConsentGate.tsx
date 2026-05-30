@@ -8,8 +8,7 @@ import { tenantApi } from "@/lib/api";
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
-
-const LGPD_POLICY_VERSION = "2026-05-v1";
+import { LGPD_POLICY_VERSION } from "@/lib/lgpd-policy";
 
 export function LgpdConsentGate() {
   const { uid, ready } = useAuth();

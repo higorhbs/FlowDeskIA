@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { conversationApi, whatsappApi } from "@/lib/api";
 import { useBusinessId } from "@/lib/use-business-id";
@@ -37,6 +37,7 @@ export default function ConversationsPage() {
   const [search, setSearch] = useState("");
   const [replyText, setReplyText] = useState("");
   const queryClient = useQueryClient();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["conversations", businessId],
@@ -101,8 +102,12 @@ export default function ConversationsPage() {
 
   const selectedConv = detail as Conversation & { messages: Message[] } | null;
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+  }, [selectedConv?.messages]);
+
   return (
-    <div className="flex h-screen">
+    <div className="flex h-full">
       {/* List */}
       <div className="w-80 flex-shrink-0 border-r border-gray-200 bg-white flex flex-col">
         <div className="p-4 border-b border-gray-100">
@@ -229,6 +234,7 @@ export default function ConversationsPage() {
                   </div>
                 </div>
               ))}
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Reply */}

@@ -14,8 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
+import { useRequiresBusinessSetup } from "@/hooks/use-requires-business-setup";
 
 const schema = z.object({
   name: z.string().min(2, "Nome muito curto"),
@@ -34,7 +35,9 @@ const DAY_PT = { mon: "Seg", tue: "Ter", wed: "Qua", thu: "Qui", fri: "Sex", sat
 
 export default function NewBusinessPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { uid, ready } = useAuth();
+  const { active: setupRequired } = useRequiresBusinessSetup();
   const { data: businesses, isLoading: checkingBusiness } = useQuery({
     queryKey: ["businesses", uid],
     queryFn: businessApi.list,
@@ -61,6 +64,7 @@ export default function NewBusinessPage() {
       DAY_KEYS.forEach((d) => { workingHours[d] = d === "sun" ? null : ["09:00", "18:00"]; });
 
       const business = await businessApi.create({ ...data, workingHours });
+      await queryClient.invalidateQueries({ queryKey: ["businesses", uid] });
       toast.success("Negócio criado com sucesso!");
       router.push(`/businesses/${business.id}/whatsapp`);
     } catch (err: any) {
@@ -85,12 +89,20 @@ export default function NewBusinessPage() {
       ) : (
         <>
       <div className="flex items-center gap-3 mb-8">
-        <Link href="/dashboard" className="text-gray-400 hover:text-gray-600">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
+        {!setupRequired && (
+          <Link href="/dashboard" className="text-gray-400 hover:text-gray-600">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+        )}
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Novo negócio</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Configure seu negócio para usar o atendimento automático</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {setupRequired ? "Crie seu negócio" : "Novo negócio"}
+          </h1>
+          <p className="text-gray-500 text-sm mt-0.5">
+            {setupRequired
+              ? "Último passo para começar: cadastre seu negócio e conecte o WhatsApp."
+              : "Configure seu negócio para usar o atendimento automático"}
+          </p>
         </div>
       </div>
 
@@ -153,7 +165,7 @@ export default function NewBusinessPage() {
 
         <Button type="submit" className="h-10 w-full" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-          Criar negócio e conectar WhatsApp
+          {setupRequired ? "Criar meu negócio e continuar" : "Criar negócio e conectar WhatsApp"}
         </Button>
       </form>
         </>

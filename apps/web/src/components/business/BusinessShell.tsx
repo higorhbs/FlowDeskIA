@@ -18,7 +18,7 @@ export function BusinessShell({
 
   if (!id) {
     return (
-      <div className="flex flex-col min-h-full">
+      <div className="flex flex-col h-full">
         <BusinessRouteSync />
         <BusinessPanelLoader />
       </div>
@@ -26,10 +26,13 @@ export function BusinessShell({
   }
 
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="flex flex-col h-full">
       <BusinessRouteSync />
       <BusinessHeader businessId={id} />
-      <BusinessPageTransition>{usePanelHost ? <BusinessPanelHost /> : children}</BusinessPageTransition>
+      {usePanelHost
+        ? <div className="flex-1 min-h-0 flex flex-col overflow-y-auto"><BusinessPanelHost /></div>
+        : <BusinessPageTransition>{children}</BusinessPageTransition>
+      }
     </div>
   );
 }
