@@ -44,7 +44,8 @@ function resolveWaApiBaseUrl() {
   const onLocal = isLocalDevHost();
   if (url && !(url.includes("localhost") && !onLocal)) return url.replace(/\/$/, "");
   if (onLocal) return url || process.env.NEXT_PUBLIC_API_URL?.trim()?.replace(/\/$/, "") || "http://localhost:3001";
-  if (url) return url.replace(/\/$/, "");
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim()?.replace(/\/$/, "");
+  if (apiUrl && !apiUrl.includes("localhost")) return apiUrl;
   throw new Error("NEXT_PUBLIC_WA_API_URL não configurada para produção.");
 }
 
@@ -55,7 +56,9 @@ function getWaApiBaseUrl() {
 }
 
 function hasWaApi() {
-  return Boolean(process.env.NEXT_PUBLIC_WA_API_URL?.trim()) || isLocalDevHost();
+  const wa = process.env.NEXT_PUBLIC_WA_API_URL?.trim();
+  const api = process.env.NEXT_PUBLIC_API_URL?.trim();
+  return Boolean(wa || api) || isLocalDevHost();
 }
 
 function resolveApiBaseUrl() {
