@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Geist } from "next/font/google";
-import { APP_META_DESCRIPTION, APP_PAGE_TITLE } from "@zapflow/shared";
+import { APP_META_DESCRIPTION, APP_PAGE_TITLE } from "@flowdesk/shared";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { ToasterHost } from "@/components/toaster-host";
@@ -29,7 +29,7 @@ export default function RootLayout({
       <body className={inter.className} suppressHydrationWarning>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=sessionStorage.getItem("zapflow:activeBusinessType");if(t)document.documentElement.setAttribute("data-business-type",t);}catch(e){}})();`,
+            __html: `(function(){try{var t=sessionStorage.getItem("flowdesk:activeBusinessType");if(t)document.documentElement.setAttribute("data-business-type",t);}catch(e){}})();`,
           }}
         />
         <Providers>

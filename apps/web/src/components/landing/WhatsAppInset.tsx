@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { APP_DISPLAY_NAME } from "@zapflow/shared";
+import { APP_DISPLAY_NAME } from "@flowdesk/shared";
 import { cn } from "@/lib/utils";
 
 export function WhatsAppInset({ className }: { className?: string }) {

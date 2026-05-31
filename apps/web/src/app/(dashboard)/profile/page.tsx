@@ -351,7 +351,7 @@ export default function ProfilePage() {
 
             <button
               type="button"
-              onClick={() => window.dispatchEvent(new Event("zapflow:open-onboarding"))}
+              onClick={() => window.dispatchEvent(new Event("flowdesk:open-onboarding"))}
               className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors group text-left"
             >
               <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">

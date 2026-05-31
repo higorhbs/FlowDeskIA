@@ -1,5 +1,5 @@
 {
-  "name": "@zapflow/shared",
+  "name": "@flowdesk/shared",
   "version": "0.1.0",
   "main": "./dist/index.js",
   "exports": {

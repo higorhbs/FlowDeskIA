@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAppRouter } from "@/lib/app-navigation";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { getClientAuth } from "@zapflow/firebase/client";
+import { getClientAuth } from "@flowdesk/firebase/client";
 import { authApi } from "@/lib/api";
 import { AuthContext } from "@/contexts/auth-context";
 import { removeToken } from "@/lib/auth";

@@ -13,7 +13,7 @@ import {
   getBusinessVocabulary,
   type BusinessVocabulary,
   type BusinessType,
-} from "@zapflow/shared";
+} from "@flowdesk/shared";
 import { businessApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import {

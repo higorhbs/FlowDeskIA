@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { businessApi, tenantApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { getBusinessTypeLabel } from "@/lib/utils";
-import { APP_DISPLAY_NAME } from "@zapflow/shared";
+import { APP_DISPLAY_NAME } from "@flowdesk/shared";
 import { getBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { AppLink as Link } from "@/components/AppLink";
 import { persistBusinessSnapshot } from "@/lib/use-business-id";

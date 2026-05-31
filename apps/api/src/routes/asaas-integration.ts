@@ -7,7 +7,7 @@ import {
   getBusinessAsaasIntegration,
   getTenant,
   setBusinessAsaasIntegration,
-} from "@zapflow/firebase";
+} from "@flowdesk/firebase";
 import { optionalEnv } from "../env";
 import { requireAuth } from "../middleware/auth";
 import { resolveAsaasCredentials } from "../services/pix";

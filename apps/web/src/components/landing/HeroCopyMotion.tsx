@@ -8,7 +8,7 @@ import {
   HERO_TITLE_WORDS,
 } from "@/components/landing/hero-motion";
 import { TextAnimate } from "@/components/ui/text-animate";
-import { APP_DISPLAY_NAME } from "@zapflow/shared";
+import { APP_DISPLAY_NAME } from "@flowdesk/shared";
 
 function useAnimateIn() {
   const [active, setActive] = useState(false);

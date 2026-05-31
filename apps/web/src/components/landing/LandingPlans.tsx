@@ -5,8 +5,8 @@ import { WobbleCard } from "@/components/ui/wobble-card";
 import { Button } from "@/components/ui/button";
 import { useAuthDrawer } from "@/contexts/auth-drawer-context";
 import { cn, formatCurrency } from "@/lib/utils";
-import { PLAN_PRICES, planMarketingFeatures } from "@zapflow/shared";
-import type { PlanTier } from "@zapflow/shared";
+import { PLAN_PRICES, planMarketingFeatures } from "@flowdesk/shared";
+import type { PlanTier } from "@flowdesk/shared";
 
 type PlanCardConfig = {
   id: PlanTier;

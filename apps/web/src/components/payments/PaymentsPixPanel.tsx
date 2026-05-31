@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { paymentApi } from "@/lib/api";
 import { formatCurrency, cn } from "@/lib/utils";
-import { APP_DISPLAY_NAME } from "@zapflow/shared";
+import { APP_DISPLAY_NAME } from "@flowdesk/shared";
 import { Loader2, QrCode, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";

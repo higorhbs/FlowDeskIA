@@ -22,7 +22,7 @@ const env = loadEnv(resolve(root, ".env"));
 const apiDomain = env.API_DOMAIN?.trim();
 
 if (!apiDomain) {
-  console.error("\n❌ Defina API_DOMAIN no .env da raiz (ex: zapflow.duckdns.org)\n");
+  console.error("\n❌ Defina API_DOMAIN no .env da raiz (ex: flowdesk.duckdns.org)\n");
   process.exit(1);
 }
 
@@ -90,6 +90,6 @@ if (!pick("STRIPE_WEBHOOK_SECRET")) {
   console.warn("\n⚠️  STRIPE_WEBHOOK_SECRET vazio — configure na VM após criar webhook Stripe");
 }
 console.log("\nNa VM:");
-console.log(`  scp .env.server opc@IP_VM:~/ZapFlow/.env`);
-console.log(`  scp .secrets/firebase-adminsdk.json opc@IP_VM:~/ZapFlow/.secrets/`);
+console.log(`  scp .env.server opc@IP_VM:~/FlowDesk/.env`);
+console.log(`  scp .secrets/firebase-adminsdk.json opc@IP_VM:~/FlowDesk/.secrets/`);
 console.log("  bash scripts/oracle/deploy-api.sh\n");

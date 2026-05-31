@@ -18,7 +18,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn, getBusinessTypeLabel } from "@/lib/utils";
-import { APP_DISPLAY_NAME } from "@zapflow/shared";
+import { APP_DISPLAY_NAME } from "@flowdesk/shared";
 import { signOutAndReset } from "@/lib/session-reset";
 import { useAppRouter } from "@/lib/app-navigation";
 import { SidebarProfile } from "./SidebarProfile";

@@ -8,18 +8,15 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/api/package.json apps/api/
 COPY packages/firebase/package.json packages/firebase/
 COPY packages/shared/package.json packages/shared/
-COPY packages/whatsapp-client/package.json packages/whatsapp-client/
 
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
 COPY apps/api apps/api
 COPY packages/firebase packages/firebase
 COPY packages/shared packages/shared
-COPY packages/whatsapp-client packages/whatsapp-client
-RUN pnpm --filter @zapflow/firebase build \
-  && pnpm --filter @zapflow/shared build \
-  && pnpm --filter @zapflow/whatsapp-client build \
-  && pnpm --filter @zapflow/api build
+RUN pnpm --filter @flowdesk/firebase build \
+  && pnpm --filter @flowdesk/shared build \
+  && pnpm --filter @flowdesk/api build
 
 FROM node:20-alpine AS runner
 RUN corepack enable
@@ -30,14 +27,12 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/api/package.json apps/api/
 COPY packages/firebase/package.json packages/firebase/
 COPY packages/shared/package.json packages/shared/
-COPY packages/whatsapp-client/package.json packages/whatsapp-client/
 
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts && pnpm store prune
 
 COPY --from=builder /app/apps/api/dist apps/api/dist
 COPY --from=builder /app/packages/firebase/dist packages/firebase/dist
 COPY --from=builder /app/packages/shared/dist packages/shared/dist
-COPY --from=builder /app/packages/whatsapp-client/dist packages/whatsapp-client/dist
 
 RUN mkdir -p /app/sessions && chown node:node /app/sessions
 USER node

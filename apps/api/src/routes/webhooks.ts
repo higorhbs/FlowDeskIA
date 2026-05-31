@@ -7,7 +7,7 @@ import {
   getPaymentsByAsaasId,
   updatePaymentsByAsaasId,
   updateTenant,
-} from "@zapflow/firebase";
+} from "@flowdesk/firebase";
 import { optionalEnv } from "../env";
 import { notifyPaymentReceived } from "../services/payment-notify";
 import {

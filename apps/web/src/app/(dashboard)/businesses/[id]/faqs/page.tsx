@@ -17,8 +17,8 @@ import {
   Sparkles, Hash, MessageCircleQuestion, Zap, Banknote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { BotMenuItemConfig } from "@zapflow/firebase/client";
-import { buildBotMenuEntries, getBusinessVocabulary, renderTemplate, DEFAULT_THANKS_MSG } from "@zapflow/shared";
+import type { BotMenuItemConfig } from "@flowdesk/firebase/client";
+import { buildBotMenuEntries, getBusinessVocabulary, renderTemplate, DEFAULT_THANKS_MSG } from "@flowdesk/shared";
 import { IaIcon } from "@/lib/ia-brand";
 import { usePlanAllowsPix } from "@/lib/use-plan-allows-pix";
 import { PaymentsPixPanel } from "@/components/payments/PaymentsPixPanel";

@@ -29,7 +29,7 @@ services:
       retries: 10
 
   api:
-    image: ${API_IMAGE:-zapflow-api}
+    image: ${API_IMAGE:-flowdesk-api}
     build:
       context: .
       dockerfile: apps/api/Dockerfile

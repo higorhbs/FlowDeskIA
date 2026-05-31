@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { createTenant, getTenant } from "@zapflow/firebase";
+import { createTenant, getTenant } from "@flowdesk/firebase";
 import { requireAuth } from "../middleware/auth";
 
 const syncBody = z.object({

@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from "fastify";
-import { getAdminAuth, hasAdminCredential } from "@zapflow/firebase";
+import { getAdminAuth, hasAdminCredential } from "@flowdesk/firebase";
 
 declare module "fastify" {
   interface FastifyRequest {

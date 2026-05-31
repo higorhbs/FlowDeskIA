@@ -82,7 +82,7 @@ Próximo passo (só uma vez):
   firebase login
   firebase init hosting:github
 
-Escolha o repo higorhbs/ZapFlow, branch main, projeto zapflow-higor-2026.
+Escolha o repo higorhbs/FlowDesk, branch main, projeto zapflow-higor-2026.
 Isso cria o secret FIREBASE_SERVICE_ACCOUNT_ZAPFLOW_HIGOR_2026.
 
 Se os workflows já existirem, cancele a sobrescrita — eles já estão no repo.

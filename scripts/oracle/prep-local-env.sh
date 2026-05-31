@@ -53,5 +53,5 @@ JSON_ONELINE="$(node -e "console.log(JSON.stringify(require(process.argv[1])))" 
 } > .env.oracle
 
 echo "Gerado: .env.oracle"
-echo "Copie para a VM: scp .env.oracle opc@IP_VM:/opt/zapflow/.env"
+echo "Copie para a VM: scp .env.oracle opc@IP_VM:/opt/flowdesk/.env"
 echo "Front: NEXT_PUBLIC_API_URL=https://${API_DOMAIN}"

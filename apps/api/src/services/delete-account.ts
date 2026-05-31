@@ -1,7 +1,5 @@
-import fs from "fs";
-import path from "path";
 import Stripe from "stripe";
-import { getAdminAuth, getDb, getTenant } from "@zapflow/firebase";
+import { getAdminAuth, getDb, getTenant } from "@flowdesk/firebase";
 
 type Db = ReturnType<typeof getDb>;
 type CollRef = ReturnType<Db["collection"]>;
@@ -40,29 +38,8 @@ async function deleteBusinessTree(db: Db, businessId: string) {
   await businessRef.delete();
 }
 
-async function teardownWhatsAppSession(businessId: string) {
-  if (process.env.ENABLE_WORKERS !== "true") return;
-
-  try {
-    const { waManager } = await import("../wa-manager.js");
-    const client = waManager.get(businessId);
-    if (client) {
-      try {
-        await client.logout();
-      } catch {
-        waManager.remove(businessId);
-      }
-    } else {
-      waManager.remove(businessId);
-    }
-  } catch {
-    /* ignore */
-  }
-
-  const sessionsRoot = process.env.WA_SESSION_PATH?.trim();
-  if (!sessionsRoot) return;
-  const dir = path.join(sessionsRoot, businessId);
-  if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+async function teardownWhatsAppSession(_businessId: string) {
+  return;
 }
 
 async function cancelStripeBilling(tenantId: string) {

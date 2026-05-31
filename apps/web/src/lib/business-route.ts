@@ -1,11 +1,11 @@
-import type { BusinessType } from "@zapflow/shared";
+import type { BusinessType } from "@flowdesk/shared";
 
 type BusinessSnapshot = { id: string; type: BusinessType };
 type BusinessRow = { id: string; type?: BusinessType };
 
 export const HOSTING_PLACEHOLDER_BUSINESS_ID = "app";
-const ID_KEY = "zapflow:activeBusinessId";
-const TYPE_KEY = "zapflow:activeBusinessType";
+const ID_KEY = "flowdesk:activeBusinessId";
+const TYPE_KEY = "flowdesk:activeBusinessType";
 
 export function pathBusinessSegment(pathname: string): string | undefined {
   const id = pathname.match(/\/businesses\/([^/]+)/)?.[1];
@@ -48,7 +48,7 @@ export function clearBusinessSession() {
   }
 }
 
-const AUTH_UID_KEY = "zapflow:lastAuthUid";
+const AUTH_UID_KEY = "flowdesk:lastAuthUid";
 
 export function readLastAuthUid(): string | null {
   if (typeof window === "undefined") return null;

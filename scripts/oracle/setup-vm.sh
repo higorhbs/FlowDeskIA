@@ -26,5 +26,5 @@ ufw allow 80/tcp
 ufw allow 443/tcp
 ufw --force enable
 
-mkdir -p /opt/zapflow
+mkdir -p /opt/flowdesk
 echo "VM pronta. Proximo passo: bash scripts/oracle/deploy.sh"

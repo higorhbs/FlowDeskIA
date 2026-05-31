@@ -1,4 +1,4 @@
-import { APP_DISPLAY_NAME } from "@zapflow/shared";
+import { APP_DISPLAY_NAME } from "@flowdesk/shared";
 
 export default function PrivacyPage() {
   return (

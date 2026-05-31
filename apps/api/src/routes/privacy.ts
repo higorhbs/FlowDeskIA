@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { getDb, getTenant } from "@zapflow/firebase";
+import { getDb, getTenant } from "@flowdesk/firebase";
 import { requireAuth } from "../middleware/auth";
 import { runPrivacyRetentionForAllTenants } from "../services/privacy-compliance";
 import { deleteTenantAccountCompletely } from "../services/delete-account.js";

@@ -13,8 +13,8 @@ import {
   hasSubscriptionGraceAccess,
   STARTER_TRIAL_DAYS,
   APP_DISPLAY_NAME,
-} from "@zapflow/shared";
-import type { Plan } from "@zapflow/firebase/client";
+} from "@flowdesk/shared";
+import type { Plan } from "@flowdesk/firebase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";

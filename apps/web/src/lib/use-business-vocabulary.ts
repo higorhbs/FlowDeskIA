@@ -1,6 +1,6 @@
 "use client";
 
-import { getBusinessVocabulary } from "@zapflow/shared";
+import { getBusinessVocabulary } from "@flowdesk/shared";
 import { useBusinessVocabularyContext } from "@/contexts/business-vocabulary-context";
 import { useBusinessId } from "./use-business-id";
 

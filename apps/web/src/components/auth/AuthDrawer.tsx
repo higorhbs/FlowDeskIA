@@ -11,8 +11,8 @@ import {
   resendVerificationEmail,
   refreshVerifiedSession,
 } from "@/lib/firebase-auth";
-import { getClientAuth } from "@zapflow/firebase/client";
-import { APP_DISPLAY_NAME } from "@zapflow/shared";
+import { getClientAuth } from "@flowdesk/firebase/client";
+import { APP_DISPLAY_NAME } from "@flowdesk/shared";
 import { setToken } from "@/lib/auth";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { AuthDivider } from "@/components/auth/AuthDivider";

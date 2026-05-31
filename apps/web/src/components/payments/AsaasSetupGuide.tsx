@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { APP_DISPLAY_NAME } from "@zapflow/shared";
+import { APP_DISPLAY_NAME } from "@flowdesk/shared";
 import { ChevronDown, ChevronUp, ChevronRight, ChevronLeft, ExternalLink, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";

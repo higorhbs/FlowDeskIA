@@ -18,7 +18,7 @@ import {
   getClientAuth,
   ensureClientTenant,
   updateClientTenantProfile,
-} from "@zapflow/firebase/client";
+} from "@flowdesk/firebase/client";
 
 type GoogleTokenResponse = {
   access_token?: string;

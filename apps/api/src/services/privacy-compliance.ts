@@ -1,4 +1,4 @@
-import { getDb } from "@zapflow/firebase";
+import { getDb } from "@flowdesk/firebase";
 
 type RetentionSummary = {
   processedBusinesses: number;

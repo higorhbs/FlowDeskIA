@@ -3,15 +3,11 @@ import cors from "@fastify/cors";
 import formbody from "@fastify/formbody";
 import fastifyRawBody from "fastify-raw-body";
 import { authRoutes } from "./routes/auth";
-import { businessRoutes } from "./routes/business";
-import { conversationRoutes } from "./routes/conversations";
-import { appointmentRoutes } from "./routes/appointments";
-import { analyticsRoutes } from "./routes/analytics";
 import { webhookRoutes } from "./routes/webhooks";
 import { privacyRoutes } from "./routes/privacy";
 import { runPrivacyRetentionForAllTenants } from "./services/privacy-compliance";
 import { billingRoutes } from "./routes/billing";
-import { hasAdminCredential } from "@zapflow/firebase";
+import { hasAdminCredential } from "@flowdesk/firebase";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const logLevel = process.env.LOG_LEVEL?.trim();
@@ -48,17 +44,6 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   app.get("/health", () => ({ ok: true, ts: new Date().toISOString() }));
-  app.get("/health/whatsapp", async () => {
-    if (process.env.ENABLE_WORKERS !== "true") {
-      return { enabled: false, sessions: [] as unknown[] };
-    }
-    const { waManager } = await import("./wa-manager.js");
-    const sessionsRoot = process.env.WA_SESSION_PATH?.trim() ?? "";
-    const { listStoredSessionBusinessIds } = await import("./wa-lifecycle.js");
-    const stored = sessionsRoot ? listStoredSessionBusinessIds(sessionsRoot) : [];
-    const live = [...waManager.all().entries()].map(([id, client]) => client.getDebugInfo());
-    return { enabled: true, stored, live };
-  });
   app.get("/health/admin", () => ({
     ok: hasAdminCredential(),
     adminConfigured: hasAdminCredential(),
@@ -71,32 +56,11 @@ export async function buildApp(): Promise<FastifyInstance> {
   }));
 
   await app.register(authRoutes);
-  await app.register(businessRoutes);
-  await app.register(conversationRoutes);
-  await app.register(appointmentRoutes);
-  await app.register(analyticsRoutes);
   await app.register(billingRoutes);
   const { asaasIntegrationRoutes } = await import("./routes/asaas-integration.js");
   await app.register(asaasIntegrationRoutes);
   await app.register(privacyRoutes);
   await app.register(webhookRoutes);
-
-  const { whatsappRoutes } = await import("./routes/whatsapp.js");
-  await app.register(whatsappRoutes);
-
-  if (process.env.ENABLE_WORKERS === "true") {
-    const { waManager } = await import("./wa-manager.js");
-    const sessionsRoot = process.env.WA_SESSION_PATH?.trim();
-    if (sessionsRoot) {
-      const { restoreWhatsAppSessions } = await import("./wa-lifecycle.js");
-      void restoreWhatsAppSessions(waManager, sessionsRoot);
-    }
-    const { startReminderWorker, startMessageWorker } = await import(
-      "./workers/message-worker.js"
-    );
-    startMessageWorker(waManager);
-    startReminderWorker(waManager);
-  }
 
   const retentionRaw = process.env.PRIVACY_RETENTION_INTERVAL_HOURS?.trim();
   const retentionIntervalHours = retentionRaw ? Number(retentionRaw) : 0;

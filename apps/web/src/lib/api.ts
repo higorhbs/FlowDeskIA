@@ -5,7 +5,7 @@ import {
   updateAccountPassword,
 } from "./firebase-auth";
 import { setToken } from "./auth";
-import { getClientAuth } from "@zapflow/firebase/client";
+import { getClientAuth } from "@flowdesk/firebase/client";
 import {
   listClientBusinesses,
   getClientBusiness,
@@ -24,12 +24,38 @@ import {
   ensureClientTenant,
   completeClientOnboarding,
   acceptClientLgpd,
-} from "@zapflow/firebase/client";
-import type { Plan } from "@zapflow/firebase/client";
+  listClientConversations,
+  getClientConversation,
+  updateClientConversationStatus,
+  listClientAppointments,
+  updateClientAppointment,
+  listClientPayments,
+  getClientAnalytics,
+} from "@flowdesk/firebase/client";
+import type { Plan, ConversationStatus, AppointmentStatus } from "@flowdesk/firebase/client";
 
 function isLocalDevHost() {
   if (typeof window === "undefined") return false;
   return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+}
+
+function resolveWaApiBaseUrl() {
+  const url = process.env.NEXT_PUBLIC_WA_API_URL?.trim();
+  const onLocal = isLocalDevHost();
+  if (url && !(url.includes("localhost") && !onLocal)) return url.replace(/\/$/, "");
+  if (onLocal) return url || process.env.NEXT_PUBLIC_API_URL?.trim()?.replace(/\/$/, "") || "http://localhost:3001";
+  if (url) return url.replace(/\/$/, "");
+  throw new Error("NEXT_PUBLIC_WA_API_URL não configurada para produção.");
+}
+
+let waApiBaseUrl: string | undefined;
+function getWaApiBaseUrl() {
+  if (!waApiBaseUrl) waApiBaseUrl = resolveWaApiBaseUrl();
+  return waApiBaseUrl;
+}
+
+function hasWaApi() {
+  return Boolean(process.env.NEXT_PUBLIC_WA_API_URL?.trim()) || isLocalDevHost();
 }
 
 function resolveApiBaseUrl() {
@@ -68,6 +94,10 @@ export const api = axios.create({
   timeout: 90_000,
 });
 
+const waApi = axios.create({
+  timeout: 90_000,
+});
+
 function requireUid(): string {
   const uid = getClientAuth().currentUser?.uid;
   if (!uid) throw new Error("Faça login para continuar.");
@@ -91,6 +121,17 @@ api.interceptors.request.use(async (config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
     setToken(token);
+  }
+  return config;
+});
+
+waApi.interceptors.request.use(async (config) => {
+  if (!config.baseURL) config.baseURL = getWaApiBaseUrl();
+  const user = getClientAuth().currentUser;
+  if (!user) return config;
+  const token = await user.getIdToken(false);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -150,8 +191,12 @@ api.interceptors.response.use(
 
 export const authApi = {
   sync: async (name?: string) => {
-    if (!hasPublicApi() && !isLocalDevHost()) return null;
-    return api.post("/auth/sync", { name }).then((r) => r.data);
+    const user = getClientAuth().currentUser;
+    if (!user?.email) return null;
+    return ensureClientTenant(user.uid, {
+      name: name ?? user.displayName ?? user.email.split("@")[0] ?? "Usuário",
+      email: user.email,
+    });
   },
 };
 
@@ -226,23 +271,26 @@ export const faqApi = {
 
 export const conversationApi = {
   list: (businessId: string, params?: { status?: string; page?: number }) =>
-    api.get(`/businesses/${businessId}/conversations`, { params }).then((r) => r.data),
+    listClientConversations(businessId, requireUid(), {
+      status: params?.status as ConversationStatus | undefined,
+      page: params?.page,
+    }),
   get: (businessId: string, conversationId: string) =>
-    api.get(`/businesses/${businessId}/conversations/${conversationId}`).then((r) => r.data),
+    getClientConversation(businessId, requireUid(), conversationId),
   attend: (businessId: string, conversationId: string) =>
-    api.patch(`/businesses/${businessId}/conversations/${conversationId}/attend`).then((r) => r.data),
+    updateClientConversationStatus(businessId, requireUid(), conversationId, "ATTENDING"),
   release: (businessId: string, conversationId: string) =>
-    api.patch(`/businesses/${businessId}/conversations/${conversationId}/release`).then((r) => r.data),
+    updateClientConversationStatus(businessId, requireUid(), conversationId, "OPEN"),
   close: (businessId: string, conversationId: string) =>
-    api.patch(`/businesses/${businessId}/conversations/${conversationId}/close`).then((r) => r.data),
+    updateClientConversationStatus(businessId, requireUid(), conversationId, "CLOSED"),
 };
 
-async function wakeProductionApi() {
-  if (!hasPublicApi()) return;
-  const base = getApiBaseUrl();
+async function wakeWaApi() {
+  if (!hasWaApi()) return;
+  const base = getWaApiBaseUrl();
   if (/localhost|127\.0\.0\.1/.test(base)) return;
   try {
-    await api.get("/health", { timeout: 15_000 });
+    await waApi.get("/health", { timeout: 15_000 });
   } catch {
     /* cold start */
   }
@@ -250,28 +298,32 @@ async function wakeProductionApi() {
 
 export const whatsappApi = {
   connect: async (businessId: string, force = false) => {
-    await wakeProductionApi();
-    return api
+    await wakeWaApi();
+    return waApi
       .post(`/businesses/${businessId}/whatsapp/connect${force ? "?force=1" : ""}`, undefined, {
         timeout: 25_000,
       })
       .then((r) => r.data);
   },
   status: (businessId: string) =>
-    api.get(`/businesses/${businessId}/whatsapp/status`, { timeout: 20_000 }).then((r) => r.data),
+    waApi.get(`/businesses/${businessId}/whatsapp/status`, { timeout: 20_000 }).then((r) => r.data),
   disconnect: (businessId: string) =>
-    api.post(`/businesses/${businessId}/whatsapp/disconnect`).then((r) => r.data),
+    waApi.post(`/businesses/${businessId}/whatsapp/disconnect`).then((r) => r.data),
   send: (businessId: string, to: string, text: string, conversationId?: string) =>
-    api
+    waApi
       .post(`/businesses/${businessId}/whatsapp/send`, { to, text, conversationId })
       .then((r) => r.data),
 };
 
 export const appointmentApi = {
   list: (businessId: string, params?: { from?: string; to?: string; status?: string }) =>
-    api.get(`/businesses/${businessId}/appointments`, { params }).then((r) => r.data),
+    listClientAppointments(businessId, requireUid(), {
+      from: params?.from,
+      to: params?.to,
+      status: params?.status as AppointmentStatus | undefined,
+    }),
   patch: (businessId: string, appointmentId: string, data: Record<string, unknown>) =>
-    api.patch(`/businesses/${businessId}/appointments/${appointmentId}`, data).then((r) => r.data),
+    updateClientAppointment(businessId, requireUid(), appointmentId, data as Parameters<typeof updateClientAppointment>[3]),
 };
 
 export const billingApi = {
@@ -327,15 +379,11 @@ const emptyAnalytics = {
 
 export const analyticsApi = {
   get: (businessId: string) =>
-    api
-      .get(`/businesses/${businessId}/analytics`)
-      .then((r) => r.data)
-      .catch(() => emptyAnalytics),
+    getClientAnalytics(businessId, requireUid()).catch(() => emptyAnalytics),
 };
 
 export const paymentApi = {
-  list: (businessId: string) =>
-    api.get(`/businesses/${businessId}/payments`).then((r) => r.data),
+  list: (businessId: string) => listClientPayments(businessId, requireUid()),
 };
 
 export const asaasApi = {

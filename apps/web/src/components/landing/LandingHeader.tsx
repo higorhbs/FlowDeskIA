@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowUpRight, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { APP_DISPLAY_NAME } from "@zapflow/shared";
+import { APP_DISPLAY_NAME } from "@flowdesk/shared";
 import { useAuthDrawer } from "@/contexts/auth-drawer-context";
 
 function scrollToSection(id: string) {
@@ -38,7 +38,7 @@ export function LandingHeader() {
 
           <button
             type="button"
-            onClick={() => window.dispatchEvent(new Event("zapflow:open-onboarding"))}
+            onClick={() => window.dispatchEvent(new Event("flowdesk:open-onboarding"))}
             className="rounded-full px-5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-background hover:text-primary"
           >
             Recursos

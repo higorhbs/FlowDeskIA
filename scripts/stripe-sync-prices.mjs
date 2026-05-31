@@ -51,7 +51,7 @@ async function renameProduct(stripe, productRef, plan) {
   if (!productId) return;
   await stripe.products.update(productId, {
     name: plan.name,
-    metadata: { flowdesk_plan: plan.plan, zapflow_plan: plan.plan },
+    metadata: { flowdesk_plan: plan.plan },
   });
   console.log(`Produto renomeado: ${plan.name} (${productId})`);
 }
@@ -101,14 +101,14 @@ for (const p of PLANS) {
   if (updates[p.env]) continue;
   const product = await stripe.products.create({
     name: p.name,
-    metadata: { flowdesk_plan: p.plan, zapflow_plan: p.plan },
+    metadata: { flowdesk_plan: p.plan },
   });
   const price = await stripe.prices.create({
     product: product.id,
     currency: "brl",
     unit_amount: p.brl * 100,
     recurring: { interval: "month" },
-    metadata: { flowdesk_plan: p.plan, zapflow_plan: p.plan },
+    metadata: { flowdesk_plan: p.plan },
   });
   updates[p.env] = price.id;
   console.log(`Criado ${p.name}: ${price.id}`);

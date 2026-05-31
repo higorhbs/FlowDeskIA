@@ -10,7 +10,7 @@ import { ChevronLeft, ChevronRight, Calendar, Loader2, Check, X } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { useBusinessId } from "@/lib/use-business-id";
 import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
-import { getBookingStatusLabel } from "@zapflow/shared";
+import { getBookingStatusLabel } from "@flowdesk/shared";
 import { toast } from "sonner";
 import { VocabLabel } from "@/components/layout/VocabLabel";
 

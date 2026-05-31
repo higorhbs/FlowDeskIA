@@ -1,9 +1,9 @@
 import { FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { z } from "zod";
 import Stripe from "stripe";
-import { PLAN_PRICES, APP_DISPLAY_NAME } from "@zapflow/shared";
-import { createTenant, getAdminAuth, getTenant, updateTenant } from "@zapflow/firebase";
-import type { Tenant } from "@zapflow/firebase";
+import { PLAN_PRICES, APP_DISPLAY_NAME } from "@flowdesk/shared";
+import { createTenant, getAdminAuth, getTenant, updateTenant } from "@flowdesk/firebase";
+import type { Tenant } from "@flowdesk/firebase";
 import { requireAuth } from "../middleware/auth";
 import {
   getSubscriptionAccessEndIso,

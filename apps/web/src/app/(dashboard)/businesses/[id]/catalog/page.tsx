@@ -15,7 +15,7 @@ import {
   Plus, Pencil, Trash2, Loader2, Package,
   ShoppingBag, Tag, AlertTriangle, X, Check,
 } from "lucide-react";
-import { PLAN_LIMITS } from "@zapflow/shared";
+import { PLAN_LIMITS } from "@flowdesk/shared";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";

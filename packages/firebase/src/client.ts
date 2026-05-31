@@ -74,4 +74,5 @@ export {
   acceptClientLgpd,
 } from "./client-tenant.js";
 export * from "./client-data.js";
+export * from "./client-ops.js";
 export type { Plan, PlanStatus, Tenant, BotMenuItemConfig } from "./types.js";

@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const vendorRoot = join(root, "apps/web/vendor/@zapflow");
+const vendorRoot = join(root, "apps/web/vendor/@flowdesk");
 
 function run(cmd) {
   execSync(cmd, { cwd: root, stdio: "inherit" });
@@ -22,9 +22,9 @@ function copyPkg(name) {
   });
 }
 
-run("pnpm --filter @zapflow/firebase build");
-run("pnpm --filter @zapflow/shared build");
+run("pnpm --filter @flowdesk/firebase build");
+run("pnpm --filter @flowdesk/shared build");
 mkdirSync(vendorRoot, { recursive: true });
 copyPkg("firebase");
 copyPkg("shared");
-console.log("Hosting vendor pronto em apps/web/vendor/@zapflow");
+console.log("Hosting vendor pronto em apps/web/vendor/@flowdesk");

@@ -247,7 +247,7 @@ function WaChat({ businessName, messages }: { businessName: string; messages: Ch
 }
 
 function lsKey(uid: string) {
-  return `zapflow_onboarding_done_${uid}`;
+  return `flowdesk_onboarding_done_${uid}`;
 }
 
 type OnboardingTourProps = {
@@ -312,8 +312,8 @@ export function OnboardingTour({ variant = "dashboard" }: OnboardingTourProps) {
       if (uid) localStorage.removeItem(lsKey(uid));
       setDismissed(false);
     }
-    window.addEventListener("zapflow:open-onboarding", openOnboarding);
-    return () => window.removeEventListener("zapflow:open-onboarding", openOnboarding);
+    window.addEventListener("flowdesk:open-onboarding", openOnboarding);
+    return () => window.removeEventListener("flowdesk:open-onboarding", openOnboarding);
   }, [uid]);
 
   if (!visible) return null;

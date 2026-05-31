@@ -20,7 +20,7 @@ Siga na ordem.
 
 ## 1. Domínio da API
 
-No `.env` **na VM** (raiz do ZapFlow):
+No `.env` **na VM** (raiz do FlowDesk):
 
 ```bash
 API_DOMAIN=api.seudominio.com
@@ -52,7 +52,7 @@ Credencial: copie `.secrets/firebase-adminsdk.json` para a VM (mesmo arquivo do 
 ## 3. Subir / atualizar a API
 
 ```bash
-cd ~/ZapFlow   # ou caminho do clone
+cd ~/FlowDesk   # ou caminho do clone
 git pull origin main
 bash scripts/oracle/deploy-api.sh
 ```

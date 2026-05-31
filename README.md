@@ -27,7 +27,7 @@ SaaS de resposta automática para WhatsApp voltado a pequenos negócios (barbear
 ## Estrutura
 
 ```
-zapflow/
+flowdesk/
 ├── apps/
 │   ├── web/          # Dashboard Next.js (porta 3000)
 │   └── api/          # API Fastify (porta 3001)
@@ -69,19 +69,19 @@ Credencial Admin: `GOOGLE_APPLICATION_CREDENTIALS=.secrets/firebase-adminsdk.jso
 | App     | Onde                                                                    |
 | ------- | ----------------------------------------------------------------------- |
 | **Web** | Firebase Hosting — https://zapflow-higor-2026.web.app                   |
-| **API** | Local (`pnpm dev`) ou Docker/VPS/Railway/Render (`apps/api/Dockerfile`) |
+| **API** | Firebase Functions (`/api/*`) — billing, webhooks, privacy, Asaas       |
+| **WA**  | Repositório [flowdesk-wa](../flowdesk-wa) — Raspberry Pi / VPS contínuo   |
 
 ```bash
 pnpm deploy:hosting    # front estático
 pnpm deploy:firestore  # regras Firestore
 ```
 
-Antes do deploy do front, crie `apps/web/.env.production` (veja `.env.production.example`) com `NEXT_PUBLIC_API_URL` apontando para sua API pública e `NEXT_PUBLIC_FIREBASE_*`.
+Antes do deploy do front, crie `apps/web/.env.production` (veja `.env.production.example`) com `NEXT_PUBLIC_WA_API_URL` apontando para o agente WhatsApp (Raspberry Pi) e `NEXT_PUBLIC_API_URL` para Firebase Functions (`https://seu-projeto.web.app/api`).
 
-**API:** `FIREBASE_*`, `REDIS_URL`, `CORS_ORIGIN` (URL do Hosting), `ENABLE_WORKERS=true` para WhatsApp.  
-**Web:** `NEXT_PUBLIC_FIREBASE_*`, `NEXT_PUBLIC_API_URL`.
-
-**WhatsApp:** só com API em processo contínuo (`ENABLE_WORKERS=true`), não em funções serverless.
+**Firebase Functions:** `FIREBASE_*`, `STRIPE_*`, `ASAAS_*`, `CORS_ORIGIN` (URL do Hosting).  
+**Web:** `NEXT_PUBLIC_FIREBASE_*`, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WA_API_URL`.  
+**WhatsApp (flowdesk-wa):** `FIREBASE_*`, `REDIS_URL`, `WA_SESSION_PATH`, `CORS_ORIGIN` — processo contínuo no Pi.
 
 ## Configuração do WhatsApp
 

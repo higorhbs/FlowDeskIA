@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
   },
   output: staticHosting ? "export" : undefined,
   trailingSlash: staticHosting ? true : undefined,
-  transpilePackages: ["@zapflow/shared", "@zapflow/firebase"],
+  transpilePackages: ["@flowdesk/shared", "@flowdesk/firebase"],
   serverExternalPackages: ["firebase-admin"],
   redirects: async () => [{ source: "/landing", destination: "/", permanent: true }],
   rewrites: async () => [
