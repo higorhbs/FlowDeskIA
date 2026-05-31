@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type MutableRefObject } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { whatsappApi, businessApi } from "@/lib/api";
 import { invalidateBusinessData } from "@/lib/invalidate-business";
 
@@ -13,21 +13,28 @@ export function useSyncWhatsAppBusiness(businessId: string) {
     queryKey: ["business", businessId],
     queryFn: () => businessApi.get(businessId),
     enabled: !!businessId,
-    staleTime: 5_000,
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+    refetchOnWindowFocus: false,
+    notifyOnChangeProps: ["data", "error", "isError"],
   });
 
   const query = useQuery({
     queryKey: ["wa-status", businessId],
     queryFn: () => whatsappApi.status(businessId),
     enabled: !!businessId,
+    staleTime: 10_000,
+    placeholderData: keepPreviousData,
+    refetchOnWindowFocus: false,
+    notifyOnChangeProps: ["data", "error", "isError"],
     refetchInterval: (q) => {
       const live = q.state.data?.connected === true;
       const stored = businessQuery.data?.isConnected === true;
-      if (live || stored) return 15000;
-      if (q.state.data?.qr) return 800;
-      if (q.state.data?.status === "connecting" || q.state.data?.status === "qr") return 800;
-      if (q.state.status === "error") return 4000;
-      return 2000;
+      if (live || stored) return 60_000;
+      if (q.state.data?.qr) return 3_000;
+      if (q.state.data?.status === "connecting" || q.state.data?.status === "qr") return 3_000;
+      if (q.state.status === "error") return 15_000;
+      return 8_000;
     },
     retry: 2,
   });
@@ -47,6 +54,9 @@ export function useSyncWhatsAppBusiness(businessId: string) {
     });
   }, [connected, businessId, query.data?.connected, businessQuery.isFetched, queryClient]);
 
+  const isInitialLoading =
+    (!query.data && query.isPending) || (!businessQuery.data && businessQuery.isPending);
+
   return {
     ...query,
     data: query.data
@@ -55,9 +65,20 @@ export function useSyncWhatsAppBusiness(businessId: string) {
         ? { connected: true, status: "open" as const }
         : undefined,
     connected,
-    isLoading: query.isLoading || businessQuery.isLoading,
+    isInitialLoading,
     isFetched: query.isFetched && businessQuery.isFetched,
   };
+}
+
+export function patchWhatsAppStatus(
+  queryClient: ReturnType<typeof useQueryClient>,
+  businessId: string,
+  patch: { connected: boolean; status?: string; qr?: string }
+) {
+  queryClient.setQueryData(["wa-status", businessId], (prev: Record<string, unknown> | undefined) => ({
+    ...(prev ?? {}),
+    ...patch,
+  }));
 }
 
 export function markWhatsAppConnected(
@@ -67,8 +88,12 @@ export function markWhatsAppConnected(
   lastSyncedRef: MutableRefObject<boolean | null>
 ) {
   lastSyncedRef.current = connected;
+  patchWhatsAppStatus(queryClient, businessId, {
+    connected,
+    status: connected ? "open" : "close",
+    qr: undefined,
+  });
   return businessApi.setConnected(businessId, connected).then(() => {
     invalidateBusinessData(queryClient, businessId);
-    void queryClient.invalidateQueries({ queryKey: ["wa-status", businessId] });
   });
 }

@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/card";
 export function RequireWhatsAppConnection({ children }: { children: React.ReactNode }) {
   const businessId = useBusinessId();
   const router = useAppRouter();
-  const { data: status, isLoading, isFetched, connected } = useSyncWhatsAppBusiness(businessId);
+  const { isInitialLoading, isFetched, connected } = useSyncWhatsAppBusiness(businessId);
   const whatsappPath = panelHref(businessId, "whatsapp");
 
   const goWhatsApp = useCallback(() => {
@@ -33,7 +33,7 @@ export function RequireWhatsAppConnection({ children }: { children: React.ReactN
     goWhatsApp();
   }, [businessId, isFetched, connected, goWhatsApp]);
 
-  if (!businessId || isLoading) {
+  if (!businessId || isInitialLoading) {
     return (
       <div className="flex flex-1 items-center justify-center min-h-[320px]">
         <Loader2 className="w-8 h-8 animate-spin text-brand-600" />

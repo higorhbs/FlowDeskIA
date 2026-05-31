@@ -107,6 +107,27 @@
   animation: business-page-enter 0.22s ease-out;
 }
 
+@keyframes wa-runner-ground {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 24px 0;
+  }
+}
+
+.wa-runner-ground {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 10px,
+    rgb(134 239 172 / 0.45) 10px,
+    rgb(134 239 172 / 0.45) 12px
+  );
+  background-size: 24px 1px;
+  animation: wa-runner-ground 0.6s linear infinite;
+}
+
 @keyframes shimmer {
   0% {
     background-position: 200% center;
