@@ -26,7 +26,7 @@ export default function WhatsAppPage() {
   const connectStarted = useRef(false);
   const silentConnect = useRef(false);
 
-  const { data: status, isLoading, isError: statusError, failureReason: statusFailure } =
+  const { data: status, isLoading, isError: statusError, failureReason: statusFailure, connected: isConnected } =
     useSyncWhatsAppBusiness(id);
 
   useEffect(() => {
@@ -34,20 +34,20 @@ export default function WhatsAppPage() {
   }, [id]);
 
   useEffect(() => {
-    if (status?.connected || status?.qr) setConnectError(null);
-  }, [status?.connected, status?.qr]);
+    if (isConnected || status?.qr) setConnectError(null);
+  }, [isConnected, status?.qr]);
 
   useEffect(() => {
-    if (status?.connected && !wasConnected.current) {
+    if (isConnected && !wasConnected.current) {
       wasConnected.current = true;
       setQrCode(null);
       toast.success("WhatsApp conectado!");
     }
-    if (!status?.connected) {
+    if (!isConnected) {
       wasConnected.current = false;
       if (status?.qr) setQrCode(status.qr);
     }
-  }, [status?.connected, status?.qr]);
+  }, [isConnected, status?.qr]);
 
   const waUnavailable = status?.status === "unavailable";
 
@@ -89,7 +89,7 @@ export default function WhatsAppPage() {
   const { mutate: startConnect, isPending: isConnectPending } = connectMutation;
 
   useEffect(() => {
-    if (isLoading || waUnavailable || status?.connected || qrCode || status?.qr) return;
+    if (isLoading || waUnavailable || isConnected || qrCode || status?.qr) return;
     if (connectStarted.current || isConnectPending) return;
     const t = setTimeout(() => {
       if (connectStarted.current) return;
@@ -98,9 +98,7 @@ export default function WhatsAppPage() {
       startConnect(false);
     }, 400);
     return () => clearTimeout(t);
-  }, [isLoading, waUnavailable, status?.connected, status?.qr, qrCode, isConnectPending, startConnect]);
-
-  const isConnected = status?.connected;
+  }, [isLoading, waUnavailable, isConnected, status?.qr, qrCode, isConnectPending, startConnect]);
 
   const disconnectMutation = useMutation({
     mutationFn: () => whatsappApi.disconnect(id),

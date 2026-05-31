@@ -9,12 +9,21 @@ export function useSyncWhatsAppBusiness(businessId: string) {
   const queryClient = useQueryClient();
   const lastSynced = useRef<boolean | null>(null);
 
+  const businessQuery = useQuery({
+    queryKey: ["business", businessId],
+    queryFn: () => businessApi.get(businessId),
+    enabled: !!businessId,
+    staleTime: 5_000,
+  });
+
   const query = useQuery({
     queryKey: ["wa-status", businessId],
     queryFn: () => whatsappApi.status(businessId),
     enabled: !!businessId,
     refetchInterval: (q) => {
-      if (q.state.data?.connected) return 15000;
+      const live = q.state.data?.connected === true;
+      const stored = businessQuery.data?.isConnected === true;
+      if (live || stored) return 15000;
       if (q.state.data?.qr) return 800;
       if (q.state.data?.status === "connecting" || q.state.data?.status === "qr") return 800;
       if (q.state.status === "error") return 4000;
@@ -23,17 +32,32 @@ export function useSyncWhatsAppBusiness(businessId: string) {
     retry: 2,
   });
 
+  const waLive = query.data?.connected === true;
+  const stored = businessQuery.data?.isConnected === true;
+  const connected = waLive || stored;
+
   useEffect(() => {
-    const connected = query.data?.connected;
-    if (connected === undefined) return;
+    if (!businessId) return;
+    const waKnown = query.data?.connected !== undefined;
+    if (!waKnown && !businessQuery.isFetched) return;
     if (lastSynced.current === connected) return;
     lastSynced.current = connected;
     void businessApi.setConnected(businessId, connected).then(() => {
       invalidateBusinessData(queryClient, businessId);
     });
-  }, [query.data?.connected, businessId, queryClient]);
+  }, [connected, businessId, query.data?.connected, businessQuery.isFetched, queryClient]);
 
-  return query;
+  return {
+    ...query,
+    data: query.data
+      ? { ...query.data, connected }
+      : connected
+        ? { connected: true, status: "open" as const }
+        : undefined,
+    connected,
+    isLoading: query.isLoading || businessQuery.isLoading,
+    isFetched: query.isFetched && businessQuery.isFetched,
+  };
 }
 
 export function markWhatsAppConnected(

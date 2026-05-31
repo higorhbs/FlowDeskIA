@@ -13,8 +13,7 @@ import { Card } from "@/components/ui/card";
 export function RequireWhatsAppConnection({ children }: { children: React.ReactNode }) {
   const businessId = useBusinessId();
   const router = useAppRouter();
-  const { data: status, isLoading, isFetched } = useSyncWhatsAppBusiness(businessId);
-  const connected = status?.connected === true;
+  const { data: status, isLoading, isFetched, connected } = useSyncWhatsAppBusiness(businessId);
   const whatsappPath = panelHref(businessId, "whatsapp");
 
   const goWhatsApp = useCallback(() => {
