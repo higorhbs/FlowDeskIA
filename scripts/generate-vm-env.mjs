@@ -95,6 +95,8 @@ if (!pick("STRIPE_WEBHOOK_SECRET")) {
 console.log("\nNa VM:");
 console.log("  mkdir -p ~/flowdesk-wa/.secrets");
 console.log("  nano ~/flowdesk-wa/.env   # cole .env.vm");
-console.log("  cd ~/flowdesk-wa && docker compose -f docker-compose.https.yml up -d --build");
+console.log("  export WA_API_IMAGE=ghcr.io/higorhbs/flowdesk-wa:latest");
+console.log("  docker compose -f docker-compose.https.pull.yml pull");
+console.log("  docker compose -f docker-compose.https.pull.yml up -d");
 console.log("\nNo Mac (credencial):");
 console.log("  scp -i ~/Documents/ssh-key-2026-05-28.key .secrets/firebase-adminsdk.json ubuntu@163.176.132.231:~/flowdesk-wa/.secrets/\n");

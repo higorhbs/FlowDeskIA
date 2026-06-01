@@ -194,93 +194,109 @@ export default function WhatsAppPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Conexão WhatsApp</h1>
-        <p className="text-gray-500 mt-1">Conecte seu número para ativar o atendimento automático</p>
-      </div>
+    <div className="p-4 md:p-6 max-w-xl mx-auto">
 
+      {/* Unavailable banner */}
       {waUnavailable && (
-        <Card className="mb-6 flex gap-3 px-4 border-amber-200 bg-amber-50 text-sm text-amber-900">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+        <div className="flex gap-3 mb-4 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50 text-sm text-amber-900">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-medium">WhatsApp indisponível neste ambiente</p>
-            <p className="mt-1 text-amber-800">
-              Rode <strong>pnpm dev</strong> e acesse <strong>http://localhost:3000</strong> (API na
-              porta 3001 com <code className="text-xs">ENABLE_WORKERS=true</code>).
+            <p className="mt-0.5 text-amber-800 text-xs">
+              Rode <strong>pnpm dev</strong> e acesse <strong>http://localhost:3000</strong> (API
+              porta 3001 com <code>ENABLE_WORKERS=true</code>).
             </p>
           </div>
-        </Card>
+        </div>
       )}
 
-      <Card className="text-center overflow-hidden">
+      {/* Main card */}
+      <Card className="overflow-hidden">
+
+        {/* Runner bar */}
         {showRunner && (
-          <div className="border-b border-gray-100 bg-gradient-to-b from-white to-brand-50/30 px-2 pt-4 pb-2">
+          <div className="border-b border-gray-100 bg-gradient-to-b from-white to-brand-50/30 px-4 py-2">
             <WhatsAppConnectionRunner phase={runnerPhase} />
           </div>
         )}
 
-        <div className="p-6 pt-5">
-          <div className="flex items-center justify-center mb-4">
-            <div
-              className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors duration-500 ${
-                isConnected ? "bg-green-50 ring-2 ring-green-200" : "bg-gray-100"
-              }`}
-            >
-              {isConnected ? (
-                <Wifi className="w-8 h-8 text-green-500" />
-              ) : (
-                <WifiOff className="w-8 h-8 text-gray-400" />
-              )}
+        <div className="px-6 py-5 space-y-5">
+
+          {/* Status row — icon + title */}
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors duration-500 ${
+              isConnected ? "bg-green-50 ring-2 ring-green-200" : "bg-gray-100"
+            }`}>
+              {isConnected
+                ? <Wifi className="w-5 h-5 text-green-500" />
+                : <WifiOff className="w-5 h-5 text-gray-400" />}
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 leading-tight">
+                {isConnected ? "WhatsApp conectado" : displayQr ? "Escaneie o QR Code" : "WhatsApp desconectado"}
+              </p>
+              <p className="text-xs mt-0.5 text-gray-400">
+                {isConnected
+                  ? "Atendimento automático ativo"
+                  : displayQr
+                    ? "Abra o WhatsApp e aponte para o código"
+                    : "Conecte para ativar o atendimento automático"}
+              </p>
             </div>
           </div>
 
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">
-            {isConnected ? "Conectado!" : displayQr ? "Escaneie o QR Code" : "Desconectado"}
-          </h2>
-
+          {/* Error */}
           {(connectError || statusError) && !isConnected && !isConnectPending && !waitingQr && (
-            <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 text-left">
-              <p>
-                {statusError
-                  ? statusFailure instanceof Error
-                    ? statusFailure.message
-                    : "Não foi possível consultar o status do WhatsApp."
-                  : connectError}
-              </p>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {statusError
+                ? statusFailure instanceof Error
+                  ? statusFailure.message
+                  : "Não foi possível consultar o status do WhatsApp."
+                : connectError}
             </div>
           )}
 
+          {/* QR + instructions side by side */}
           {displayQr && !isConnected && (
-            <div className="mb-6">
-              <div className="inline-block p-4 bg-white border-2 border-gray-200 rounded-2xl shadow-sm">
-                <img src={displayQr} alt="QR Code WhatsApp" width={250} height={250} className="mx-auto" />
+            <div className="flex gap-4 items-start">
+              <div className="flex-shrink-0 p-2.5 bg-white border-2 border-gray-200 rounded-xl shadow-sm">
+                <img src={displayQr} alt="QR Code WhatsApp" width={160} height={160} />
               </div>
-              <div className="mt-4 text-sm text-gray-500 space-y-1">
-                <p>1. Abra o WhatsApp no celular</p>
-                <p>2. Toque em <strong>Dispositivos conectados</strong></p>
-                <p>3. Toque em <strong>Conectar dispositivo</strong></p>
-                <p>4. Aponte a câmera para o QR Code</p>
+              <div className="flex-1 space-y-2.5 pt-1">
+                {[
+                  "Abra o WhatsApp no celular",
+                  <span key="2">Toque em <strong>Dispositivos conectados</strong></span>,
+                  <span key="3">Toque em <strong>Conectar dispositivo</strong></span>,
+                  "Aponte a câmera para o QR Code",
+                ].map((step, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-brand-100 text-brand-700 text-[10px] font-bold flex items-center justify-center mt-0.5">
+                      {i + 1}
+                    </span>
+                    <p className="text-sm text-gray-600 leading-snug">{step}</p>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
+          {/* Action button */}
           {isConnected ? (
             <Button
               type="button"
               variant="destructiveSolid"
+              className="w-full"
               onClick={() => disconnectMutation.mutate()}
               disabled={disconnectMutation.isPending || waUnavailable}
             >
-              {disconnectMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <WifiOff className="w-4 h-4" />
-              )}
+              {disconnectMutation.isPending
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <WifiOff className="w-4 h-4" />}
               Desconectar
             </Button>
           ) : (
             <Button
+              className="w-full"
               onClick={() => {
                 silentConnect.current = false;
                 connectStarted.current = true;
@@ -288,26 +304,25 @@ export default function WhatsAppPage() {
               }}
               disabled={connectMutation.isPending || waUnavailable}
             >
-              {connectMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : displayQr ? (
-                <RefreshCw className="w-4 h-4" />
-              ) : (
-                <QrCode className="w-4 h-4" />
-              )}
+              {connectMutation.isPending
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : displayQr
+                  ? <RefreshCw className="w-4 h-4" />
+                  : <QrCode className="w-4 h-4" />}
               {displayQr ? "Novo QR Code" : "Gerar QR Code"}
             </Button>
           )}
         </div>
       </Card>
 
+      {/* Como funciona — only when idle */}
       {!isConnected && !hasQr && !waUnavailable && !isConnectPending && !waitingQr && (
-        <Card className="mt-6 px-6 border-brand-100 bg-brand-50">
-          <h3 className="font-medium text-brand-900 mb-3 flex items-center gap-2">
-            <Smartphone className="w-4 h-4" />
+        <Card className="mt-4 px-6 border-brand-100 bg-brand-50">
+          <h3 className="text-sm font-semibold text-brand-900 mb-2 flex items-center gap-2">
+            <Smartphone className="w-3.5 h-3.5" />
             Como funciona
           </h3>
-          <ul className="text-sm text-brand-800 space-y-2">
+          <ul className="text-sm text-brand-800 space-y-1.5">
             <li>• Usamos o WhatsApp Web Protocol para conectar seu número</li>
             <li>• A sessão fica salva — não precisa escanear toda vez</li>
             <li>• Se deslogar no celular, basta reconectar aqui</li>
