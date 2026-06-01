@@ -55,7 +55,7 @@ export default function RootLayout({
                 swScript.onload = function() {
                   if (window.swetrix) {
                     window.swetrix.init('aE9BmT57mCN3', {
-                      apiURL: 'https://api-analytics.usekit.dev/backend/v1/log',
+                      apiURL: 'https://api-analytics.usekit.dev/backend',
                     });
                     window.swetrix.trackViews();
                   }
