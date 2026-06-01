@@ -22,8 +22,10 @@ function copyPkg(name) {
   });
 }
 
-run("pnpm --filter @flowdesk/firebase build");
 run("pnpm --filter @flowdesk/shared build");
+run("pnpm --filter @flowdesk/firebase build");
+const legacyVendor = join(root, "apps/web/vendor/@zapflow");
+if (existsSync(legacyVendor)) rmSync(legacyVendor, { recursive: true, force: true });
 mkdirSync(vendorRoot, { recursive: true });
 copyPkg("firebase");
 copyPkg("shared");

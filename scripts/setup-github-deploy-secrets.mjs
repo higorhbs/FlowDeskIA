@@ -50,6 +50,10 @@ if (!merged.NEXT_PUBLIC_API_URL?.trim()) {
   process.exit(1);
 }
 
+if (!merged.NEXT_PUBLIC_WA_API_URL?.trim()) {
+  merged.NEXT_PUBLIC_WA_API_URL = merged.WA_API_PUBLIC_URL?.trim() || merged.NEXT_PUBLIC_API_URL;
+}
+
 try {
   execSync("gh auth status", { cwd: root, stdio: "ignore" });
 } catch {
@@ -61,6 +65,7 @@ console.log("\nConfigurando secrets do deploy automático...\n");
 
 const webKeys = [
   "NEXT_PUBLIC_API_URL",
+  "NEXT_PUBLIC_WA_API_URL",
   "NEXT_PUBLIC_FIREBASE_API_KEY",
   "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
   "NEXT_PUBLIC_FIREBASE_PROJECT_ID",

@@ -14,8 +14,8 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY apps/api apps/api
 COPY packages/firebase packages/firebase
 COPY packages/shared packages/shared
-RUN pnpm --filter @flowdesk/firebase build \
-  && pnpm --filter @flowdesk/shared build \
+RUN pnpm --filter @flowdesk/shared build \
+  && pnpm --filter @flowdesk/firebase build \
   && pnpm --filter @flowdesk/api build
 
 FROM node:20-alpine AS runner
