@@ -1,4 +1,4 @@
-interface SwetrixInitOptions {
+export interface SwetrixInitOptions {
   apiURL?: string;
   devMode?: boolean;
   disabled?: boolean;

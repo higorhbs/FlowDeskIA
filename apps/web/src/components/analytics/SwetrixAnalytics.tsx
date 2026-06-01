@@ -1,6 +1,7 @@
 "use client";
 
 import Script from "next/script";
+import type { SwetrixInitOptions } from "@/types/swetrix";
 
 const projectId = process.env.NEXT_PUBLIC_SWETRIX_PROJECT_ID?.trim();
 const apiURL = process.env.NEXT_PUBLIC_SWETRIX_API_URL?.trim();
