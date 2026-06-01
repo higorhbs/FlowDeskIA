@@ -18,16 +18,43 @@ service cloud.firestore {
         get(/databases/$(database)/documents/businesses/$(businessId)).data.tenantId == request.auth.uid;
     }
 
+    function tenantProfileUpdateAllowed() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['name', 'email', 'onboardingCompletedAt', 'lgpdAcceptedAt', 'lgpdPolicyVersion', 'updatedAt']);
+    }
+
+    function tenantCreateAllowed() {
+      return request.resource.data.keys().hasOnly([
+          'name',
+          'email',
+          'plan',
+          'planStatus',
+          'trialEndsAt',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.plan == 'STARTER'
+        && request.resource.data.planStatus == 'TRIALING'
+        && request.resource.data.name is string
+        && request.resource.data.email is string
+        && request.resource.data.trialEndsAt is string
+        && request.resource.data.createdAt is string
+        && request.resource.data.updatedAt is string;
+    }
+
     match /tenants/{tenantId} {
       allow read: if isOwner(tenantId);
-      allow create: if isOwner(tenantId);
-      allow update: if isOwner(tenantId);
+      allow create: if isOwner(tenantId) && tenantCreateAllowed();
+      allow update: if isOwner(tenantId) && tenantProfileUpdateAllowed();
+      allow delete: if false;
     }
 
     match /businesses/{businessId} {
       allow read: if signedInAndVerified() && resource.data.tenantId == request.auth.uid;
       allow create: if signedInAndVerified() && request.resource.data.tenantId == request.auth.uid;
-      allow update, delete: if signedInAndVerified() && resource.data.tenantId == request.auth.uid;
+      allow update, delete: if signedInAndVerified()
+        && resource.data.tenantId == request.auth.uid
+        && request.resource.data.tenantId == resource.data.tenantId;
 
       match /catalog/{itemId} {
         allow read, write: if businessOwned(businessId);

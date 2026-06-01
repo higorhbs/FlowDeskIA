@@ -32,11 +32,7 @@ export default function RootLayout({
       className={cn("font-sans", geist.variable)}
     >
       <body className={inter.className} suppressHydrationWarning>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=sessionStorage.getItem("flowdesk:activeBusinessType");if(t)document.documentElement.setAttribute("data-business-type",t);}catch(e){}})();`,
-          }}
-        />
+        <script src="/theme-init.js" defer />
         <Providers>
           <DesktopOnlyGate>
             {children}

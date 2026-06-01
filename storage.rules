@@ -16,5 +16,9 @@ service firebase.storage {
           || request.resource.contentType.matches('video/.*')
         );
     }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
   }
 }

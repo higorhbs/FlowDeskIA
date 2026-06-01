@@ -20,7 +20,6 @@ import {
   updateClientFaq,
   deleteClientFaq,
   getClientTenant,
-  updateClientPlan,
   ensureClientTenant,
   completeClientOnboarding,
   acceptClientLgpd,
@@ -39,7 +38,6 @@ import {
   cancelClientScheduledStatusSeries,
 } from "@flowdesk/firebase/client";
 import type {
-  Plan,
   ConversationStatus,
   AppointmentStatus,
   ScheduledStatus,
@@ -258,7 +256,6 @@ export const authApi = {
 
 export const tenantApi = {
   get: () => getClientTenant(requireUid()),
-  updatePlan: (plan: Plan) => updateClientPlan(requireUid(), plan),
   completeOnboarding: async () => {
     await ensureTenantRecord();
     return completeClientOnboarding(requireUid());

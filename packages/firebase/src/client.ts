@@ -68,7 +68,6 @@ export function getClientDb(): Firestore {
 export {
   ensureClientTenant,
   getClientTenant,
-  updateClientPlan,
   updateClientTenantProfile,
   completeClientOnboarding,
   acceptClientLgpd,
