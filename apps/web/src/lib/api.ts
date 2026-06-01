@@ -148,6 +148,41 @@ waApi.interceptors.request.use(async (config) => {
   return config;
 });
 
+waApi.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const data = err.response?.data;
+    const apiMsg =
+      typeof data?.error === "string"
+        ? data.error
+        : typeof data?.message === "string"
+          ? data.message
+          : null;
+    const waUrl = getWaApiBaseUrl();
+    if (apiMsg) {
+      err.message = apiMsg;
+    } else if (!err.response) {
+      const pageHttps =
+        typeof window !== "undefined" && window.location.protocol === "https:";
+      const waHttp = waUrl.startsWith("http://");
+      if (pageHttps && waHttp) {
+        err.message =
+          `O painel está em HTTPS, mas a API WhatsApp está em HTTP (${waUrl}). O navegador bloqueia isso. Use HTTPS na API (ex.: Caddy) e NEXT_PUBLIC_WA_API_URL=https://...`;
+      } else if (err.code === "ECONNABORTED") {
+        err.message =
+          "API WhatsApp demorou (geração do QR pode levar até 50s). Aguarde ou tente de novo.";
+      } else if (isLocalDevHost()) {
+        err.message = "API WhatsApp offline. Suba flowdesk-wa na porta 3001.";
+      } else {
+        err.message = `Não foi possível conectar à API WhatsApp (${waUrl}). Verifique firewall, CORS e se o container wa-api está no ar.`;
+      }
+    } else if (err.response?.status === 503) {
+      err.message = apiMsg ?? "API WhatsApp sem credencial Firebase Admin no servidor.";
+    }
+    return Promise.reject(err);
+  }
+);
+
 api.interceptors.response.use(
   (res) => res,
   async (err) => {
