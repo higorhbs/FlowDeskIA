@@ -217,7 +217,7 @@ export default function CatalogPage() {
             >
               <div>
                 <Label className="text-sm font-medium text-gray-700 mb-1.5 block">Nome *</Label>
-                <Input type="text" placeholder="Corte masculino" {...register("name")} />
+                <Input type="text" placeholder="Nome do item" {...register("name")} />
                 {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
               </div>
 
@@ -225,7 +225,7 @@ export default function CatalogPage() {
                 <Label className="text-sm font-medium text-gray-700 mb-1.5 block">Descrição</Label>
                 <Textarea
                   className="min-h-20 resize-none"
-                  placeholder="Inclui lavagem e finalização..."
+                  placeholder="Descrição opcional para o cliente no WhatsApp"
                   {...register("description")}
                 />
               </div>
