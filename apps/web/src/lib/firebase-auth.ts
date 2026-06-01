@@ -136,6 +136,8 @@ export function authErrorMessage(err: unknown, fallback: string): string {
     "auth/weak-password": "Senha muito fraca (mínimo 6 caracteres).",
     "auth/requires-recent-login": "Por segurança, saia e entre de novo antes de alterar e-mail ou senha.",
     "auth/invalid-email": "E-mail inválido.",
+    "auth/network-request-failed":
+      "Não foi possível falar com o Firebase Auth. Verifique internet, desative bloqueador de anúncios, confirme flowdesk.ia.br em Firebase → Auth → Domínios autorizados e restrições da API Key no Google Cloud (origens: flowdesk.ia.br e zapflow-higor-2026.web.app). Depois: pnpm deploy:hosting.",
     "permission-denied": "Sem permissão no Firestore. Confira as regras e o login.",
   };
   const raw = err instanceof Error ? err.message : fallback;

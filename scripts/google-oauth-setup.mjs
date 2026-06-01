@@ -62,6 +62,20 @@ console.log(`NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${project}.web.app`);
 console.log("Dev: http://localhost:3000 (nunca 192.168.x.x)");
 console.log("Produção:", site);
 console.log("\nLink OAuth client:", clientUrl);
+console.log("\n--- API Key (auth/network-request-failed) ---");
+console.log("Google Cloud → Credentials → Browser key (auto created by Firebase)");
+console.log("→ Application restrictions → HTTP referrers, inclua:");
+console.log(`  https://${project}.web.app/*`);
+console.log(`  https://${project}.firebaseapp.com/*`);
+if (customOrigin) {
+  try {
+    const host = new URL(customOrigin).origin;
+    console.log(`  ${host}/*`);
+  } catch {
+    /* ignore */
+  }
+}
+console.log("  http://localhost:3000/*");
 console.log("Salve, aguarde ~2 min, reinicie pnpm dev\n");
 
 const { execSync } = await import("node:child_process");

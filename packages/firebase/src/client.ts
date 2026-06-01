@@ -25,8 +25,10 @@ let db: Firestore | undefined;
 export function getFirebaseApp(): FirebaseApp {
   if (!getApps().length) {
     const firebaseConfig = buildFirebaseConfig();
-    if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-      throw new Error("Firebase: configure NEXT_PUBLIC_FIREBASE_* no .env");
+    if (!firebaseConfig.apiKey?.trim() || !firebaseConfig.projectId?.trim()) {
+      throw new Error(
+        "Firebase: NEXT_PUBLIC_FIREBASE_API_KEY ou PROJECT_ID ausentes no build. Confira secrets do GitHub e rode deploy:hosting.",
+      );
     }
     return initializeApp(firebaseConfig);
   }
