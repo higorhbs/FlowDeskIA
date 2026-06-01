@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import Stripe from "stripe";
 
-const BRAND = "FlowDesk";
+const BRAND = "FlowDesk IA";
 
 const PLANS = [
   { env: "STRIPE_PRICE_STARTER", plan: "STARTER", brl: 9.99, name: `${BRAND} Starter` },

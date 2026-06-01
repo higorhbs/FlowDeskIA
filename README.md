@@ -1,4 +1,4 @@
-# FlowDesk — Atendimento automático no WhatsApp
+# FlowDesk IA — Atendimento automático no WhatsApp
 
 SaaS de resposta automática para WhatsApp voltado a pequenos negócios: barbearia, salão, restaurante, dentista, loja e comércio local.
 

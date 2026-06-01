@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { APP_DISPLAY_NAME } from "@flowdesk/shared";
 import { scheduledStatusApi, businessApi, type ScheduledStatus } from "@/lib/api";
 import { useBusinessId } from "@/lib/use-business-id";
 import { useAuth } from "@/contexts/auth-context";
@@ -240,7 +241,7 @@ export default function StatusSchedulePage() {
           />
 
           <p className="text-xs text-gray-500">
-            O status será visível para contatos que já conversaram com você no FlowDesk. Mantenha o
+            O status será visível para contatos que já conversaram com você no {APP_DISPLAY_NAME}. Mantenha o
             agente WhatsApp online no horário agendado.
           </p>
           <p className="text-xs text-gray-500 leading-relaxed rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">

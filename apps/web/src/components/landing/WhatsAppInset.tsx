@@ -22,7 +22,7 @@ export function WhatsAppInset({ className }: { className?: string }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium text-white">
-            {APP_DISPLAY_NAME} IA
+            {APP_DISPLAY_NAME}
           </p>
           <p className="text-[10px] text-white/70">online</p>
         </div>
