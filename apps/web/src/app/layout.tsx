@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Geist } from "next/font/google";
+import Script from "next/script";
 import { APP_META_DESCRIPTION, APP_PAGE_TITLE } from "@flowdesk/shared";
 import "./globals.css";
 import { DesktopOnlyGate } from "@/components/layout/DesktopOnlyGate";
@@ -41,6 +42,24 @@ export default function RootLayout({
     >
       <body className={inter.className} suppressHydrationWarning>
         <script src="/theme-init.js" defer />
+        <Script src="https://swetrix.org/swetrix.js" strategy="afterInteractive" />
+        <Script id="swetrix-init" strategy="afterInteractive">
+          {`
+            document.addEventListener('DOMContentLoaded', function() {
+              swetrix.init('aE9BmT57mCN3', {
+                apiURL: 'https://api-analytics.usekit.dev/backend/v1/log',
+              });
+              swetrix.trackViews();
+            });
+          `}
+        </Script>
+        <noscript>
+          <img
+            src="https://api-analytics.usekit.dev/backend/log/noscript?pid=aE9BmT57mCN3"
+            alt=""
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        </noscript>
         <Providers>
           <DesktopOnlyGate>
             {children}
