@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Geist } from "next/font/google";
 import { APP_META_DESCRIPTION, APP_PAGE_TITLE } from "@flowdesk/shared";
 import "./globals.css";
+import { SwetrixAnalytics } from "@/components/analytics/SwetrixAnalytics";
 import { DesktopOnlyGate } from "@/components/layout/DesktopOnlyGate";
 import { Providers } from "@/components/providers";
 import { ToasterHost } from "@/components/toaster-host";
@@ -41,38 +42,7 @@ export default function RootLayout({
     >
       <body className={inter.className} suppressHydrationWarning>
         <script src="/theme-init.js" defer />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                var existing = document.querySelector('script[data-swetrix-loader="true"]');
-                if (existing) return;
-
-                var swScript = document.createElement('script');
-                swScript.src = 'https://swetrix.org/swetrix.js';
-                swScript.defer = true;
-                swScript.setAttribute('data-swetrix-loader', 'true');
-                swScript.onload = function() {
-                  if (window.swetrix) {
-                    window.swetrix.init('aE9BmT57mCN3', {
-                      apiURL: 'https://api-analytics.usekit.dev/backend',
-                    });
-                    window.swetrix.trackViews();
-                  }
-                };
-
-                document.head.appendChild(swScript);
-              })();
-            `,
-          }}
-        />
-        <noscript>
-          <img
-            src="https://api-analytics.usekit.dev/backend/log/noscript?pid=aE9BmT57mCN3"
-            alt=""
-            referrerPolicy="no-referrer-when-downgrade"
-          />
-        </noscript>
+        <SwetrixAnalytics />
         <Providers>
           <DesktopOnlyGate>
             {children}
