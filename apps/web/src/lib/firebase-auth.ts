@@ -137,7 +137,7 @@ export function authErrorMessage(err: unknown, fallback: string): string {
     "auth/requires-recent-login": "Por segurança, saia e entre de novo antes de alterar e-mail ou senha.",
     "auth/invalid-email": "E-mail inválido.",
     "auth/network-request-failed":
-      "Não foi possível falar com o Firebase Auth. Verifique internet, desative bloqueador de anúncios, confirme flowdesk.ia.br em Firebase → Auth → Domínios autorizados e restrições da API Key no Google Cloud (origens: flowdesk.ia.br e zapflow-higor-2026.web.app). Depois: pnpm deploy:hosting.",
+      "Firebase Auth inacessível. Se o site foi publicado pelo GitHub Actions, confira se o secret NEXT_PUBLIC_FIREBASE_API_KEY é a chave real (AIza...), não \"test\" — rode pnpm setup:github-deploy e redeploy. Também: flowdesk.ia.br nos domínios autorizados e na API Key do Google Cloud.",
     "permission-denied": "Sem permissão no Firestore. Confira as regras e o login.",
   };
   const raw = err instanceof Error ? err.message : fallback;

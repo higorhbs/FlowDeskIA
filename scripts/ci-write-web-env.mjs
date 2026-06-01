@@ -29,6 +29,16 @@ if (!apiUrl) {
   process.exit(1);
 }
 
+const firebaseApiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim() ?? "";
+if (!firebaseApiKey.startsWith("AIza")) {
+  console.error(
+    "\n❌ NEXT_PUBLIC_FIREBASE_API_KEY inválida no GitHub Secrets (valor atual parece placeholder).\n" +
+      "   No Mac, com .env correto: pnpm setup:github-deploy\n" +
+      "   Depois dispare de novo o workflow Deploy to Firebase Hosting.\n",
+  );
+  process.exit(1);
+}
+
 const authDomain =
   process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim() || "zapflow-higor-2026.web.app";
 const projectId =
