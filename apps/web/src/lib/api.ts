@@ -190,6 +190,12 @@ api.interceptors.response.use(
     const config = err.config as typeof err.config & { _authRetry?: boolean };
     const status = err.response?.status;
 
+    if (status === 404 && typeof config?.url === "string" && config.url.includes("/privacy/")) {
+      err.message =
+        "Função de privacidade indisponível no servidor. Atualize a API (flowdesk-wa) e faça deploy na VM.";
+      return Promise.reject(err);
+    }
+
     if (status === 401 && config && !config._authRetry) {
       const user = getClientAuth().currentUser;
       if (user) {
