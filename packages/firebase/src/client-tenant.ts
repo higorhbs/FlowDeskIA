@@ -89,6 +89,6 @@ export async function submitClientCancellationFeedback(
     rating,
     text: data.text?.trim() || null,
     createdAt: nowIso(),
-  };
+  });
   return { ok: true };
 }
