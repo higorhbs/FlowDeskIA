@@ -163,16 +163,21 @@ export default function ConversationsPage() {
     return "Atendente";
   }
 
-  const rawAttendantNames = (business as { attendantNames?: unknown } | undefined)?.attendantNames;
-  const attendantOptions = (
-    Array.isArray(rawAttendantNames)
-      ? rawAttendantNames
-      : typeof rawAttendantNames === "string"
-      ? rawAttendantNames.split("\n")
-      : []
-  )
-    .map((name) => String(name).trim())
-    .filter(Boolean);
+  const rawAttendantNames = (business as { attendantNames?: unknown; attendantName?: string } | undefined);
+  const attendantOptions = Array.from(
+    new Set(
+      [
+        ...(Array.isArray(rawAttendantNames?.attendantNames)
+          ? rawAttendantNames.attendantNames
+          : typeof rawAttendantNames?.attendantNames === "string"
+          ? rawAttendantNames.attendantNames.split("\n")
+          : []),
+        rawAttendantNames?.attendantName ?? "",
+      ]
+        .map((name) => String(name).trim())
+        .filter(Boolean)
+    )
+  );
 
   useEffect(() => {
     if (!attendantOptions.length) return;
@@ -184,6 +189,11 @@ export default function ConversationsPage() {
   function isManualPrefixEnabled() {
     const b = business as { manualAttendantPrefixEnabled?: boolean; attendantEnabled?: boolean } | undefined;
     return b?.manualAttendantPrefixEnabled !== false && b?.attendantEnabled !== false;
+  }
+
+  function shouldApplyManualPrefix() {
+    if (selectedAttendantName.trim()) return true;
+    return isManualPrefixEnabled();
   }
 
   return (
@@ -364,7 +374,7 @@ export default function ConversationsPage() {
 
             {selectedConv.status === "ATTENDING" && (
               <div className="bg-white border-t border-gray-200 p-4">
-                {isManualPrefixEnabled() && attendantOptions.length > 0 && (
+                {attendantOptions.length > 0 && (
                   <div className="mb-3">
                     <p className="text-xs text-gray-500 mb-1">Atendente desta conversa</p>
                     <select
@@ -395,7 +405,7 @@ export default function ConversationsPage() {
                             text: buildManualMessage(
                               replyText,
                               resolveAttendantName(),
-                              isManualPrefixEnabled()
+                              shouldApplyManualPrefix()
                             ),
                             conversationId: selectedConv.id,
                           });
@@ -412,7 +422,7 @@ export default function ConversationsPage() {
                         text: buildManualMessage(
                           replyText,
                           resolveAttendantName(),
-                          isManualPrefixEnabled()
+                          shouldApplyManualPrefix()
                         ),
                         conversationId: selectedConv.id,
                       })
