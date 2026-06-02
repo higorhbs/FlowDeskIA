@@ -18,6 +18,7 @@ import {
   Banknote,
   Loader2,
   CircleDot,
+  LifeBuoy,
 } from "lucide-react";
 import { cn, getBusinessTypeLabel } from "@/lib/utils";
 import { APP_DISPLAY_NAME } from "@flowdesk/shared";
@@ -35,6 +36,8 @@ import { IaIcon } from "@/lib/ia-brand";
 import { usePlanAllowsPix } from "@/lib/use-plan-allows-pix";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
+
+const SUPPORT_WHATSAPP_URL = "https://wa.me/5531973616454?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20FlowDesk";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -261,6 +264,15 @@ export function Sidebar() {
       </nav>
 
       <div className="px-3 py-3 border-t border-gray-100">
+        <a
+          href={SUPPORT_WHATSAPP_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="mb-1 flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+        >
+          <LifeBuoy className="w-4 h-4" />
+          Suporte WhatsApp
+        </a>
         {!businessId && (
           <Link
             href="/plan"

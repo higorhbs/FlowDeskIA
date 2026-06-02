@@ -14,6 +14,8 @@ import { useState, useEffect, useRef } from "react";
 import { getBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { IaIcon } from "@/lib/ia-brand";
 
+const SUPPORT_WHATSAPP_URL = "https://wa.me/5531973616454?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20FlowDesk";
+
 // ── Seeded deterministic data ──────────────────────────────────────────────────
 function seeded(n: number) {
   const x = Math.sin(n + 1) * 10000;
@@ -396,6 +398,15 @@ export default function DashboardPage() {
           <Plus className="w-4 h-4" />
           Cadastrar meu negócio
         </Link>
+        <a
+          href={SUPPORT_WHATSAPP_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-medium border border-emerald-200 transition-colors"
+        >
+          <MessageSquare className="w-4 h-4" />
+          Falar com suporte
+        </a>
       </div>
     );
   }

@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+const SUPPORT_WHATSAPP_URL = "https://wa.me/5531973616454?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20FlowDesk";
+
 export default function GlobalError({
   error,
   reset,
@@ -21,12 +23,22 @@ export default function GlobalError({
           <p className="text-gray-500 mb-8 text-center max-w-md">
             Ocorreu um erro inesperado. Tente novamente ou entre em contato com o suporte.
           </p>
-          <button
-            onClick={reset}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-          >
-            Tentar novamente
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={reset}
+              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              Tentar novamente
+            </button>
+            <a
+              href={SUPPORT_WHATSAPP_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="px-6 py-3 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors font-medium border border-emerald-200"
+            >
+              Suporte WhatsApp
+            </a>
+          </div>
         </div>
       </body>
     </html>
