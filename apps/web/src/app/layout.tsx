@@ -15,7 +15,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: APP_PAGE_TITLE,
   description: APP_META_DESCRIPTION,
+  applicationName: "FlowDesk",
   manifest: "/site.webmanifest",
+  themeColor: "#16a34a",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -40,6 +42,15 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("font-sans", geist.variable)}
     >
+      <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16" />
+        <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+        <link rel="mask-icon" href="/apple-icon.svg" color="#16a34a" />
+        <meta name="application-name" content="FlowDesk" />
+        <meta name="apple-mobile-web-app-title" content="FlowDesk" />
+      </head>
       <body className={inter.className} suppressHydrationWarning>
         <script src="/theme-init.js" defer />
         <Providers>

@@ -36,9 +36,18 @@ export function PaymentsPixPanel({ businessId }: { businessId: string }) {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-gray-500 leading-relaxed">
-        Conecte a conta Asaas do negócio. Os PIX gerados no WhatsApp caem na carteira do lojista, não no {APP_DISPLAY_NAME}.
-      </p>
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2">
+        <p className="text-sm font-semibold text-emerald-900">Integracao focada em PIX</p>
+        <p className="text-sm text-emerald-800 leading-relaxed">
+          Esta funcionalidade do {APP_DISPLAY_NAME} usa somente PIX via Asaas. Os valores recebidos caem direto na conta Asaas do negocio.
+        </p>
+        <p className="text-sm text-emerald-800">
+          Taxas PIX Asaas: <strong>R$ 0,99</strong> por transacao nos 3 primeiros meses e <strong>R$ 1,99</strong> apos o periodo promocional.
+        </p>
+        <p className="text-xs text-emerald-700">
+          As tarifas sao definidas pela Asaas e podem mudar conforme regras comerciais da propria plataforma.
+        </p>
+      </div>
       <AsaasMerchantForm businessId={businessId} />
       <div>
         <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">

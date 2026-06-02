@@ -122,6 +122,12 @@ export function AsaasMerchantForm({ businessId }: { businessId: string }) {
           <Link2 className="w-4 h-4 text-brand-600" />
           Dados de pagamento do seu negócio
         </p>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <p className="text-sm font-medium text-gray-800">Somente PIX neste sistema</p>
+          <p className="text-xs text-gray-600 mt-1">
+            Cobranca por boleto ou cartao nao faz parte desta integracao. Aqui voce configura apenas o fluxo de pagamento PIX via Asaas.
+          </p>
+        </div>
 
         <div className="space-y-4">
           <div>
