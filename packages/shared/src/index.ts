@@ -205,12 +205,32 @@ export function getLocalTimeParts(
   };
 }
 
+export function getLocalDateKey(
+  timeZone = DEFAULT_BUSINESS_TIMEZONE,
+  date = new Date()
+): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+      .formatToParts(date)
+      .filter((p) => p.type !== "literal")
+      .map((p) => [p.type, p.value])
+  );
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
 export function isOpenNow(
   workingHours: WorkingHours,
-  timeZone = DEFAULT_BUSINESS_TIMEZONE
+  timeZone = DEFAULT_BUSINESS_TIMEZONE,
+  specialHours?: Record<string, [string, string] | null>
 ): boolean {
   const { day, hours, minutes } = getLocalTimeParts(timeZone);
-  const slot = workingHours[day];
+  const dateKey = getLocalDateKey(timeZone);
+  const slot = specialHours?.[dateKey] ?? workingHours[day];
   if (!slot) return false;
 
   const [openH, openM] = slot[0].split(":").map(Number);

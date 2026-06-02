@@ -1,3 +1,4 @@
+import Script from "next/script";
 import {
   swetrixInitOptionsJson,
   swetrixNoscriptBase,
@@ -12,10 +13,12 @@ export function SwetrixScripts() {
 
   return (
     <>
-      <script src="/flow-kit.js" defer />
-      <script
+      <Script id="swetrix-kit" src="/flow-kit.js" strategy="afterInteractive" />
+      <Script
+        id="swetrix-init"
+        strategy="afterInteractive"
         dangerouslySetInnerHTML={{
-          __html: `document.addEventListener("DOMContentLoaded",function(){if(!window.swetrix)return;window.swetrix.init(${projectIdJson},${initOptions});window.swetrix.trackViews();});`,
+          __html: `if(window.swetrix){window.swetrix.init(${projectIdJson},${initOptions});window.swetrix.trackViews();}`,
         }}
       />
       <noscript>

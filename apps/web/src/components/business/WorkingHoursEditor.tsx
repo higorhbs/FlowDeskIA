@@ -23,6 +23,7 @@ const COL_H  = 96;
 const SPACER = (COL_H - ITEM_H) / 2;
 
 export type WorkingHoursValue = Record<string, [string, string] | null>;
+export type SpecialHoursValue = Record<string, [string, string] | null>;
 
 export function defaultWorkingHours(): WorkingHoursValue {
   const h: WorkingHoursValue = {};
@@ -209,11 +210,23 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
 type Props = {
   value: WorkingHoursValue;
   onChange: (value: WorkingHoursValue) => void;
+  specialHours: SpecialHoursValue;
+  onSpecialHoursChange: (value: SpecialHoursValue) => void;
   onCommit?: () => void;
 };
 
-export function WorkingHoursEditor({ value, onChange, onCommit }: Props) {
+export function WorkingHoursEditor({
+  value,
+  onChange,
+  specialHours,
+  onSpecialHoursChange,
+  onCommit,
+}: Props) {
   const [editingDay, setEditingDay] = useState<string | null>(null);
+  const [specialDate, setSpecialDate] = useState("");
+  const [specialOpen, setSpecialOpen] = useState("09:00");
+  const [specialClose, setSpecialClose] = useState("18:00");
+  const [specialClosed, setSpecialClosed] = useState(false);
 
   function setDay(day: string, slot: [string, string] | null) {
     onChange({ ...value, [day]: slot });
@@ -232,6 +245,16 @@ export function WorkingHoursEditor({ value, onChange, onCommit }: Props) {
   }
 
   const openCount = DAY_KEYS.filter((d) => value[d] !== null && value[d] !== undefined).length;
+  const specialEntries = Object.entries(specialHours).sort(([a], [b]) => a.localeCompare(b));
+
+  function addSpecialDay() {
+    if (!specialDate) return;
+    const slot: [string, string] | null = specialClosed ? null : [specialOpen, specialClose];
+    onSpecialHoursChange({ ...specialHours, [specialDate]: slot });
+    onCommit?.();
+    setSpecialDate("");
+    setSpecialClosed(false);
+  }
 
   return (
     <div className="space-y-3">
@@ -371,6 +394,81 @@ export function WorkingHoursEditor({ value, onChange, onCommit }: Props) {
             {label}
           </button>
         ))}
+      </div>
+
+      <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-white">
+        <p className="text-sm font-semibold text-gray-900">Horários excepcionais por data</p>
+        <p className="text-xs text-gray-500">
+          Use para feriado, evento ou dia atípico. Esta data sobrescreve o horário semanal.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-[140px_1fr_1fr_auto] gap-2 items-center">
+          <input
+            type="date"
+            value={specialDate}
+            onChange={(e) => setSpecialDate(e.target.value)}
+            className="input"
+          />
+          <input
+            type="time"
+            value={specialOpen}
+            onChange={(e) => setSpecialOpen(e.target.value)}
+            className="input"
+            disabled={specialClosed}
+          />
+          <input
+            type="time"
+            value={specialClose}
+            onChange={(e) => setSpecialClose(e.target.value)}
+            className="input"
+            disabled={specialClosed}
+          />
+          <button
+            type="button"
+            onClick={addSpecialDay}
+            className="text-xs border border-brand-200 bg-brand-50 text-brand-700 rounded-lg px-3 py-2 hover:bg-brand-100"
+            disabled={!specialDate}
+          >
+            Adicionar
+          </button>
+        </div>
+        <label className="inline-flex items-center gap-2 text-xs text-gray-600">
+          <input
+            type="checkbox"
+            checked={specialClosed}
+            onChange={(e) => setSpecialClosed(e.target.checked)}
+          />
+          Fechado nesta data
+        </label>
+
+        {specialEntries.length > 0 && (
+          <div className="space-y-2">
+            {specialEntries.map(([day, slot]) => (
+              <div
+                key={day}
+                className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"
+              >
+                <div className="text-xs text-gray-700">
+                  <span className="font-semibold">{day}</span>
+                  <span className="ml-2">
+                    {slot ? `${slot[0]} → ${slot[1]}` : "Fechado"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = { ...specialHours };
+                    delete next[day];
+                    onSpecialHoursChange(next);
+                    onCommit?.();
+                  }}
+                  className="text-xs text-red-600 hover:text-red-700"
+                >
+                  Remover
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

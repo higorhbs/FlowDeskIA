@@ -57,6 +57,7 @@ export interface Business {
   description?: string;
   logoUrl?: string;
   workingHours: Record<string, unknown>;
+  specialHours?: Record<string, [string, string] | null>;
   timezone?: string;
   greetingMsg: string;
   awayMsg: string;

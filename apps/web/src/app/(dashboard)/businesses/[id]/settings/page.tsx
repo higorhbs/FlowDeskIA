@@ -14,7 +14,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
-import { WorkingHoursEditor, defaultWorkingHours, type WorkingHoursValue } from "@/components/business/WorkingHoursEditor";
+import {
+  WorkingHoursEditor,
+  defaultWorkingHours,
+  type WorkingHoursValue,
+  type SpecialHoursValue,
+} from "@/components/business/WorkingHoursEditor";
 import { useBusinessId } from "@/lib/use-business-id";
 import { persistBusinessSnapshot } from "@/lib/business-route";
 
@@ -49,6 +54,27 @@ function normalizeWorkingHours(raw: unknown): WorkingHoursValue {
   return Object.keys(wh).length > 0 ? wh : defaultWorkingHours();
 }
 
+function normalizeSpecialHours(raw: unknown): SpecialHoursValue {
+  if (!raw || typeof raw !== "object") return {};
+  const input = raw as Record<string, unknown>;
+  const out: SpecialHoursValue = {};
+  for (const [day, slot] of Object.entries(input)) {
+    if (slot === null) {
+      out[day] = null;
+      continue;
+    }
+    if (
+      Array.isArray(slot) &&
+      slot.length === 2 &&
+      typeof slot[0] === "string" &&
+      typeof slot[1] === "string"
+    ) {
+      out[day] = [slot[0], slot[1]];
+    }
+  }
+  return out;
+}
+
 export default function SettingsPage() {
   const businessId = useBusinessId();
   const queryClient = useQueryClient();
@@ -60,6 +86,7 @@ export default function SettingsPage() {
   });
 
   const [workingHours, setWorkingHours] = useState<WorkingHoursValue>(defaultWorkingHours());
+  const [specialHours, setSpecialHours] = useState<SpecialHoursValue>({});
   const [hoursDirty, setHoursDirty] = useState(false);
 
   const { register, control, handleSubmit, reset, formState: { errors, isDirty } } = useForm<FormData>({
@@ -82,6 +109,7 @@ export default function SettingsPage() {
       awayMsg: business.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
     });
     setWorkingHours(normalizeWorkingHours(business.workingHours));
+    setSpecialHours(normalizeSpecialHours((business as { specialHours?: unknown }).specialHours));
     setHoursDirty(false);
   }, [business, reset]);
 
@@ -91,6 +119,7 @@ export default function SettingsPage() {
         ...data,
         typeLabel: data.type === "OTHER" ? data.typeLabel?.trim() : undefined,
         workingHours,
+        specialHours,
       }),
     onSuccess: (_data, variables) => {
       setHoursDirty(false);
@@ -181,6 +210,11 @@ export default function SettingsPage() {
             value={workingHours}
             onChange={(v) => {
               setWorkingHours(v);
+              setHoursDirty(true);
+            }}
+            specialHours={specialHours}
+            onSpecialHoursChange={(v) => {
+              setSpecialHours(v);
               setHoursDirty(true);
             }}
             onCommit={() => {
