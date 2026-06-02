@@ -37,7 +37,8 @@ import { usePlanAllowsPix } from "@/lib/use-plan-allows-pix";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 
-const SUPPORT_EMAIL_URL = "mailto:1devhigor@gmail.com?subject=Suporte%20FlowDesk";
+const SUPPORT_EMAIL_URL =
+  "https://mail.google.com/mail/?view=cm&fs=1&to=1devhigor@gmail.com&su=Suporte%20FlowDesk";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -266,6 +267,8 @@ export function Sidebar() {
       <div className="px-3 py-3 border-t border-gray-100">
         <a
           href={SUPPORT_EMAIL_URL}
+          target="_blank"
+          rel="noreferrer"
           className="mb-1 flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
         >
           <LifeBuoy className="w-4 h-4" />

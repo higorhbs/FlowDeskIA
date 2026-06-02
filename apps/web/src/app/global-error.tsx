@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 
-const SUPPORT_EMAIL_URL = "mailto:1devhigor@gmail.com?subject=Suporte%20FlowDesk";
+const SUPPORT_EMAIL_URL =
+  "https://mail.google.com/mail/?view=cm&fs=1&to=1devhigor@gmail.com&su=Suporte%20FlowDesk";
 
 export default function GlobalError({
   error,
@@ -32,6 +33,8 @@ export default function GlobalError({
             </button>
             <a
               href={SUPPORT_EMAIL_URL}
+              target="_blank"
+              rel="noreferrer"
               className="px-6 py-3 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors font-medium border border-emerald-200"
             >
               Suporte

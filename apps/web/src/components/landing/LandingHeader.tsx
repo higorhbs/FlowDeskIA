@@ -12,7 +12,8 @@ function scrollToSection(id: string) {
 
 export function LandingHeader() {
   const { openAuth } = useAuthDrawer();
-  const supportEmail = "mailto:1devhigor@gmail.com?subject=Contato%20FlowDesk";
+  const supportEmail =
+    "https://mail.google.com/mail/?view=cm&fs=1&to=1devhigor@gmail.com&su=Contato%20FlowDesk";
 
   return (
     <header className="relative z-50">

@@ -14,7 +14,8 @@ import { useState, useEffect, useRef } from "react";
 import { getBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { IaIcon } from "@/lib/ia-brand";
 
-const SUPPORT_EMAIL_URL = "mailto:1devhigor@gmail.com?subject=Suporte%20FlowDesk";
+const SUPPORT_EMAIL_URL =
+  "https://mail.google.com/mail/?view=cm&fs=1&to=1devhigor@gmail.com&su=Suporte%20FlowDesk";
 
 // ── Seeded deterministic data ──────────────────────────────────────────────────
 function seeded(n: number) {
@@ -400,6 +401,8 @@ export default function DashboardPage() {
         </Link>
         <a
           href={SUPPORT_EMAIL_URL}
+          target="_blank"
+          rel="noreferrer"
           className="mt-3 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-medium border border-emerald-200 transition-colors"
         >
           <MessageSquare className="w-4 h-4" />
