@@ -412,6 +412,16 @@ export const whatsappApi = {
     waApi
       .post(`/businesses/${businessId}/whatsapp/send`, { to, text, conversationId })
       .then((r) => r.data),
+  sendMedia: async (businessId: string, conversationId: string, file: File, caption?: string) => {
+    wakeWaApi();
+    const form = new FormData();
+    form.append("file", file);
+    form.append("conversationId", conversationId);
+    if (caption?.trim()) form.append("text", caption.trim());
+    return waApi
+      .post(`/businesses/${businessId}/whatsapp/send-media`, form, { timeout: 120_000 })
+      .then((r) => r.data);
+  },
 };
 
 export const appointmentApi = {

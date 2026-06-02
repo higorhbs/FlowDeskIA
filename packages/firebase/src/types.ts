@@ -114,12 +114,15 @@ export interface Conversation {
   createdAt: string;
 }
 
+export type MessageMediaType = "image" | "video" | "audio";
+
 export interface Message {
   id: string;
   conversationId: string;
   role: MessageRole;
   content: string;
   mediaUrl?: string;
+  mediaType?: MessageMediaType;
   waMessageId?: string;
   createdAt: string;
 }
