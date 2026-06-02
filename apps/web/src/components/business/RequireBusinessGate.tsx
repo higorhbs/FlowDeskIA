@@ -22,13 +22,18 @@ function isAllowedWithoutBusinessPath(path: string) {
   return ALLOWED_WITHOUT_BUSINESS_PATHS.has(normalizeAppPath(path));
 }
 
+function isDashboardPath(path: string) {
+  return normalizeAppPath(path) === "/dashboard";
+}
+
 export function RequireBusinessGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
   const router = useAppRouter();
   const { loading, active, lgpdOk, onboardingDone, hasBusiness } = useRequiresBusinessSetup();
   const onCreatePage = isCreateBusinessPath(pathname);
   const onAllowedPage = isAllowedWithoutBusinessPath(pathname);
-  const mustRedirect = active && !onCreatePage && !onAllowedPage;
+  const onDashboardPage = isDashboardPath(pathname);
+  const mustRedirect = !loading && active && !onCreatePage && !onAllowedPage && !onDashboardPage;
   const mustFinishPrerequisites =
     !loading &&
     onCreatePage &&

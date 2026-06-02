@@ -23,9 +23,10 @@ export function useRequiresBusinessSetup() {
   const lgpdOk =
     !!tenant?.lgpdAcceptedAt && tenant.lgpdPolicyVersion === LGPD_POLICY_VERSION;
   const onboardingDone = !!tenant?.onboardingCompletedAt;
+  const businessListReady = Array.isArray(businesses);
   const hasBusiness = (businesses?.length ?? 0) > 0;
   const loading = ready && !!uid && (loadingTenant || loadingBusinesses);
-  const active = lgpdOk && onboardingDone && !hasBusiness;
+  const active = lgpdOk && onboardingDone && businessListReady && !hasBusiness;
 
   return { loading, active, hasBusiness, lgpdOk, onboardingDone };
 }
