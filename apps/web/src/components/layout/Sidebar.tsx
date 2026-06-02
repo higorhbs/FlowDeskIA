@@ -269,7 +269,7 @@ export function Sidebar() {
           className="mb-1 flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
         >
           <LifeBuoy className="w-4 h-4" />
-          Suporte por e-mail
+          Suporte
         </a>
         {!businessId && (
           <Link

@@ -32,7 +32,7 @@ export default function Error({
           href={SUPPORT_EMAIL_URL}
           className="px-6 py-3 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors font-medium border border-emerald-200"
         >
-          Suporte por e-mail
+          Suporte
         </a>
       </div>
     </div>
