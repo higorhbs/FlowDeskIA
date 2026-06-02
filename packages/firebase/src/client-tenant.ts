@@ -75,3 +75,22 @@ export async function acceptClientLgpd(
   await setDoc(ref, patch, { merge: true });
   return snap.exists() ? { ...current, ...patch } : ({ id, ...patch } as Tenant);
 }
+
+export async function submitClientCancellationFeedback(
+  id: string,
+  data: { rating: number; text?: string }
+): Promise<Tenant> {
+  const ref = doc(getClientDb(), "tenants", id);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("Conta não encontrada");
+  const current = { id: snap.id, ...snap.data() } as Tenant;
+  const rating = Math.max(1, Math.min(5, Math.round(data.rating)));
+  const patch = {
+    cancellationFeedbackRating: rating,
+    cancellationFeedbackText: data.text?.trim() || undefined,
+    cancellationFeedbackAt: nowIso(),
+    updatedAt: nowIso(),
+  };
+  await updateDoc(ref, patch);
+  return { ...current, ...patch };
+}

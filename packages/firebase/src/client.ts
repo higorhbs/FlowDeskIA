@@ -73,6 +73,7 @@ export {
   updateClientTenantProfile,
   completeClientOnboarding,
   acceptClientLgpd,
+  submitClientCancellationFeedback,
 } from "./client-tenant.js";
 export * from "./client-data.js";
 export * from "./client-ops.js";

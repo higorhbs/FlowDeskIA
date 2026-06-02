@@ -80,6 +80,7 @@ export default function NewBusinessPage() {
         typeLabel: data.type === "OTHER" ? data.typeLabel?.trim() : undefined,
         workingHours,
       });
+      queryClient.setQueryData(["businesses", uid], [business]);
       await queryClient.invalidateQueries({ queryKey: ["businesses", uid] });
       toast.success("Negócio criado com sucesso!");
       router.push(`/businesses/${business.id}/whatsapp`);

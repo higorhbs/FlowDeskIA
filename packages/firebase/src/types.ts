@@ -25,6 +25,9 @@ export interface Tenant {
   cancellationRefundCurrency?: string;
   cancellationRefundId?: string;
   cancellationRefundStatus?: string;
+  cancellationFeedbackRating?: number;
+  cancellationFeedbackText?: string;
+  cancellationFeedbackAt?: string;
   onboardingCompletedAt?: string;
   lgpdAcceptedAt?: string;
   lgpdPolicyVersion?: string;

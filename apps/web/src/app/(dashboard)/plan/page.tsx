@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tenantApi, billingApi } from "@/lib/api";
@@ -9,7 +9,7 @@ import { PLAN_LABELS, PLAN_STATUS_LABELS, cn, formatCurrency } from "@/lib/utils
 import { PLAN_LIMITS, PLAN_PRICES, planMarketingFeatures, formatPlanLimit, effectivePlanStatus, isStarterTrialActive, isActivePaidPlan, starterTrialDaysLeft, isSubscriptionCancelScheduled, APP_DISPLAY_NAME } from "@flowdesk/shared";
 import type { Plan } from "@flowdesk/firebase/client";
 import { toast } from "sonner";
-import { Check, Crown, Loader2, Sparkles, Zap, ArrowRight, CalendarDays, BookOpen, ExternalLink, CalendarX2, CircleDot } from "lucide-react";
+import { Check, Crown, Loader2, Sparkles, Zap, ArrowRight, CalendarDays, BookOpen, ExternalLink, CalendarX2, CircleDot, Star, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +34,10 @@ const PLAN_ICON_BG: Record<Plan, string> = {
 };
 
 export default function PlanPage() {
+  const [cancelFeedbackOpen, setCancelFeedbackOpen] = useState(false);
+  const [cancelRating, setCancelRating] = useState(5);
+  const [cancelText, setCancelText] = useState("");
+
   const { uid, ready } = useAuth();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -93,6 +97,10 @@ export default function PlanPage() {
     },
     onError: (err: Error) => toast.error(err.message ?? "Erro ao abrir portal Stripe"),
   });
+  const cancelFeedback = useMutation({
+    mutationFn: (data: { rating: number; text?: string }) => tenantApi.submitCancellationFeedback(data),
+    onError: (err: Error) => toast.error(err.message ?? "Erro ao salvar avaliação"),
+  });
 
   if (isLoading || !tenant) {
     return (
@@ -112,6 +120,11 @@ export default function PlanPage() {
           canceledAt: billingSync.canceledAt ?? tenant.canceledAt,
         }
       : {}),
+  };
+  const cancelFeedbackData = tenant as {
+    cancellationFeedbackRating?: number;
+    cancellationFeedbackText?: string;
+    cancellationFeedbackAt?: string;
   };
 
   const inTrial = isStarterTrialActive(t);
@@ -193,12 +206,12 @@ export default function PlanPage() {
             type="button"
             variant="outline"
             size="xs"
-            onClick={() => openPortal.mutate()}
+                onClick={() => setCancelFeedbackOpen(true)}
             disabled={openPortal.isPending}
             className="relative mt-4 border-white/20 bg-white/10 text-white hover:bg-white/20"
           >
             {openPortal.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
-            Cancelar ou gerenciar assinatura
+                Cancelar assinatura
           </Button>
         )}
         {t.planStatus === "CANCELED" && !cancelScheduled && (
@@ -346,6 +359,91 @@ export default function PlanPage() {
           );
         })}
       </div>
+
+      {(cancelFeedbackData.cancellationFeedbackRating || cancelFeedbackData.cancellationFeedbackText) && (
+        <div className="mt-8 rounded-xl border border-gray-200 bg-white p-4">
+          <p className="text-sm font-semibold text-gray-900">Última avaliação de cancelamento</p>
+          <div className="mt-2 flex items-center gap-1 text-amber-500">
+            {Array.from({ length: 5 }, (_, i) => (
+              <Star
+                key={i}
+                className={cn("w-4 h-4", i < (cancelFeedbackData.cancellationFeedbackRating ?? 0) && "fill-current")}
+              />
+            ))}
+          </div>
+          {cancelFeedbackData.cancellationFeedbackText && (
+            <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">{cancelFeedbackData.cancellationFeedbackText}</p>
+          )}
+          {cancelFeedbackData.cancellationFeedbackAt && (
+            <p className="mt-1 text-xs text-gray-500">
+              {fmtDateTime(new Date(cancelFeedbackData.cancellationFeedbackAt))}
+            </p>
+          )}
+        </div>
+      )}
+
+      {cancelFeedbackOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white border border-gray-200 shadow-xl p-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-gray-900">Avalie sua experiência</h3>
+              <button
+                type="button"
+                onClick={() => setCancelFeedbackOpen(false)}
+                className="text-gray-400 hover:text-gray-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mt-1">Antes de cancelar, sua opinião ajuda a melhorar o sistema.</p>
+            <div className="mt-4 flex items-center gap-1">
+              {Array.from({ length: 5 }, (_, i) => {
+                const v = i + 1;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setCancelRating(v)}
+                    className="p-1"
+                  >
+                    <Star className={cn("w-6 h-6 text-amber-500", v <= cancelRating && "fill-current")} />
+                  </button>
+                );
+              })}
+            </div>
+            <textarea
+              value={cancelText}
+              onChange={(e) => setCancelText(e.target.value)}
+              rows={4}
+              className="mt-4 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              placeholder="Sugestões de melhoria ou opinião"
+            />
+            <div className="mt-4 flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                className="flex-1"
+                onClick={() => setCancelFeedbackOpen(false)}
+                disabled={cancelFeedback.isPending}
+              >
+                Voltar
+              </Button>
+              <Button
+                type="button"
+                className="flex-1"
+                disabled={cancelFeedback.isPending}
+                onClick={async () => {
+                  await cancelFeedback.mutateAsync({ rating: cancelRating, text: cancelText });
+                  setCancelFeedbackOpen(false);
+                  openPortal.mutate();
+                }}
+              >
+                {cancelFeedback.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Continuar cancelamento"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

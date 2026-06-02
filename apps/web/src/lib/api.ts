@@ -23,6 +23,7 @@ import {
   ensureClientTenant,
   completeClientOnboarding,
   acceptClientLgpd,
+  submitClientCancellationFeedback,
   listClientConversations,
   getClientConversation,
   updateClientConversationStatus,
@@ -269,6 +270,10 @@ export const tenantApi = {
   acceptLgpd: async (policyVersion: string) => {
     await ensureTenantRecord();
     return acceptClientLgpd(requireUid(), policyVersion);
+  },
+  submitCancellationFeedback: async (data: { rating: number; text?: string }) => {
+    await ensureTenantRecord();
+    return submitClientCancellationFeedback(requireUid(), data);
   },
 };
 
