@@ -812,7 +812,8 @@ function BotMenuEditor({
           </>
         ) : (
           <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500 mb-4">
-            Menu desativado. Cadastre perguntas na aba <strong className="text-gray-700">Perguntas &amp; Respostas</strong>.
+            Menu numérico desativado. A IA responde pelas{" "}
+            <strong className="text-gray-700">Perguntas &amp; Respostas</strong>.
           </div>
         )}
 
