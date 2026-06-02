@@ -70,6 +70,8 @@ export async function createClientBusiness(
     description?: string;
     greetingMsg?: string;
     awayMsg?: string;
+    attendantName?: string;
+    manualAttendantPrefixEnabled?: boolean;
     workingHours?: Record<string, unknown>;
   }
 ): Promise<Business> {
@@ -88,6 +90,8 @@ export async function createClientBusiness(
     timezone: "America/Sao_Paulo",
     greetingMsg: data.greetingMsg ?? "Olá! Como posso ajudar?",
     awayMsg: data.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
+    attendantName: data.attendantName?.trim() || undefined,
+    manualAttendantPrefixEnabled: data.manualAttendantPrefixEnabled ?? true,
     isConnected: false,
     createdAt: ts,
     updatedAt: ts,
@@ -103,7 +107,7 @@ export async function updateClientBusiness(
 ): Promise<Business | null> {
   const exists = await getClientBusiness(id, tenantId);
   if (!exists) return null;
-  const patch: Record<string, unknown> = { ...data, updatedAt: nowIso() };
+  const patch: Record<string, unknown> = firestoreData({ ...data, updatedAt: nowIso() });
   delete patch.id;
   delete patch.tenantId;
   if (patch.type && patch.type !== "OTHER") patch.typeLabel = deleteField();

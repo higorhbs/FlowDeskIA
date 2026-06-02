@@ -43,3 +43,48 @@ export function buildScheduledAtsFromDayKeys(
 
   return out;
 }
+
+export function addDaysToDayKey(dayKey: string, days: number): string {
+  const d = parseDayKey(dayKey);
+  d.setDate(d.getDate() + days);
+  return dateDayKey(d);
+}
+
+export function buildRecurringDayKeysByInterval(
+  startDayKey: string,
+  everyDays: number,
+  maxCount = MAX_SCHEDULE_DAYS
+): string[] {
+  if (!Number.isFinite(everyDays) || everyDays <= 0) {
+    throw new Error("Recorrência inválida: intervalo precisa ser maior que zero.");
+  }
+  const out: string[] = [];
+  for (let i = 0; i < maxCount; i++) {
+    out.push(addDaysToDayKey(startDayKey, i * everyDays));
+  }
+  return out;
+}
+
+export function buildRecurringDayKeysByWeekdays(
+  weekdayNumbers: number[],
+  startDayKey: string,
+  maxCount = MAX_SCHEDULE_DAYS
+): string[] {
+  const weekdays = [...new Set(weekdayNumbers)]
+    .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6)
+    .sort((a, b) => a - b);
+  if (weekdays.length === 0) {
+    throw new Error("Selecione pelo menos um dia da semana.");
+  }
+  const start = parseDayKey(startDayKey);
+  start.setHours(0, 0, 0, 0);
+  const out: string[] = [];
+  const cursor = new Date(start);
+  let guard = 0;
+  while (out.length < maxCount && guard < 730) {
+    if (weekdays.includes(cursor.getDay())) out.push(dateDayKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+    guard++;
+  }
+  return out;
+}

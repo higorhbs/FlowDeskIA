@@ -9,6 +9,10 @@ import { Card } from "@/components/ui/card";
 import type { ScheduledStatus } from "@/lib/api";
 import { scheduledStatusApi } from "@/lib/api";
 import { StatusMultiDayPicker } from "@/components/status/StatusMultiDayPicker";
+import {
+  RecurrenceMode,
+  StatusRecurrenceControls,
+} from "@/components/status/StatusRecurrenceControls";
 import { dateDayKey } from "@flowdesk/firebase/client";
 
 function defaultSchedule() {
@@ -33,6 +37,10 @@ export function RepostStatusModal({ businessId, row, onClose, onScheduled }: Pro
   }, [row.scheduledAt]);
 
   const [selectedDayKeys, setSelectedDayKeys] = useState<string[]>(() => [dateDayKey(initial)]);
+  const [recurrenceMode, setRecurrenceMode] = useState<RecurrenceMode>("none");
+  const [recurrenceIntervalDays, setRecurrenceIntervalDays] = useState<number>(1);
+  const [recurrenceWeekdays, setRecurrenceWeekdays] = useState<number[]>([initial.getDay()]);
+  const [recurrenceStartDayKey, setRecurrenceStartDayKey] = useState<string>(dateDayKey(initial));
   const [selectedHour, setSelectedHour] = useState(initial.getHours());
   const [selectedMinute, setSelectedMinute] = useState(initial.getMinutes());
   const mountedAt = useMemo(() => new Date(), []);
@@ -119,7 +127,21 @@ export function RepostStatusModal({ businessId, row, onClose, onScheduled }: Pro
             onHourChange={setSelectedHour}
             onMinuteChange={setSelectedMinute}
             mountedAt={mountedAt}
+            disableDaySelection={recurrenceMode !== "none"}
           />
+          <div className="mt-3">
+            <StatusRecurrenceControls
+              mode={recurrenceMode}
+              onModeChange={setRecurrenceMode}
+              intervalDays={recurrenceIntervalDays}
+              onIntervalDaysChange={setRecurrenceIntervalDays}
+              weekdayNumbers={recurrenceWeekdays}
+              onWeekdayNumbersChange={setRecurrenceWeekdays}
+              startDayKey={recurrenceStartDayKey}
+              onStartDayKeyChange={setRecurrenceStartDayKey}
+              onApplyGeneratedDays={setSelectedDayKeys}
+            />
+          </div>
         </div>
 
         <div className="flex gap-3">

@@ -28,6 +28,7 @@ type Props = {
   onHourChange: (h: number) => void;
   onMinuteChange: (m: number) => void;
   mountedAt?: Date;
+  disableDaySelection?: boolean;
 };
 
 export function StatusMultiDayPicker({
@@ -38,6 +39,7 @@ export function StatusMultiDayPicker({
   onHourChange,
   onMinuteChange,
   mountedAt: mountedAtProp,
+  disableDaySelection = false,
 }: Props) {
   const fallbackMounted = useMemo(() => new Date(), []);
   const mountedAt = mountedAtProp ?? fallbackMounted;
@@ -299,7 +301,9 @@ export function StatusMultiDayPicker({
     <div>
       <Label className="block mb-1">Dias e horário</Label>
       <p className="text-xs text-gray-500 mb-3">
-        Clique ou arraste no calendário para marcar vários dias. O mesmo horário vale para todos.
+        {disableDaySelection
+          ? "Datas geradas pela recorrência. Mude para Única/manual para marcar no calendário."
+          : "Clique ou arraste no calendário para marcar vários dias. O mesmo horário vale para todos."}
       </p>
 
       <div className="flex items-center gap-2.5 mb-4 px-4 py-2.5 rounded-xl bg-brand-50 border border-brand-100">
@@ -355,10 +359,10 @@ export function StatusMultiDayPicker({
           <div
             ref={calendarGridRef}
             className="grid grid-cols-7 gap-0.5 select-none touch-none"
-            onPointerDownCapture={onCalendarGridPointerDown}
-            onPointerMove={onCalendarGridPointerMove}
-            onPointerUp={onCalendarGridPointerUp}
-            onPointerCancel={onCalendarGridPointerUp}
+            onPointerDownCapture={disableDaySelection ? undefined : onCalendarGridPointerDown}
+            onPointerMove={disableDaySelection ? undefined : onCalendarGridPointerMove}
+            onPointerUp={disableDaySelection ? undefined : onCalendarGridPointerUp}
+            onPointerCancel={disableDaySelection ? undefined : onCalendarGridPointerUp}
           >
             {calendarCells.map((date, i) => {
               if (!date) return <div key={i} />;
@@ -372,12 +376,17 @@ export function StatusMultiDayPicker({
                   key={i}
                   type="button"
                   data-day-key={key}
-                  disabled={isPast}
+                  disabled={isPast || disableDaySelection}
                   tabIndex={-1}
                   className={cn(
                     "aspect-square text-xs rounded-lg flex items-center justify-center transition-colors font-medium",
                     isPast && "text-gray-300 cursor-not-allowed",
-                    !isPast && !isMarked && !isDragPaint && "text-gray-700 hover:bg-brand-100 hover:text-brand-800 cursor-cell",
+                    !isPast &&
+                      !isMarked &&
+                      !isDragPaint &&
+                      !disableDaySelection &&
+                      "text-gray-700 hover:bg-brand-100 hover:text-brand-800 cursor-cell",
+                    !isPast && !isMarked && !isDragPaint && disableDaySelection && "text-gray-500",
                     isTodayCell && !isMarked && !isDragPaint && "text-brand-600 font-bold ring-1 ring-brand-300",
                     (isMarked || (isDragPaint && calendarDragRef.current?.mode === "select")) &&
                       "bg-brand-600 text-white shadow-md scale-105",

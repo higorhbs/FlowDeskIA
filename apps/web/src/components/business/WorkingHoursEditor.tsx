@@ -60,6 +60,7 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
   const parts = value.split(":");
   const hh = parseInt(parts[0] ?? "09", 10);
   const mm = parseInt(parts[1] ?? "00", 10);
+  const latestValueRef = useRef(value);
 
   const hourRef = useRef<HTMLDivElement>(null);
   const minRef  = useRef<HTMLDivElement>(null);
@@ -69,9 +70,23 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
   const mDragged = useRef(false);
 
   useEffect(() => {
+    latestValueRef.current = value;
+  }, [value]);
+
+  useEffect(() => {
     if (hourRef.current) hourRef.current.scrollTop = hh * ITEM_H;
     if (minRef.current)  minRef.current.scrollTop  = mm * ITEM_H;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function getCurrentParts() {
+    const [hRaw, mRaw] = (latestValueRef.current ?? "09:00").split(":");
+    const currentHour = Number.parseInt(hRaw ?? "09", 10);
+    const currentMinute = Number.parseInt(mRaw ?? "00", 10);
+    return {
+      currentHour: Number.isFinite(currentHour) ? currentHour : 9,
+      currentMinute: Number.isFinite(currentMinute) ? currentMinute : 0,
+    };
+  }
 
   function onHourDown(e: React.PointerEvent<HTMLDivElement>) {
     hDragged.current = false;
@@ -89,7 +104,8 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
     hDrag.current = null;
     if (!hDragged.current) return;
     const h = Math.max(0, Math.min(23, Math.round(hourRef.current.scrollTop / ITEM_H)));
-    onChange(`${pad(h)}:${pad(mm)}`);
+    const { currentMinute } = getCurrentParts();
+    onChange(`${pad(h)}:${pad(currentMinute)}`);
     hourRef.current.scrollTo({ top: h * ITEM_H, behavior: "smooth" });
   }
 
@@ -109,7 +125,8 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
     mDrag.current = null;
     if (!mDragged.current) return;
     const m = Math.max(0, Math.min(59, Math.round(minRef.current.scrollTop / ITEM_H)));
-    onChange(`${pad(hh)}:${pad(m)}`);
+    const { currentHour } = getCurrentParts();
+    onChange(`${pad(currentHour)}:${pad(m)}`);
     minRef.current.scrollTo({ top: m * ITEM_H, behavior: "smooth" });
   }
 
@@ -136,7 +153,8 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
             <button key={h} type="button" style={{ height: ITEM_H }}
               onClick={() => {
                 if (hDragged.current) return;
-                onChange(`${pad(h)}:${pad(mm)}`);
+                const { currentMinute } = getCurrentParts();
+                onChange(`${pad(h)}:${pad(currentMinute)}`);
                 hourRef.current?.scrollTo({ top: h * ITEM_H, behavior: "smooth" });
               }}
               className={cn(
@@ -170,7 +188,8 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
             <button key={m} type="button" style={{ height: ITEM_H }}
               onClick={() => {
                 if (mDragged.current) return;
-                onChange(`${pad(hh)}:${pad(m)}`);
+                const { currentHour } = getCurrentParts();
+                onChange(`${pad(currentHour)}:${pad(m)}`);
                 minRef.current?.scrollTo({ top: m * ITEM_H, behavior: "smooth" });
               }}
               className={cn(

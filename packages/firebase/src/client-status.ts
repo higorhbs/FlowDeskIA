@@ -26,6 +26,12 @@ function newId() {
   return crypto.randomUUID();
 }
 
+function removeUndefined<T extends Record<string, unknown>>(input: T): T {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== undefined)
+  ) as T;
+}
+
 function businessRef(businessId: string) {
   return doc(getClientDb(), "businesses", businessId);
 }
@@ -108,7 +114,7 @@ export async function createClientScheduledStatuses(
       throw new Error("Todos os horários devem ser pelo menos 1 minuto no futuro.");
     }
     const id = newId();
-    const row: ScheduledStatus = {
+    const row = removeUndefined({
       id,
       businessId,
       mediaUrl: data.mediaUrl,
@@ -120,7 +126,7 @@ export async function createClientScheduledStatuses(
       sourceStatusId: data.sourceStatusId,
       createdAt: ts,
       updatedAt: ts,
-    };
+    }) as ScheduledStatus;
     batch.set(doc(scheduledStatusesCol(businessId), id), row);
     rows.push(row);
   }

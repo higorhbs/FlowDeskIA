@@ -33,6 +33,10 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { StatusMultiDayPicker } from "@/components/status/StatusMultiDayPicker";
+import {
+  RecurrenceMode,
+  StatusRecurrenceControls,
+} from "@/components/status/StatusRecurrenceControls";
 import { RepostStatusModal } from "@/components/status/RepostStatusModal";
 import { dateDayKey } from "@flowdesk/firebase/client";
 import { Button } from "@/components/ui/button";
@@ -69,6 +73,14 @@ export default function StatusSchedulePage() {
   const [selectedDayKeys, setSelectedDayKeys] = useState<string[]>(() => [
     dateDayKey(initialSchedule),
   ]);
+  const [recurrenceMode, setRecurrenceMode] = useState<RecurrenceMode>("none");
+  const [recurrenceIntervalDays, setRecurrenceIntervalDays] = useState<number>(1);
+  const [recurrenceWeekdays, setRecurrenceWeekdays] = useState<number[]>([
+    initialSchedule.getDay(),
+  ]);
+  const [recurrenceStartDayKey, setRecurrenceStartDayKey] = useState<string>(
+    dateDayKey(initialSchedule),
+  );
   const [selectedHour, setSelectedHour] = useState<number>(() => initialSchedule.getHours());
   const [selectedMinute, setSelectedMinute] = useState<number>(() => initialSchedule.getMinutes());
   const mountedAt = useMemo(() => new Date(), []);
@@ -131,6 +143,10 @@ export default function StatusSchedulePage() {
       setCaption("");
       const next = defaultSchedule();
       setSelectedDayKeys([dateDayKey(next)]);
+      setRecurrenceMode("none");
+      setRecurrenceIntervalDays(1);
+      setRecurrenceWeekdays([next.getDay()]);
+      setRecurrenceStartDayKey(dateDayKey(next));
       setSelectedHour(next.getHours());
       setSelectedMinute(next.getMinutes());
       if (fileRef.current) fileRef.current.value = "";
@@ -288,6 +304,18 @@ export default function StatusSchedulePage() {
             onHourChange={setSelectedHour}
             onMinuteChange={setSelectedMinute}
             mountedAt={mountedAt}
+            disableDaySelection={recurrenceMode !== "none"}
+          />
+          <StatusRecurrenceControls
+            mode={recurrenceMode}
+            onModeChange={setRecurrenceMode}
+            intervalDays={recurrenceIntervalDays}
+            onIntervalDaysChange={setRecurrenceIntervalDays}
+            weekdayNumbers={recurrenceWeekdays}
+            onWeekdayNumbersChange={setRecurrenceWeekdays}
+            startDayKey={recurrenceStartDayKey}
+            onStartDayKeyChange={setRecurrenceStartDayKey}
+            onApplyGeneratedDays={setSelectedDayKeys}
           />
 
           <p className="text-xs text-gray-500">

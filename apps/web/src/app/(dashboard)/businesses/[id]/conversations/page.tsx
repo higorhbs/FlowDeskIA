@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { conversationApi, whatsappApi } from "@/lib/api";
+import { businessApi, conversationApi, whatsappApi } from "@/lib/api";
 import { useBusinessId } from "@/lib/use-business-id";
 import { formatCustomerLabel, STATUS_LABELS, cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MessageSquare, Send, User, Loader2, Search, Trash2 } from "lucide-react";
 import { IaIcon, IA_DISPLAY_NAME, isIaMessageRole } from "@/lib/ia-brand";
+import { getClientAuth } from "@flowdesk/firebase/client";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,18 @@ type Message = {
   createdAt: string;
 };
 
+function buildManualMessage(raw: string, attendantName?: string, enabled = true) {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  if (!enabled) return trimmed;
+  const prefixName = attendantName?.trim();
+  if (!prefixName) return trimmed;
+  const alreadyPrefixed =
+    trimmed.startsWith(`${prefixName}:\n`) || trimmed.startsWith(`${prefixName}: `);
+  if (alreadyPrefixed) return trimmed;
+  return `${prefixName}:\n${trimmed}`;
+}
+
 export default function ConversationsPage() {
   const businessId = useBusinessId();
   const [selected, setSelected] = useState<string | null>(null);
@@ -45,6 +58,11 @@ export default function ConversationsPage() {
     queryFn: () => conversationApi.list(businessId, { page: 1 }),
     enabled: !!businessId,
     refetchInterval: 10_000,
+  });
+  const { data: business } = useQuery({
+    queryKey: ["business", businessId],
+    queryFn: () => businessApi.get(businessId),
+    enabled: !!businessId,
   });
 
   const {
@@ -126,6 +144,19 @@ export default function ConversationsPage() {
 
   function sendDest(conv: Conversation) {
     return conv.replyJid?.trim() || conv.customerPhone;
+  }
+
+  function resolveAttendantName() {
+    const fromBusiness = (business as { attendantName?: string } | undefined)?.attendantName?.trim();
+    if (fromBusiness) return fromBusiness;
+    const fromAuth = getClientAuth().currentUser?.displayName?.trim();
+    if (fromAuth) return fromAuth;
+    return "Atendente";
+  }
+
+  function isManualPrefixEnabled() {
+    return (business as { manualAttendantPrefixEnabled?: boolean } | undefined)
+      ?.manualAttendantPrefixEnabled !== false;
   }
 
   return (
@@ -318,7 +349,11 @@ export default function ConversationsPage() {
                         if (replyText.trim()) {
                           sendMutation.mutate({
                             to: sendDest(selectedConv),
-                            text: replyText.trim(),
+                            text: buildManualMessage(
+                              replyText,
+                              resolveAttendantName(),
+                              isManualPrefixEnabled()
+                            ),
                             conversationId: selectedConv.id,
                           });
                         }
@@ -331,7 +366,11 @@ export default function ConversationsPage() {
                     onClick={() =>
                       sendMutation.mutate({
                         to: sendDest(selectedConv),
-                        text: replyText.trim(),
+                        text: buildManualMessage(
+                          replyText,
+                          resolveAttendantName(),
+                          isManualPrefixEnabled()
+                        ),
                         conversationId: selectedConv.id,
                       })
                     }

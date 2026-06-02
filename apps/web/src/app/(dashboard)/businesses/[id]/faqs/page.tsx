@@ -88,6 +88,7 @@ const faqSchema = z.object({
 type FAQForm = z.infer<typeof faqSchema>;
 
 type Tab = "menu" | "faqs" | "payments";
+type PreviewFocus = "greeting" | "menu" | "thanks" | "attendant";
 
 // ── Emoji picker ───────────────────────────────────────────────────────────────
 const EMOJI_CATS = [
@@ -170,12 +171,14 @@ function ToggleRow({
   checked,
   onChange,
   disabled,
+  onPreview,
 }: {
   label: string;
   hint: string;
   checked: boolean;
   onChange: (v: boolean) => void;
   disabled?: boolean;
+  onPreview?: () => void;
 }) {
   return (
     <div
@@ -188,23 +191,74 @@ function ToggleRow({
         <p className="text-sm font-medium text-gray-900">{label}</p>
         <p className="text-xs text-gray-500 mt-0.5">{hint}</p>
       </div>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => !disabled && onChange(!checked)}
-        className={cn(
-          "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 mt-0.5",
-          checked ? "bg-brand-600" : "bg-gray-200",
-          disabled && "cursor-not-allowed"
+      <div className="flex items-center gap-2">
+        {onPreview && (
+          <button
+            type="button"
+            onClick={onPreview}
+            className="text-xs text-brand-700 hover:text-brand-900 border border-brand-200 bg-brand-50 px-2 py-1 rounded-lg inline-flex items-center gap-1"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            Prévia
+          </button>
         )}
-      >
-        <span
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => !disabled && onChange(!checked)}
           className={cn(
-            "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200",
-            checked ? "translate-x-5" : "translate-x-0"
+            "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 mt-0.5",
+            checked ? "bg-brand-600" : "bg-gray-200",
+            disabled && "cursor-not-allowed"
           )}
-        />
-      </button>
+        >
+          <span
+            className={cn(
+              "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200",
+              checked ? "translate-x-5" : "translate-x-0"
+            )}
+          />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const IA_TEMPLATE_VARS = [
+  { token: "{nome}", label: "Nome do cliente" },
+  { token: "{negocio}", label: "Nome do negócio" },
+  { token: "{atendente}", label: "Nome do atendente" },
+] as const;
+
+function insertToken(text: string, token: string, start: number, end: number) {
+  const from = Math.max(0, start);
+  const to = Math.max(from, end);
+  return `${text.slice(0, from)}${token}${text.slice(to)}`;
+}
+
+function TemplateVariableBar({
+  onPick,
+}: {
+  onPick: (token: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {IA_TEMPLATE_VARS.map((v) => (
+        <button
+          key={v.token}
+          type="button"
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData("text/plain", v.token);
+            e.dataTransfer.effectAllowed = "copy";
+          }}
+          onClick={() => onPick(v.token)}
+          className="inline-flex items-center rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100"
+          title={`${v.label} (${v.token})`}
+        >
+          {v.token}
+        </button>
+      ))}
     </div>
   );
 }
@@ -219,6 +273,8 @@ function BotMenuEditor({
   initialMenuEnabled,
   initialGreetingEnabled,
   initialThanksMsg,
+  initialAttendantName,
+  initialManualAttendantPrefixEnabled,
   autoReplyEnabled,
 }: {
   businessId: string;
@@ -229,6 +285,8 @@ function BotMenuEditor({
   initialMenuEnabled: boolean;
   initialGreetingEnabled: boolean;
   initialThanksMsg: string;
+  initialAttendantName: string;
+  initialManualAttendantPrefixEnabled: boolean;
   autoReplyEnabled: boolean;
 }) {
   const v = getBusinessVocabulary(businessType);
@@ -238,6 +296,11 @@ function BotMenuEditor({
   const [greetingEnabled, setGreetingEnabled] = useState(initialGreetingEnabled);
   const [greetingMsg, setGreetingMsg] = useState(initialGreetingMsg);
   const [thanksMsg, setThanksMsg] = useState(initialThanksMsg);
+  const [attendantName, setAttendantName] = useState(initialAttendantName);
+  const [manualAttendantPrefixEnabled, setManualAttendantPrefixEnabled] = useState(
+    initialManualAttendantPrefixEnabled
+  );
+  const [previewFocus, setPreviewFocus] = useState<PreviewFocus>("greeting");
 
   // Modal state (shared for create + edit)
   const [modal, setModal] = useState<{
@@ -249,6 +312,55 @@ function BotMenuEditor({
   }>({ open: false, index: null, label: "", response: "", emoji: "" });
 
   const [pickerAnchor, setPickerAnchor] = useState<{ el: HTMLElement } | null>(null);
+  const greetingRef = useRef<HTMLTextAreaElement>(null);
+  const thanksRef = useRef<HTMLTextAreaElement>(null);
+  const modalResponseRef = useRef<HTMLTextAreaElement>(null);
+
+  function dropTokenInGreeting(token: string) {
+    const el = greetingRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? greetingMsg.length;
+    const end = el.selectionEnd ?? greetingMsg.length;
+    const next = insertToken(greetingMsg, token, start, end);
+    setGreetingMsg(next);
+    requestAnimationFrame(() => {
+      const cursor = start + token.length;
+      el.focus();
+      el.setSelectionRange(cursor, cursor);
+    });
+  }
+
+  function dropTokenInThanks(token: string) {
+    const el = thanksRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? thanksMsg.length;
+    const end = el.selectionEnd ?? thanksMsg.length;
+    const next = insertToken(thanksMsg, token, start, end);
+    setThanksMsg(next);
+    requestAnimationFrame(() => {
+      const cursor = start + token.length;
+      el.focus();
+      el.setSelectionRange(cursor, cursor);
+    });
+  }
+
+  function dropTokenInModalResponse(token: string) {
+    const el = modalResponseRef.current;
+    const current = modal.response ?? "";
+    if (!el) {
+      setModal((m) => ({ ...m, response: `${current}${token}` }));
+      return;
+    }
+    const start = el.selectionStart ?? current.length;
+    const end = el.selectionEnd ?? current.length;
+    const next = insertToken(current, token, start, end);
+    setModal((m) => ({ ...m, response: next }));
+    requestAnimationFrame(() => {
+      const cursor = start + token.length;
+      el.focus();
+      el.setSelectionRange(cursor, cursor);
+    });
+  }
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -259,6 +371,8 @@ function BotMenuEditor({
         greetingEnabled,
         greetingMsg: greetingMsg.trim() || "Olá! Como posso ajudar?",
         thanksMsg: thanksMsg.trim() || DEFAULT_THANKS_MSG,
+        attendantName: attendantName.trim() || undefined,
+        manualAttendantPrefixEnabled,
       } as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["business", businessId] });
@@ -315,8 +429,18 @@ function BotMenuEditor({
     menuEnabled,
     greetingEnabled,
     greetingMsg,
+    attendantName,
+    thanksMsg,
+    manualAttendantPrefixEnabled,
+    focus: previewFocus,
   });
-  const showPreview = previewLines !== null;
+  const showPreview = previewLines.length > 0;
+  const previewTitle: Record<PreviewFocus, string> = {
+    greeting: "Prévia da saudação inicial",
+    menu: "Prévia do menu numérico",
+    thanks: "Prévia de agradecimento",
+    attendant: "Prévia do nome no manual",
+  };
 
   return (
     <div className={cn("grid gap-8", showPreview && "lg:grid-cols-[1fr_320px]")}>
@@ -397,17 +521,28 @@ function BotMenuEditor({
                   Resposta da IA
                   <span className="ml-1.5 text-xs font-normal text-gray-400">— enviada quando o cliente digitar o número</span>
                 </label>
+                <TemplateVariableBar onPick={dropTokenInModalResponse} />
                 <textarea
+                  ref={modalResponseRef}
                   value={modal.response}
                   onChange={(e) => setModal(m => ({ ...m, response: e.target.value }))}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const token = e.dataTransfer.getData("text/plain");
+                    if (token.startsWith("{") && token.endsWith("}")) {
+                      dropTokenInModalResponse(token);
+                    }
+                  }}
                   rows={4}
                   placeholder={v.botLegacyAppointmentHint}
-                  className="input resize-none h-28"
+                  className="input resize-none h-28 mt-2"
                 />
                 <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-amber-400" />
                   Use <code className="mx-1 bg-gray-100 px-1 rounded font-mono">{"{nome}"}</code> ou
-                  <code className="mx-1 bg-gray-100 px-1 rounded font-mono">{"{negocio}"}</code> para personalizar
+                  <code className="mx-1 bg-gray-100 px-1 rounded font-mono">{"{negocio}"}</code> ou
+                  <code className="mx-1 bg-gray-100 px-1 rounded font-mono">{"{atendente}"}</code> para personalizar
                 </p>
               </div>
 
@@ -437,15 +572,33 @@ function BotMenuEditor({
             checked={greetingEnabled}
             onChange={setGreetingEnabled}
             disabled={!autoReplyEnabled}
+            onPreview={() => setPreviewFocus("greeting")}
           />
           {greetingEnabled && autoReplyEnabled && (
-            <textarea
-              value={greetingMsg}
-              onChange={(e) => setGreetingMsg(e.target.value)}
-              rows={3}
-              className="input resize-none w-full"
-              placeholder={`Olá {nome}! Bem-vindo ao {negocio} 😊 Como posso ajudar?`}
-            />
+            <div className="space-y-2">
+              <TemplateVariableBar onPick={dropTokenInGreeting} />
+              <textarea
+                ref={greetingRef}
+                value={greetingMsg}
+                onChange={(e) => setGreetingMsg(e.target.value)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const token = e.dataTransfer.getData("text/plain");
+                  if (token.startsWith("{") && token.endsWith("}")) {
+                    dropTokenInGreeting(token);
+                  }
+                }}
+                rows={3}
+                className="input resize-none w-full"
+                placeholder={`Olá {nome}! Bem-vindo ao {negocio} 😊 Como posso ajudar?`}
+              />
+              <p className="text-xs text-gray-500">
+                Variáveis: <code className="bg-gray-100 px-1 rounded font-mono">{"{nome}"}</code>,{" "}
+                <code className="bg-gray-100 px-1 rounded font-mono">{"{negocio}"}</code>,{" "}
+                <code className="bg-gray-100 px-1 rounded font-mono">{"{atendente}"}</code>.
+              </p>
+            </div>
           )}
 
           <ToggleRow
@@ -454,6 +607,7 @@ function BotMenuEditor({
             checked={menuEnabled}
             onChange={setMenuEnabled}
             disabled={!autoReplyEnabled}
+            onPreview={() => setPreviewFocus("menu")}
           />
 
           <div
@@ -462,18 +616,99 @@ function BotMenuEditor({
               !autoReplyEnabled && "opacity-50 pointer-events-none"
             )}
           >
-            <p className="text-sm font-medium text-gray-900">Resposta de agradecimento</p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Quando o cliente mandar obrigado, valeu, vlw ou parecido.
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Resposta de agradecimento</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Quando o cliente mandar obrigado, valeu, vlw ou parecido.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewFocus("thanks")}
+                className="text-xs text-brand-700 hover:text-brand-900 border border-brand-200 bg-brand-50 px-2 py-1 rounded-lg inline-flex items-center gap-1"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Prévia
+              </button>
+            </div>
             <textarea
+              ref={thanksRef}
               value={thanksMsg}
               onChange={(e) => setThanksMsg(e.target.value)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const token = e.dataTransfer.getData("text/plain");
+                if (token.startsWith("{") && token.endsWith("}")) {
+                  dropTokenInThanks(token);
+                }
+              }}
               rows={2}
               className="input resize-none w-full mt-3"
               placeholder={DEFAULT_THANKS_MSG}
               disabled={!autoReplyEnabled}
             />
+            <div className="mt-2">
+              <TemplateVariableBar onPick={dropTokenInThanks} />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Variáveis: <code className="bg-gray-100 px-1 rounded font-mono">{"{nome}"}</code>,{" "}
+              <code className="bg-gray-100 px-1 rounded font-mono">{"{negocio}"}</code>,{" "}
+              <code className="bg-gray-100 px-1 rounded font-mono">{"{atendente}"}</code>.
+            </p>
+          </div>
+
+          <div
+            className={cn(
+              "rounded-2xl border border-gray-200 bg-white px-4 py-3.5",
+              !autoReplyEnabled && "opacity-50 pointer-events-none"
+            )}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Nome de quem atende</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  A IA pode usar esse nome quando você escrever <code className="bg-gray-100 px-1 rounded font-mono">{"{atendente}"}</code>.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPreviewFocus("attendant")}
+                  className="text-xs text-brand-700 hover:text-brand-900 border border-brand-200 bg-brand-50 px-2 py-1 rounded-lg inline-flex items-center gap-1"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  Prévia
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setManualAttendantPrefixEnabled((v) => !v)}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 mt-0.5",
+                    manualAttendantPrefixEnabled ? "bg-brand-600" : "bg-gray-200"
+                  )}
+                  title="Usar no envio manual em Conversas"
+                >
+                  <span
+                    className={cn(
+                      "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200",
+                      manualAttendantPrefixEnabled ? "translate-x-5" : "translate-x-0"
+                    )}
+                  />
+                </button>
+              </div>
+            </div>
+            <input
+              value={attendantName}
+              onChange={(e) => setAttendantName(e.target.value)}
+              className="input mt-3 w-full"
+              placeholder="Ex: Ana, Equipe de Atendimento, Time de Suporte"
+              disabled={!autoReplyEnabled}
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Envio manual em Conversas: <strong>{manualAttendantPrefixEnabled ? "ativado" : "desativado"}</strong>.
+            </p>
           </div>
         </div>
 
@@ -589,11 +824,11 @@ function BotMenuEditor({
       </div>
 
       {/* Preview */}
-      {showPreview && previewLines && (
+      {showPreview && (
       <div className="flex flex-col items-center">
         <div className="flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full bg-gray-100 text-sm font-medium text-gray-600">
           <Eye className="w-4 h-4" />
-          Pré-visualização
+          {previewTitle[previewFocus]}
         </div>
 
         <div className="relative w-[270px] select-none">
@@ -721,26 +956,58 @@ interface WaLine { text?: string; blank?: boolean }
 function buildPreviewLines(
   items: BotMenuItemConfig[],
   name: string,
-  opts: { menuEnabled: boolean; greetingEnabled: boolean; greetingMsg: string },
-): WaLine[] | null {
+  opts: {
+    menuEnabled: boolean;
+    greetingEnabled: boolean;
+    greetingMsg: string;
+    attendantName: string;
+    thanksMsg: string;
+    manualAttendantPrefixEnabled: boolean;
+    focus: PreviewFocus;
+  },
+): WaLine[] {
   const hasGreeting = opts.greetingEnabled && opts.greetingMsg.trim();
-  if (!opts.menuEnabled && !hasGreeting) return null;
 
   const lines: WaLine[] = [];
 
-  if (hasGreeting) {
-    const greeting = renderTemplate(opts.greetingMsg, { nome: "Maria", negocio: name });
+  if (opts.focus === "greeting") {
+    if (!hasGreeting) return [{ text: "_Saudação está desativada_" }];
+    const greeting = renderTemplate(opts.greetingMsg, {
+      nome: "Maria",
+      negocio: name,
+      atendente: opts.attendantName?.trim() || "Equipe",
+    });
     for (const part of greeting.split("\n")) {
       if (part.trim()) lines.push({ text: part });
     }
-    if (opts.menuEnabled) lines.push({ blank: true });
+    return lines.length ? lines : [{ text: "_Digite uma saudação para ver a prévia_" }];
   }
 
-  if (!opts.menuEnabled) return lines;
+  if (opts.focus === "thanks") {
+    const msg = renderTemplate(opts.thanksMsg?.trim() || DEFAULT_THANKS_MSG, {
+      nome: "Maria",
+      negocio: name,
+      atendente: opts.attendantName?.trim() || "Equipe",
+    });
+    for (const part of msg.split("\n")) {
+      if (part.trim()) lines.push({ text: part });
+    }
+    return lines.length ? lines : [{ text: DEFAULT_THANKS_MSG }];
+  }
+
+  if (opts.focus === "attendant") {
+    const who = opts.attendantName?.trim() || "Atendente";
+    if (!opts.manualAttendantPrefixEnabled) {
+      return [{ text: "Olá bom dia, como vai?" }, { blank: true }, { text: "_Prefixo manual desativado_" }];
+    }
+    return [{ text: `${who}:` }, { text: "Olá bom dia, como vai?" }];
+  }
+
+  if (!opts.menuEnabled) return [{ text: "_Menu está desativado_" }];
 
   const enabled = items.filter((i) => i.enabled);
   if (!enabled.length) {
-    if (!lines.length) lines.push({ text: `*${name}*` });
+    lines.push({ text: `*${name}*` });
     lines.push({ blank: true });
     lines.push({ text: "_Menu vazio — adicione itens ao lado_" });
     return lines;
@@ -1229,6 +1496,10 @@ export default function BotPage() {
           initialThanksMsg={
             (business as { thanksMsg?: string })?.thanksMsg?.trim() ||
             DEFAULT_THANKS_MSG
+          }
+          initialAttendantName={(business as { attendantName?: string })?.attendantName?.trim() || ""}
+          initialManualAttendantPrefixEnabled={
+            (business as { manualAttendantPrefixEnabled?: boolean })?.manualAttendantPrefixEnabled !== false
           }
           autoReplyEnabled={autoReplyEnabled}
         />

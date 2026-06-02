@@ -22,6 +22,10 @@ import { getDb, newId, nowIso } from "./admin.js";
 const tenants = () => getDb().collection("tenants");
 const businesses = () => getDb().collection("businesses");
 
+function removeUndefined<T extends Record<string, unknown>>(data: T): T {
+  return Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined)) as T;
+}
+
 function businessRef(id: string) {
   return businesses().doc(id);
 }
@@ -254,6 +258,8 @@ export async function createBusiness(
     timezone: data.timezone ?? "America/Sao_Paulo",
     greetingMsg: data.greetingMsg ?? "Olá! Como posso ajudar?",
     awayMsg: data.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
+    attendantName: data.attendantName?.trim() || undefined,
+    manualAttendantPrefixEnabled: data.manualAttendantPrefixEnabled ?? true,
     createdAt: ts,
     updatedAt: ts,
   };
@@ -268,7 +274,7 @@ export async function updateBusiness(
 ): Promise<Business | null> {
   const exists = await getBusiness(id, tenantId);
   if (!exists) return null;
-  const patch: Record<string, unknown> = { ...data, updatedAt: nowIso() };
+  const patch: Record<string, unknown> = removeUndefined({ ...data, updatedAt: nowIso() });
   delete patch.id;
   delete patch.tenantId;
   if (patch.type && patch.type !== "OTHER") patch.typeLabel = AdminFieldValue.delete();
