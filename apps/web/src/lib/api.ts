@@ -85,6 +85,12 @@ function guessAudioMimeFromPath(pathname: string): string {
   return "audio/ogg";
 }
 
+function headerContentType(value: unknown): string | undefined {
+  if (typeof value === "string") return value.split(";")[0]?.trim();
+  if (Array.isArray(value)) return headerContentType(value[0]);
+  return undefined;
+}
+
 export async function loadChatMediaPlayUrl(mediaUrl: string): Promise<string> {
   const resolved = resolveChatMediaUrl(mediaUrl) ?? mediaUrl;
   let pathname: string;
@@ -96,7 +102,7 @@ export async function loadChatMediaPlayUrl(mediaUrl: string): Promise<string> {
   if (!pathname.startsWith("/chat-media/")) return resolved;
   const res = await waApi.get(pathname, { responseType: "blob" });
   const blobType =
-    res.headers["content-type"]?.split(";")[0]?.trim() || guessAudioMimeFromPath(pathname);
+    headerContentType(res.headers["content-type"]) || guessAudioMimeFromPath(pathname);
   return URL.createObjectURL(new Blob([res.data], { type: blobType }));
 }
 
