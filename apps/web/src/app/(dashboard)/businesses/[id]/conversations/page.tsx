@@ -46,6 +46,10 @@ function shouldShowMessageText(content: string, hasMedia: boolean) {
   return true;
 }
 
+function isMediaPlaceholderOnly(content: string) {
+  return MEDIA_PLACEHOLDERS.has(content.trim());
+}
+
 function ConversationMessageBody({ msg }: { msg: Message }) {
   const hasMedia = Boolean(msg.mediaUrl && msg.mediaType);
   return (
@@ -60,6 +64,11 @@ function ConversationMessageBody({ msg }: { msg: Message }) {
       )}
       {hasMedia && msg.mediaType === "audio" && (
         <audio src={msg.mediaUrl} controls className="w-full min-w-[220px] mb-2" />
+      )}
+      {!hasMedia && isMediaPlaceholderOnly(msg.content) && (
+        <p className="text-xs opacity-80 italic">
+          Áudio/mídia recebido — peça para enviar de novo após atualização do servidor.
+        </p>
       )}
       {shouldShowMessageText(msg.content, hasMedia) && (
         <p className="whitespace-pre-wrap">{msg.content}</p>
