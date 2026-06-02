@@ -227,6 +227,7 @@ export function WorkingHoursEditor({
   const [specialOpen, setSpecialOpen] = useState("09:00");
   const [specialClose, setSpecialClose] = useState("18:00");
   const [specialClosed, setSpecialClosed] = useState(false);
+  const [todayCloseAt, setTodayCloseAt] = useState("18:00");
 
   function setDay(day: string, slot: [string, string] | null) {
     onChange({ ...value, [day]: slot });
@@ -246,6 +247,30 @@ export function WorkingHoursEditor({
 
   const openCount = DAY_KEYS.filter((d) => value[d] !== null && value[d] !== undefined).length;
   const specialEntries = Object.entries(specialHours).sort(([a], [b]) => a.localeCompare(b));
+
+  function dateKeyFromOffset(days: number) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function dayKeyFromDate(date: Date) {
+    const map = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+    return map[date.getDay()];
+  }
+
+  function closeTodayAt(time: string) {
+    const today = new Date();
+    const todayKey = dateKeyFromOffset(0);
+    const dayKey = dayKeyFromDate(today);
+    const baseSlot = specialHours[todayKey] ?? value[dayKey] ?? ["09:00", "18:00"];
+    const openAt = baseSlot ? baseSlot[0] : "09:00";
+    onSpecialHoursChange({ ...specialHours, [todayKey]: [openAt, time] });
+    onCommit?.();
+  }
 
   function addSpecialDay() {
     if (!specialDate) return;
@@ -429,6 +454,34 @@ export function WorkingHoursEditor({
             disabled={!specialDate}
           >
             Adicionar
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <div className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5">
+            <span className="text-xs text-amber-800">Fechar hoje às</span>
+            <input
+              type="time"
+              value={todayCloseAt}
+              onChange={(e) => setTodayCloseAt(e.target.value)}
+              className="input h-8 w-[110px] py-1"
+            />
+            <button
+              type="button"
+              onClick={() => closeTodayAt(todayCloseAt)}
+              className="text-xs border border-amber-300 bg-white text-amber-800 rounded-md px-2 py-1 hover:bg-amber-100"
+            >
+              Aplicar
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              onSpecialHoursChange({ ...specialHours, [dateKeyFromOffset(0)]: null });
+              onCommit?.();
+            }}
+            className="text-xs border border-red-200 bg-red-50 text-red-700 rounded-lg px-3 py-1.5 hover:bg-red-100"
+          >
+            Fechar hoje o dia todo
           </button>
         </div>
         <label className="inline-flex items-center gap-2 text-xs text-gray-600">
