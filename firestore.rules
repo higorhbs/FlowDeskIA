@@ -23,11 +23,22 @@ service cloud.firestore {
 
     function tenantProfileUpdateAllowed() {
       return request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['name', 'email', 'onboardingCompletedAt', 'lgpdAcceptedAt', 'lgpdPolicyVersion', 'updatedAt']);
+        .hasOnly([
+          'name',
+          'email',
+          'onboardingCompletedAt',
+          'lgpdAcceptedAt',
+          'lgpdPolicyVersion',
+          'cancellationFeedbackRating',
+          'cancellationFeedbackText',
+          'cancellationFeedbackAt',
+          'updatedAt'
+        ]);
     }
 
     function tenantCreateAllowed() {
       return request.resource.data.keys().hasOnly([
+          'id',
           'name',
           'email',
           'plan',
@@ -36,8 +47,10 @@ service cloud.firestore {
           'createdAt',
           'updatedAt'
         ])
+        && request.resource.data.id == tenantId
         && request.resource.data.plan == 'STARTER'
         && request.resource.data.planStatus == 'TRIALING'
+        && request.resource.data.id is string
         && request.resource.data.name is string
         && request.resource.data.email is string
         && request.resource.data.trialEndsAt is string
