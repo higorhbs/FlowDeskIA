@@ -61,9 +61,43 @@ function resolveWaApiBaseUrl() {
 }
 
 let waApiBaseUrl: string | undefined;
-function getWaApiBaseUrl() {
+export function getWaApiBaseUrl() {
   if (!waApiBaseUrl) waApiBaseUrl = resolveWaApiBaseUrl();
   return waApiBaseUrl;
+}
+
+export function resolveChatMediaUrl(mediaUrl: string | undefined): string | undefined {
+  if (!mediaUrl?.trim()) return undefined;
+  try {
+    const u = new URL(mediaUrl);
+    if (!u.pathname.startsWith("/chat-media/")) return mediaUrl;
+    return `${getWaApiBaseUrl()}${u.pathname}`;
+  } catch {
+    if (mediaUrl.startsWith("/chat-media/")) return `${getWaApiBaseUrl()}${mediaUrl}`;
+    return mediaUrl;
+  }
+}
+
+function guessAudioMimeFromPath(pathname: string): string {
+  const ext = pathname.split(".").pop()?.toLowerCase();
+  if (ext === "m4a" || ext === "mp4") return "audio/mp4";
+  if (ext === "mp3") return "audio/mpeg";
+  return "audio/ogg";
+}
+
+export async function loadChatMediaPlayUrl(mediaUrl: string): Promise<string> {
+  const resolved = resolveChatMediaUrl(mediaUrl) ?? mediaUrl;
+  let pathname: string;
+  try {
+    pathname = new URL(resolved).pathname;
+  } catch {
+    return resolved;
+  }
+  if (!pathname.startsWith("/chat-media/")) return resolved;
+  const res = await waApi.get(pathname, { responseType: "blob" });
+  const blobType =
+    res.headers["content-type"]?.split(";")[0]?.trim() || guessAudioMimeFromPath(pathname);
+  return URL.createObjectURL(new Blob([res.data], { type: blobType }));
 }
 
 function hasWaApi() {

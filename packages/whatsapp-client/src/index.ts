@@ -125,7 +125,8 @@ export function detectMediaType(
   if (!content) return undefined;
   if (content.imageMessage || content.stickerMessage) return "image";
   if (content.videoMessage) return "video";
-  if (content.audioMessage || content.ptvMessage) return "audio";
+  if (content.ptvMessage) return "video";
+  if (content.audioMessage) return "audio";
   return undefined;
 }
 

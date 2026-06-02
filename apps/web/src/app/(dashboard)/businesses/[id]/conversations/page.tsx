@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { businessApi, conversationApi, whatsappApi } from "@/lib/api";
+import {
+  businessApi,
+  conversationApi,
+  whatsappApi,
+  loadChatMediaPlayUrl,
+  resolveChatMediaUrl,
+} from "@/lib/api";
 import { useBusinessId } from "@/lib/use-business-id";
 import { formatCustomerLabel, STATUS_LABELS, cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -55,9 +61,40 @@ const WAVE_BARS = [4,7,11,15,18,13,8,16,10,7,17,11,14,6,9,14,7,12,16,9,14,7,11,1
 
 function AudioPlayer({ src, isOwn }: { src: string; isOwn: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [playSrc, setPlaySrc] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
+
+  useEffect(() => {
+    let objectUrl: string | undefined;
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(false);
+    setPlaying(false);
+    setCurrent(0);
+    setDuration(0);
+    void (async () => {
+      try {
+        objectUrl = await loadChatMediaPlayUrl(src);
+        if (cancelled) return;
+        setPlaySrc(objectUrl);
+      } catch {
+        if (!cancelled) {
+          setLoadError(true);
+          setPlaySrc(resolveChatMediaUrl(src) ?? src);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (objectUrl?.startsWith("blob:")) URL.revokeObjectURL(objectUrl);
+    };
+  }, [src]);
 
   const progress = duration > 0 ? current / duration : 0;
 
@@ -68,8 +105,8 @@ function AudioPlayer({ src, isOwn }: { src: string; isOwn: boolean }) {
 
   function toggle() {
     const a = audioRef.current;
-    if (!a) return;
-    playing ? a.pause() : a.play();
+    if (!a || loading || !playSrc) return;
+    playing ? a.pause() : void a.play().catch(() => setLoadError(true));
   }
 
   function seek(e: React.MouseEvent<HTMLDivElement>) {
@@ -81,31 +118,43 @@ function AudioPlayer({ src, isOwn }: { src: string; isOwn: boolean }) {
 
   return (
     <div className="flex items-center gap-2.5 min-w-[200px] py-0.5">
-      <audio
-        ref={audioRef}
-        src={src}
-        preload="metadata"
-        onTimeUpdate={() => setCurrent(audioRef.current?.currentTime ?? 0)}
-        onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
-        onEnded={() => { setPlaying(false); setCurrent(0); if (audioRef.current) audioRef.current.currentTime = 0; }}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-      />
+      {playSrc && (
+        <audio
+          ref={audioRef}
+          src={playSrc}
+          preload="metadata"
+          onTimeUpdate={() => setCurrent(audioRef.current?.currentTime ?? 0)}
+          onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
+          onEnded={() => {
+            setPlaying(false);
+            setCurrent(0);
+            if (audioRef.current) audioRef.current.currentTime = 0;
+          }}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onError={() => setLoadError(true)}
+        />
+      )}
 
       {/* Play / pause */}
       <button
         type="button"
         onClick={toggle}
+        disabled={loading || !playSrc}
         className={cn(
-          "w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center transition-colors",
+          "w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center transition-colors disabled:opacity-50",
           isOwn
             ? "bg-white/20 hover:bg-white/30 text-white"
             : "bg-brand-100 hover:bg-brand-200 text-brand-700"
         )}
       >
-        {playing
-          ? <Pause className="w-3.5 h-3.5" />
-          : <Play className="w-3.5 h-3.5 ml-0.5" />}
+        {loading ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        ) : playing ? (
+          <Pause className="w-3.5 h-3.5" />
+        ) : (
+          <Play className="w-3.5 h-3.5 ml-0.5" />
+        )}
       </button>
 
       {/* Waveform + duration */}
@@ -131,8 +180,22 @@ function AudioPlayer({ src, isOwn }: { src: string; isOwn: boolean }) {
           })}
         </div>
         <p className={cn("text-[10px] leading-none tabular-nums", isOwn ? "text-white/65" : "text-gray-400")}>
-          {playing || current > 0 ? fmt(current) : fmt(duration)}
+          {loadError
+            ? "erro ao carregar"
+            : playing || current > 0
+              ? fmt(current)
+              : fmt(duration)}
         </p>
+        {loadError && (
+          <a
+            href={resolveChatMediaUrl(src)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn("text-[10px] underline", isOwn ? "text-white/80" : "text-brand-600")}
+          >
+            Abrir áudio
+          </a>
+        )}
       </div>
 
       <Mic className={cn("w-3.5 h-3.5 flex-shrink-0", isOwn ? "text-white/50" : "text-gray-300")} />
@@ -146,12 +209,25 @@ function ConversationMessageBody({ msg }: { msg: Message }) {
   return (
     <>
       {hasMedia && msg.mediaType === "image" && (
-        <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer" className="block mb-2">
-          <img src={msg.mediaUrl} alt="" className="max-w-full max-h-64 rounded-lg object-cover" />
+        <a
+          href={resolveChatMediaUrl(msg.mediaUrl)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block mb-2"
+        >
+          <img
+            src={resolveChatMediaUrl(msg.mediaUrl)}
+            alt=""
+            className="max-w-full max-h-64 rounded-lg object-cover"
+          />
         </a>
       )}
       {hasMedia && msg.mediaType === "video" && (
-        <video src={msg.mediaUrl} controls className="max-w-full max-h-64 rounded-lg mb-2" />
+        <video
+          src={resolveChatMediaUrl(msg.mediaUrl)}
+          controls
+          className="max-w-full max-h-64 rounded-lg mb-2"
+        />
       )}
       {hasMedia && msg.mediaType === "audio" && msg.mediaUrl && (
         <div className="mb-1.5">
@@ -326,6 +402,9 @@ export default function ConversationsPage() {
     return "Atendente";
   }
 
+  const attendantNamesEnabled =
+    (business as { attendantEnabled?: boolean } | undefined)?.attendantEnabled !== false;
+
   const rawAttendantNames = (business as { attendantNames?: unknown; attendantName?: string } | undefined);
   const attendantOptions = Array.from(
     new Set(
@@ -355,6 +434,7 @@ export default function ConversationsPage() {
   }
 
   function shouldApplyManualPrefix() {
+    if (!attendantNamesEnabled) return false;
     if (selectedAttendantName.trim()) return true;
     return isManualPrefixEnabled();
   }
@@ -556,7 +636,7 @@ export default function ConversationsPage() {
 
             {selectedConv.status === "ATTENDING" && (
               <div className="bg-white border-t border-gray-200 p-4">
-                {attendantOptions.length > 0 && (
+                {attendantNamesEnabled && attendantOptions.length > 0 && (
                   <div className="mb-3">
                     <p className="text-xs text-gray-500 mb-1">Atendente desta conversa</p>
                     <select
