@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Geist } from "next/font/google";
 import { APP_META_DESCRIPTION, APP_PAGE_TITLE } from "@flowdesk/shared";
 import "./globals.css";
+import { GoogleAdsTag } from "@/components/analytics/GoogleAdsTag";
 import { CookieConsentBanner } from "@/components/privacy/CookieConsentBanner";
 import { DesktopOnlyGate } from "@/components/layout/DesktopOnlyGate";
 import { Providers } from "@/components/providers";
@@ -50,6 +51,7 @@ export default function RootLayout({
         <link rel="mask-icon" href="/apple-icon.svg" color="#16a34a" />
         <meta name="application-name" content="FlowDesk" />
         <meta name="apple-mobile-web-app-title" content="FlowDesk" />
+        <GoogleAdsTag />
       </head>
       <body className={inter.className} suppressHydrationWarning>
         <script src="/theme-init.js" defer />
