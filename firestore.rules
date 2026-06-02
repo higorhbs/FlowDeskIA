@@ -36,7 +36,7 @@ service cloud.firestore {
         ]);
     }
 
-    function tenantCreateAllowed() {
+    function tenantCreateAllowed(tenantId) {
       return request.resource.data.keys().hasOnly([
           'id',
           'name',
@@ -60,7 +60,7 @@ service cloud.firestore {
 
     match /tenants/{tenantId} {
       allow read: if isOwner(tenantId);
-      allow create: if isOwner(tenantId) && tenantCreateAllowed();
+      allow create: if isOwner(tenantId) && tenantCreateAllowed(tenantId);
       allow update: if isOwner(tenantId) && tenantProfileUpdateAllowed();
       allow delete: if false;
     }
