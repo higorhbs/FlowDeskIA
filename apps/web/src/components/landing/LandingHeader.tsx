@@ -12,6 +12,7 @@ function scrollToSection(id: string) {
 
 export function LandingHeader() {
   const { openAuth } = useAuthDrawer();
+  const supportEmail = "mailto:1devhigor@gmail.com?subject=Contato%20FlowDesk";
 
   return (
     <header className="relative z-50">
@@ -62,10 +63,7 @@ export function LandingHeader() {
 
           <button
             type="button"
-            onClick={() => window.open(
-              "https://wa.me/5531973616454?text=Ol%C3%A1%2C%20gostaria%20de%20mais%20informa%C3%A7%C3%B5es",
-              "_blank"
-            )}
+            onClick={() => window.open(supportEmail, "_blank")}
             className="rounded-full px-5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-background hover:text-primary"
           >
             Contato

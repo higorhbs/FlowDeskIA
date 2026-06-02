@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-const SUPPORT_WHATSAPP_URL = "https://wa.me/5531973616454?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20FlowDesk";
+const SUPPORT_EMAIL_URL = "mailto:1devhigor@gmail.com?subject=Suporte%20FlowDesk";
 
 export default function GlobalError({
   error,
@@ -31,12 +31,10 @@ export default function GlobalError({
               Tentar novamente
             </button>
             <a
-              href={SUPPORT_WHATSAPP_URL}
-              target="_blank"
-              rel="noreferrer"
+              href={SUPPORT_EMAIL_URL}
               className="px-6 py-3 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors font-medium border border-emerald-200"
             >
-              Suporte WhatsApp
+              Suporte por e-mail
             </a>
           </div>
         </div>
