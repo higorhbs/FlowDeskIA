@@ -206,9 +206,13 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
 }
 
 // ── WorkingHoursEditor ────────────────────────────────────────────────────────
-type Props = { value: WorkingHoursValue; onChange: (value: WorkingHoursValue) => void };
+type Props = {
+  value: WorkingHoursValue;
+  onChange: (value: WorkingHoursValue) => void;
+  onCommit?: () => void;
+};
 
-export function WorkingHoursEditor({ value, onChange }: Props) {
+export function WorkingHoursEditor({ value, onChange, onCommit }: Props) {
   const [editingDay, setEditingDay] = useState<string | null>(null);
 
   function setDay(day: string, slot: [string, string] | null) {
@@ -316,7 +320,10 @@ export function WorkingHoursEditor({ value, onChange }: Props) {
                       )}
                       <button
                         type="button"
-                        onClick={() => setEditingDay(null)}
+                        onClick={() => {
+                          setEditingDay(null);
+                          onCommit?.();
+                        }}
                         className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-800 transition-colors"
                       >
                         <Check className="w-3.5 h-3.5" />

@@ -183,6 +183,10 @@ export default function SettingsPage() {
               setWorkingHours(v);
               setHoursDirty(true);
             }}
+            onCommit={() => {
+              if (saveMutation.isPending) return;
+              void handleSubmit((d) => saveMutation.mutate(d))();
+            }}
           />
         </Card>
 
