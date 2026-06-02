@@ -34,10 +34,19 @@ export function RequireBusinessGate({ children }: { children: React.ReactNode })
     onCreatePage &&
     !hasBusiness &&
     (!lgpdOk || !onboardingDone);
+  const shouldLeaveCreatePage =
+    !loading &&
+    onCreatePage &&
+    hasBusiness;
 
   useEffect(() => {
     if (mustFinishPrerequisites) router.replace("/dashboard");
   }, [mustFinishPrerequisites, router]);
+
+  useEffect(() => {
+    if (!shouldLeaveCreatePage) return;
+    router.replace("/dashboard");
+  }, [shouldLeaveCreatePage, router]);
 
   useEffect(() => {
     if (!mustRedirect) return;
@@ -52,7 +61,7 @@ export function RequireBusinessGate({ children }: { children: React.ReactNode })
     );
   }
 
-  if (mustRedirect || mustFinishPrerequisites) {
+  if (mustRedirect || mustFinishPrerequisites || shouldLeaveCreatePage) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Loader2 className="w-8 h-8 animate-spin text-brand-600" />

@@ -260,6 +260,11 @@ export async function createBusiness(
     awayMsg: data.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
     thanksEnabled: data.thanksEnabled ?? true,
     attendantName: data.attendantName?.trim() || undefined,
+    attendantNames:
+      data.attendantNames
+        ?.map((name) => name.trim())
+        .filter(Boolean)
+        .slice(0, 20) || undefined,
     attendantEnabled: data.attendantEnabled ?? true,
     manualAttendantPrefixEnabled: data.manualAttendantPrefixEnabled ?? true,
     createdAt: ts,

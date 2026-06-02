@@ -50,6 +50,7 @@ export default function ConversationsPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [replyText, setReplyText] = useState("");
+  const [selectedAttendantName, setSelectedAttendantName] = useState("");
   const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -149,12 +150,31 @@ export default function ConversationsPage() {
   function resolveAttendantName() {
     const enabled = (business as { attendantEnabled?: boolean } | undefined)?.attendantEnabled !== false;
     if (!enabled) return "";
+    const fromSelection = selectedAttendantName.trim();
+    if (fromSelection) return fromSelection;
+    const fromList = (business as { attendantNames?: string[] } | undefined)?.attendantNames
+      ?.map((name) => name.trim())
+      .find(Boolean);
+    if (fromList) return fromList;
     const fromBusiness = (business as { attendantName?: string } | undefined)?.attendantName?.trim();
     if (fromBusiness) return fromBusiness;
     const fromAuth = getClientAuth().currentUser?.displayName?.trim();
     if (fromAuth) return fromAuth;
     return "Atendente";
   }
+
+  const attendantOptions = (
+    (business as { attendantNames?: string[] } | undefined)?.attendantNames ?? []
+  )
+    .map((name) => name.trim())
+    .filter(Boolean);
+
+  useEffect(() => {
+    if (!attendantOptions.length) return;
+    setSelectedAttendantName((current) =>
+      current && attendantOptions.includes(current) ? current : attendantOptions[0]!
+    );
+  }, [businessId, attendantOptions.join("|")]);
 
   function isManualPrefixEnabled() {
     const b = business as { manualAttendantPrefixEnabled?: boolean; attendantEnabled?: boolean } | undefined;
@@ -339,6 +359,22 @@ export default function ConversationsPage() {
 
             {selectedConv.status === "ATTENDING" && (
               <div className="bg-white border-t border-gray-200 p-4">
+                {isManualPrefixEnabled() && attendantOptions.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-500 mb-1">Atendente desta conversa</p>
+                    <select
+                      value={selectedAttendantName}
+                      onChange={(e) => setSelectedAttendantName(e.target.value)}
+                      className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-700"
+                    >
+                      {attendantOptions.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="flex items-end gap-3">
                   <Textarea
                     className="min-h-20 flex-1 resize-none text-sm"

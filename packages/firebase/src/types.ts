@@ -68,6 +68,7 @@ export interface Business {
   thanksMsg?: string;
   thanksEnabled?: boolean;
   attendantName?: string;
+  attendantNames?: string[];
   attendantEnabled?: boolean;
   manualAttendantPrefixEnabled?: boolean;
   isConnected: boolean;

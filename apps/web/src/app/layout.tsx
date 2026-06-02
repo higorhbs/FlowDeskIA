@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Geist } from "next/font/google";
 import { APP_META_DESCRIPTION, APP_PAGE_TITLE } from "@flowdesk/shared";
 import "./globals.css";
-import { SwetrixScripts } from "@/components/analytics/SwetrixScripts";
+import { CookieConsentBanner } from "@/components/privacy/CookieConsentBanner";
 import { DesktopOnlyGate } from "@/components/layout/DesktopOnlyGate";
 import { Providers } from "@/components/providers";
 import { ToasterHost } from "@/components/toaster-host";
@@ -42,11 +42,11 @@ export default function RootLayout({
     >
       <body className={inter.className} suppressHydrationWarning>
         <script src="/theme-init.js" defer />
-        <SwetrixScripts />
         <Providers>
           <DesktopOnlyGate>
             {children}
             <ToasterHost />
+            <CookieConsentBanner />
           </DesktopOnlyGate>
         </Providers>
       </body>

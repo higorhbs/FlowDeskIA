@@ -276,6 +276,7 @@ function BotMenuEditor({
   initialThanksMsg,
   initialThanksEnabled,
   initialAttendantName,
+  initialAttendantNames,
   initialAttendantEnabled,
   initialManualAttendantPrefixEnabled,
   autoReplyEnabled,
@@ -290,6 +291,7 @@ function BotMenuEditor({
   initialThanksMsg: string;
   initialThanksEnabled: boolean;
   initialAttendantName: string;
+  initialAttendantNames: string[];
   initialAttendantEnabled: boolean;
   initialManualAttendantPrefixEnabled: boolean;
   autoReplyEnabled: boolean;
@@ -302,7 +304,14 @@ function BotMenuEditor({
   const [greetingMsg, setGreetingMsg] = useState(initialGreetingMsg);
   const [thanksMsg, setThanksMsg] = useState(initialThanksMsg);
   const [thanksEnabled, setThanksEnabled] = useState(initialThanksEnabled);
-  const [attendantName, setAttendantName] = useState(initialAttendantName);
+  const [attendantNames, setAttendantNames] = useState<string[]>(() => {
+    const normalized = Array.from(
+      new Set(initialAttendantNames.map((name) => name.trim()).filter(Boolean))
+    ).slice(0, 20);
+    if (normalized.length > 0) return normalized;
+    const fallback = initialAttendantName.trim();
+    return fallback ? [fallback] : [""];
+  });
   const [attendantEnabled, setAttendantEnabled] = useState(initialAttendantEnabled);
   const [manualAttendantPrefixEnabled, setManualAttendantPrefixEnabled] = useState(
     initialManualAttendantPrefixEnabled
@@ -371,7 +380,13 @@ function BotMenuEditor({
 
   const saveMutation = useMutation({
     mutationFn: () =>
-      businessApi.update(businessId, {
+      {
+        const attendantNamesSanitized = Array.from(
+          new Set(attendantNames.map((name) => name.trim()).filter(Boolean))
+        ).slice(0, 20);
+        const primaryAttendantName =
+          attendantNamesSanitized[0] || undefined;
+        return businessApi.update(businessId, {
         botMenu: items.map(({ action: _legacy, ...it }) => it),
         botMenuEnabled: menuEnabled,
         botAutoReplyEnabled: autoReplyEnabled,
@@ -380,9 +395,11 @@ function BotMenuEditor({
         thanksEnabled,
         thanksMsg: thanksMsg.trim() || DEFAULT_THANKS_MSG,
         attendantEnabled,
-        attendantName: attendantName.trim() || undefined,
+        attendantName: primaryAttendantName,
+        attendantNames: attendantNamesSanitized.length ? attendantNamesSanitized : undefined,
         manualAttendantPrefixEnabled,
-      } as any),
+      } as any);
+      },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["business", businessId] });
       toast.success("Configuração da IA salva!");
@@ -438,7 +455,7 @@ function BotMenuEditor({
     menuEnabled,
     greetingEnabled,
     greetingMsg,
-    attendantName,
+    attendantName: attendantNames.map((name) => name.trim()).find(Boolean) || "",
     thanksEnabled,
     thanksMsg,
     attendantEnabled,
@@ -829,13 +846,53 @@ function BotMenuEditor({
             </div>
             {attendantEnabled ? (
               <>
-                <input
-                  value={attendantName}
-                  onChange={(e) => setAttendantName(e.target.value)}
-                  className="input mt-3 w-full"
-                  placeholder="Ex: Ana, Equipe de Atendimento, Time de Suporte"
-                  disabled={!autoReplyEnabled}
-                />
+                <div className="mt-3 space-y-2">
+                  {attendantNames.map((name, index) => (
+                    <div key={`attendant-${index}`} className="flex items-center gap-2">
+                      <input
+                        value={name}
+                        onChange={(e) =>
+                          setAttendantNames((prev) =>
+                            prev.map((current, i) => (i === index ? e.target.value : current))
+                          )
+                        }
+                        className="input w-full"
+                        placeholder={`Nome do atendente ${index + 1}`}
+                        disabled={!autoReplyEnabled}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAttendantNames((prev) => {
+                            if (prev.length <= 1) return [""];
+                            return prev.filter((_, i) => i !== index);
+                          })
+                        }
+                        className="h-10 w-10 rounded-lg border border-gray-200 text-gray-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
+                        disabled={!autoReplyEnabled}
+                        title="Apagar atendente"
+                      >
+                        <Trash2 className="w-4 h-4 mx-auto" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAttendantNames((prev) =>
+                      prev.length >= 20 ? prev : [...prev, ""]
+                    )
+                  }
+                  className="mt-2 text-xs text-brand-700 hover:text-brand-900 border border-brand-200 bg-brand-50 px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1"
+                  disabled={!autoReplyEnabled || attendantNames.length >= 20}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Adicionar atendente
+                </button>
+                <p className="text-xs text-gray-500 mt-2">
+                  Lista de atendentes para escolher no atendimento manual.
+                </p>
                 <p className="text-xs text-gray-500 mt-2">
                   Envio manual em Conversas:{" "}
                   <strong>{manualAttendantPrefixEnabled ? "ativado" : "desativado"}</strong>.
@@ -1537,6 +1594,9 @@ export default function BotPage() {
           }
           initialThanksEnabled={(business as { thanksEnabled?: boolean })?.thanksEnabled !== false}
           initialAttendantName={(business as { attendantName?: string })?.attendantName?.trim() || ""}
+          initialAttendantNames={
+            (business as { attendantNames?: string[] })?.attendantNames?.filter(Boolean) || []
+          }
           initialAttendantEnabled={(business as { attendantEnabled?: boolean })?.attendantEnabled !== false}
           initialManualAttendantPrefixEnabled={
             (business as { manualAttendantPrefixEnabled?: boolean })?.manualAttendantPrefixEnabled !== false

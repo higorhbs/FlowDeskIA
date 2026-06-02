@@ -72,6 +72,7 @@ export async function createClientBusiness(
     awayMsg?: string;
     thanksEnabled?: boolean;
     attendantName?: string;
+    attendantNames?: string[];
     attendantEnabled?: boolean;
     manualAttendantPrefixEnabled?: boolean;
     workingHours?: Record<string, unknown>;
@@ -94,6 +95,11 @@ export async function createClientBusiness(
     awayMsg: data.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
     thanksEnabled: data.thanksEnabled ?? true,
     attendantName: data.attendantName?.trim() || undefined,
+    attendantNames:
+      data.attendantNames
+        ?.map((name) => name.trim())
+        .filter(Boolean)
+        .slice(0, 20) || undefined,
     attendantEnabled: data.attendantEnabled ?? true,
     manualAttendantPrefixEnabled: data.manualAttendantPrefixEnabled ?? true,
     isConnected: false,
