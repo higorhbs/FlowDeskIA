@@ -7,6 +7,7 @@ import { useRequiresBusinessSetup } from "@/hooks/use-requires-business-setup";
 import { Loader2 } from "lucide-react";
 
 export const CREATE_BUSINESS_PATH = "/businesses/new";
+const ALLOWED_WITHOUT_BUSINESS_PATHS = new Set(["/profile"]);
 
 export function normalizeAppPath(path: string) {
   const base = path.split("?")[0]?.replace(/\/$/, "") ?? "";
@@ -17,12 +18,17 @@ export function isCreateBusinessPath(path: string) {
   return normalizeAppPath(path) === CREATE_BUSINESS_PATH;
 }
 
+function isAllowedWithoutBusinessPath(path: string) {
+  return ALLOWED_WITHOUT_BUSINESS_PATHS.has(normalizeAppPath(path));
+}
+
 export function RequireBusinessGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
   const router = useAppRouter();
   const { loading, active, lgpdOk, onboardingDone, hasBusiness } = useRequiresBusinessSetup();
   const onCreatePage = isCreateBusinessPath(pathname);
-  const mustRedirect = active && !onCreatePage;
+  const onAllowedPage = isAllowedWithoutBusinessPath(pathname);
+  const mustRedirect = active && !onCreatePage && !onAllowedPage;
   const mustFinishPrerequisites =
     !loading &&
     onCreatePage &&
