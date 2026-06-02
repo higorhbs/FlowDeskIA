@@ -58,6 +58,8 @@ export interface Business {
   logoUrl?: string;
   workingHours: Record<string, unknown>;
   specialHours?: Record<string, [string, string] | null>;
+  lunchBreak?: [string, string] | null;
+  lunchMsg?: string;
   timezone?: string;
   greetingMsg: string;
   awayMsg: string;

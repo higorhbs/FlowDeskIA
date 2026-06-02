@@ -223,24 +223,53 @@ export function getLocalDateKey(
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-export function isOpenNow(
+function isWithinTimeRange(currentMinutes: number, range: [string, string]): boolean {
+  const [startH, startM] = range[0].split(":").map(Number);
+  const [endH, endM] = range[1].split(":").map(Number);
+  const startMinutes = startH * 60 + startM;
+  const endMinutes = endH * 60 + endM;
+  return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+}
+
+export type StoreAvailability = "open" | "lunch" | "closed";
+
+export const DEFAULT_LUNCH_MSG =
+  "Estamos em horário de almoço. Voltamos em breve para te atender!";
+
+export function getStoreAvailability(
   workingHours: WorkingHours,
   timeZone = DEFAULT_BUSINESS_TIMEZONE,
-  specialHours?: Record<string, [string, string] | null>
-): boolean {
+  specialHours?: Record<string, [string, string] | null>,
+  lunchBreak?: [string, string] | null
+): StoreAvailability {
   const { day, hours, minutes } = getLocalTimeParts(timeZone);
   const dateKey = getLocalDateKey(timeZone);
   const slot = specialHours?.[dateKey] ?? workingHours[day];
-  if (!slot) return false;
-
-  const [openH, openM] = slot[0].split(":").map(Number);
-  const [closeH, closeM] = slot[1].split(":").map(Number);
+  if (!slot) return "closed";
 
   const currentMinutes = hours * 60 + minutes;
-  const openMinutes = openH * 60 + openM;
-  const closeMinutes = closeH * 60 + closeM;
+  if (!isWithinTimeRange(currentMinutes, slot)) return "closed";
+  if (lunchBreak && isWithinTimeRange(currentMinutes, lunchBreak)) return "lunch";
+  return "open";
+}
 
-  return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+export function isOpenNow(
+  workingHours: WorkingHours,
+  timeZone = DEFAULT_BUSINESS_TIMEZONE,
+  specialHours?: Record<string, [string, string] | null>,
+  lunchBreak?: [string, string] | null
+): boolean {
+  return getStoreAvailability(workingHours, timeZone, specialHours, lunchBreak) === "open";
+}
+
+export function resolveAutoAwayMessage(
+  availability: StoreAvailability,
+  awayMsg: string,
+  lunchMsg?: string
+): string | null {
+  if (availability === "lunch") return lunchMsg?.trim() || DEFAULT_LUNCH_MSG;
+  if (availability === "closed") return awayMsg;
+  return null;
 }
 
 // ─── Template helpers ─────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Pencil, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TemplateMessageField } from "@/components/business/TemplateMessageField";
 
 const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
@@ -24,6 +25,7 @@ const SPACER = (COL_H - ITEM_H) / 2;
 
 export type WorkingHoursValue = Record<string, [string, string] | null>;
 export type SpecialHoursValue = Record<string, [string, string] | null>;
+export type LunchBreakValue = [string, string] | null;
 
 export function defaultWorkingHours(): WorkingHoursValue {
   const h: WorkingHoursValue = {};
@@ -212,6 +214,10 @@ type Props = {
   onChange: (value: WorkingHoursValue) => void;
   specialHours: SpecialHoursValue;
   onSpecialHoursChange: (value: SpecialHoursValue) => void;
+  lunchBreak: LunchBreakValue;
+  onLunchBreakChange: (value: LunchBreakValue) => void;
+  lunchMsg: string;
+  onLunchMsgChange: (value: string) => void;
   onCommit?: () => void;
 };
 
@@ -220,6 +226,10 @@ export function WorkingHoursEditor({
   onChange,
   specialHours,
   onSpecialHoursChange,
+  lunchBreak,
+  onLunchBreakChange,
+  lunchMsg,
+  onLunchMsgChange,
   onCommit,
 }: Props) {
   const [editingDay, setEditingDay] = useState<string | null>(null);
@@ -419,6 +429,56 @@ export function WorkingHoursEditor({
             {label}
           </button>
         ))}
+      </div>
+
+      <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-white">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Horário de almoço</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              No intervalo a IA envia a mensagem de almoço configurada abaixo.
+            </p>
+          </div>
+          <Toggle
+            checked={lunchBreak !== null}
+            onChange={(enabled) => {
+              onLunchBreakChange(enabled ? lunchBreak ?? ["12:00", "13:00"] : null);
+              onCommit?.();
+            }}
+          />
+        </div>
+        {lunchBreak && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <TimePicker
+                value={lunchBreak[0]}
+                onChange={(t) => onLunchBreakChange([t, lunchBreak[1]])}
+              />
+              <ArrowRight className="w-3 h-3 text-gray-300 flex-shrink-0" />
+              <TimePicker
+                value={lunchBreak[1]}
+                onChange={(t) => onLunchBreakChange([lunchBreak[0], t])}
+              />
+              <button
+                type="button"
+                onClick={() => onCommit?.()}
+                className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-800 transition-colors"
+              >
+                <Check className="w-3.5 h-3.5" />
+                Aplicar horário
+              </button>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-700">Mensagem no horário de almoço</label>
+              <TemplateMessageField
+                value={lunchMsg}
+                onChange={onLunchMsgChange}
+                rows={3}
+                placeholder="Olá {nome}! Estamos em almoço no {negocio}. Voltamos em breve!"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-white">
