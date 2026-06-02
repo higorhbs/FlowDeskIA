@@ -43,6 +43,7 @@ export default function WhatsAppPage() {
   const wasConnected = useRef(false);
   const connectStarted = useRef(false);
   const silentConnect = useRef(false);
+  const skipAutoConnect = useRef(false);
 
   const {
     data: status,
@@ -143,6 +144,7 @@ export default function WhatsAppPage() {
 
   useEffect(() => {
     connectStarted.current = false;
+    skipAutoConnect.current = false;
     setQrCode(null);
   }, [id]);
 
@@ -160,6 +162,7 @@ export default function WhatsAppPage() {
   }, [isConnected]);
 
   useEffect(() => {
+    if (skipAutoConnect.current) return;
     if (isInitialLoading || waUnavailable || isConnected || hasQr) return;
     if (connectStarted.current || isConnectPending) return;
     const t = setTimeout(() => {
@@ -174,13 +177,13 @@ export default function WhatsAppPage() {
   const disconnectMutation = useMutation({
     mutationFn: () => whatsappApi.disconnect(id),
     onSuccess: () => {
-      setQrCode(null);
+      skipAutoConnect.current = true;
       connectStarted.current = false;
+      silentConnect.current = false;
+      setQrCode(null);
       void markWhatsAppConnected(queryClient, id, false, lastSyncedConnected);
+      void queryClient.invalidateQueries({ queryKey: ["wa-status", id] });
       toast.success("WhatsApp desconectado");
-      silentConnect.current = true;
-      connectStarted.current = true;
-      startConnect(false);
     },
     onError: (err: Error) => toast.error(err.message ?? "Erro ao desconectar"),
   });
@@ -298,6 +301,7 @@ export default function WhatsAppPage() {
             <Button
               className="w-full"
               onClick={() => {
+                skipAutoConnect.current = false;
                 silentConnect.current = false;
                 connectStarted.current = true;
                 connectMutation.mutate(!!displayQr);

@@ -150,6 +150,8 @@ export class WhatsAppClient extends EventEmitter {
   public status: ConnectionStatus = "close";
   public lastQrDataUrl?: string;
   private connecting = false;
+  private allowReconnect = true;
+  private reconnectTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
     private businessId: string,
@@ -242,11 +244,14 @@ export class WhatsAppClient extends EventEmitter {
         this.connecting = false;
         this.boundSock = null;
         const code = (lastDisconnect?.error as Boom)?.output?.statusCode;
-        const shouldReconnect = code !== DisconnectReason.loggedOut;
+        const shouldReconnect = code !== DisconnectReason.loggedOut && this.allowReconnect;
         console.log(`[wa:${this.businessId}] disconnected code=${code ?? "-"} reconnect=${shouldReconnect}`);
         this.emit("disconnected", { code, shouldReconnect });
         if (shouldReconnect) {
-          setTimeout(() => {
+          this.cancelScheduledReconnect();
+          this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = undefined;
+            if (!this.allowReconnect) return;
             void this.connect().catch(() => undefined);
           }, 2500);
         }
@@ -295,9 +300,17 @@ export class WhatsAppClient extends EventEmitter {
     await this.connect();
   }
 
+  private cancelScheduledReconnect() {
+    if (this.reconnectTimer !== undefined) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = undefined;
+    }
+  }
+
   async connect() {
     if (this.isConnected()) return;
     if (this.connecting) return;
+    this.allowReconnect = true;
     this.connecting = true;
     this.status = "connecting";
     try {
@@ -449,13 +462,23 @@ export class WhatsAppClient extends EventEmitter {
   }
 
   async logout() {
-    await this.sock?.logout();
+    this.allowReconnect = false;
+    this.cancelScheduledReconnect();
+    this.connecting = false;
+    this.lastQrDataUrl = undefined;
+    try {
+      await this.sock?.logout();
+    } catch {
+      /* ignore */
+    }
     this.sock = null;
     this.boundSock = null;
     this.status = "close";
     this.messageStore.clear();
     this.lidToPhone.clear();
-    fs.rmSync(this.sessionPath, { recursive: true, force: true });
+    if (fs.existsSync(this.sessionPath)) {
+      fs.rmSync(this.sessionPath, { recursive: true, force: true });
+    }
   }
 
   isConnected(): boolean {

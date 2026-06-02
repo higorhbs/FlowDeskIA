@@ -127,12 +127,8 @@ export async function whatsappRoutes(app: FastifyInstance) {
     const business = await getBusiness(id, req.tenantId);
     if (!business) return reply.status(404).send({ error: "Negócio não encontrado" });
 
-    const client = waManager.get(id);
-    if (client) {
-      await client.logout();
-      waManager.remove(id);
-      await setBusinessConnected(id, false);
-    }
+    await resetWhatsAppSession(id, sessionsRoot);
+    await setBusinessConnected(id, false);
 
     return { status: "disconnected" };
   });

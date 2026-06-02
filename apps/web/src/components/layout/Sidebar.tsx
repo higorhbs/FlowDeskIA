@@ -28,6 +28,8 @@ import { useAppRouter } from "@/lib/app-navigation";
 import { SidebarProfile } from "./SidebarProfile";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { businessApi, whatsappApi, conversationApi } from "@/lib/api";
+import { patchWhatsAppStatus } from "@/lib/use-sync-wa-business";
+import { invalidateBusinessData } from "@/lib/invalidate-business";
 import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { VocabLabel } from "@/components/layout/VocabLabel";
 import { BusinessNavLink } from "@/components/layout/BusinessNavLink";
@@ -72,10 +74,17 @@ export function Sidebar() {
   const disconnectMutation = useMutation({
     mutationFn: () => whatsappApi.disconnect(businessId!),
     onSuccess: () => {
-      toast.success("WhatsApp desconectado");
-      void queryClient.invalidateQueries({
-        queryKey: ["business", businessId],
+      if (!businessId) return;
+      patchWhatsAppStatus(queryClient, businessId, {
+        connected: false,
+        status: "close",
+        qr: undefined,
       });
+      void businessApi.setConnected(businessId, false).then(() => {
+        invalidateBusinessData(queryClient, businessId);
+      });
+      void queryClient.invalidateQueries({ queryKey: ["wa-status", businessId] });
+      toast.success("WhatsApp desconectado");
     },
     onError: (err: Error) => toast.error(err.message ?? "Erro ao desconectar"),
   });
