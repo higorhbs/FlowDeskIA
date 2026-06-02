@@ -23,11 +23,26 @@ function maskToken(token: string): string {
   return `••••${token.slice(-4)}`;
 }
 
-function publicWebhookUrl(): string {
-  const base =
-    optionalEnv("API_PUBLIC_URL") ??
-    optionalEnv("NEXT_PUBLIC_API_URL") ??
-    "https://SUA-API";
+function isLocalHost(host?: string): boolean {
+  if (!host) return false;
+  return /(^|\.)localhost(?::\d+)?$/.test(host) || /^127\.0\.0\.1(?::\d+)?$/.test(host);
+}
+
+function publicWebhookUrl(req?: { headers: Record<string, string | string[] | undefined> }): string {
+  const envBase = optionalEnv("API_PUBLIC_URL") ?? optionalEnv("NEXT_PUBLIC_API_URL");
+  if (envBase && !/localhost|127\.0\.0\.1/.test(envBase)) {
+    return `${envBase.replace(/\/$/, "")}/webhooks/asaas`;
+  }
+
+  const hostHeader = req?.headers?.["x-forwarded-host"] ?? req?.headers?.host;
+  const host = Array.isArray(hostHeader) ? hostHeader[0] : hostHeader;
+  const protoHeader = req?.headers?.["x-forwarded-proto"];
+  const protoFromHeader = Array.isArray(protoHeader) ? protoHeader[0] : protoHeader;
+  if (host && !isLocalHost(host)) {
+    const proto = (protoFromHeader ?? "https").split(",")[0]?.trim() || "https";
+    return `${proto}://${host.replace(/\/$/, "")}/webhooks/asaas`;
+  }
+  const base = "https://api.flowdesk.app";
   return `${base.replace(/\/$/, "")}/webhooks/asaas`;
 }
 
@@ -82,7 +97,7 @@ export async function asaasIntegrationRoutes(app: FastifyInstance) {
       keyPreview: integration?.apiKey ? maskApiKey(integration.apiKey) : null,
       webhookTokenConfigured: Boolean(integration?.webhookToken),
       webhookTokenPreview: integration?.webhookToken ? maskToken(integration.webhookToken) : null,
-      webhookUrl: publicWebhookUrl(),
+      webhookUrl: publicWebhookUrl(req as { headers: Record<string, string | string[] | undefined> }),
       balanceBrl,
     };
   });
@@ -108,7 +123,7 @@ export async function asaasIntegrationRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Informe a Chave API do Asaas." });
     }
 
-    const sandbox = body.sandbox ?? existing?.sandbox ?? false;
+    const sandbox = false;
     const creds = resolveAsaasCredentials({ apiKey, sandbox });
     if (!creds) {
       return reply.status(400).send({ error: "Não foi possível validar a chave Asaas." });
@@ -119,7 +134,7 @@ export async function asaasIntegrationRoutes(app: FastifyInstance) {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Chave rejeitada pelo Asaas";
       return reply.status(400).send({
-        error: `Chave inválida para o ambiente selecionado: ${msg}. Sandbox exige chave de sandbox.asaas.com.`,
+        error: `Chave inválida: ${msg}.`,
       });
     }
 
@@ -138,7 +153,7 @@ export async function asaasIntegrationRoutes(app: FastifyInstance) {
       sandbox,
       keyPreview: maskApiKey(apiKey),
       webhookTokenConfigured: Boolean(webhookToken),
-      webhookUrl: publicWebhookUrl(),
+      webhookUrl: publicWebhookUrl(req as { headers: Record<string, string | string[] | undefined> }),
       balanceBrl,
     };
   });

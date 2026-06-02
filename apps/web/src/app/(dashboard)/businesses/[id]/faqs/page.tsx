@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { useAppRouter } from "@/lib/app-navigation";
+import { panelHref } from "@/lib/business-nav";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { businessApi, faqApi } from "@/lib/api";
@@ -14,14 +16,13 @@ import { toast } from "sonner";
 import {
   MessageSquare, HelpCircle, Plus, Trash2, Loader2, X,
   ChevronUp, ChevronDown, Eye, Save, Pencil, Check,
-  Sparkles, Hash, MessageCircleQuestion, Zap, Banknote,
+  Sparkles, Hash, MessageCircleQuestion, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BotMenuItemConfig } from "@flowdesk/firebase/client";
 import { buildBotMenuEntries, getBusinessVocabulary, renderTemplate, DEFAULT_THANKS_MSG } from "@flowdesk/shared";
 import { IaIcon } from "@/lib/ia-brand";
 import { usePlanAllowsPix } from "@/lib/use-plan-allows-pix";
-import { PaymentsPixPanel } from "@/components/payments/PaymentsPixPanel";
 
 const LEGACY_EMOJI: Record<string, string> = {
   APPOINTMENT: "📅",
@@ -87,7 +88,7 @@ const faqSchema = z.object({
 });
 type FAQForm = z.infer<typeof faqSchema>;
 
-type Tab = "menu" | "faqs" | "payments";
+type Tab = "menu" | "faqs";
 type PreviewFocus = "greeting" | "menu" | "thanks" | "attendant";
 
 // ── Emoji picker ───────────────────────────────────────────────────────────────
@@ -1394,14 +1395,17 @@ function FAQsEditor({ businessId, businessType }: { businessId: string; business
 export default function BotPage() {
   const businessId = useBusinessId();
   const searchParams = useSearchParams();
+  const router = useAppRouter();
   const queryClient = useQueryClient();
   const { pixEnabled } = usePlanAllowsPix();
   const [tab, setTab] = useState<Tab>("menu");
   const [autoReplyEnabled, setAutoReplyEnabled] = useState(true);
 
   useEffect(() => {
-    if (searchParams.get("sec") === "pix" && pixEnabled) setTab("payments");
-  }, [searchParams, pixEnabled]);
+    if (searchParams.get("sec") === "pix" && pixEnabled) {
+      router.replace(panelHref(businessId, "payments"));
+    }
+  }, [searchParams, pixEnabled, businessId, router]);
 
   const { data: business, isLoading } = useQuery({
     queryKey: ["business", businessId],
@@ -1430,21 +1434,14 @@ export default function BotPage() {
   const iaTabs = autoReplyEnabled
     ? ([
         { id: "menu" as const, label: "Menu da IA", icon: MessageSquare },
-        ...(pixEnabled
-          ? [{ id: "payments" as const, label: "Pagamentos por PIX", icon: Banknote }]
-          : []),
         { id: "faqs" as const, label: "Perguntas & Respostas", icon: HelpCircle },
       ] as const)
-    : pixEnabled
-      ? ([{ id: "payments" as const, label: "Pagamentos por PIX", icon: Banknote }] as const)
-      : [];
+    : [];
 
   useEffect(() => {
     if (autoReplyEnabled) return;
-    if (tab === "menu" || tab === "faqs") {
-      setTab(pixEnabled ? "payments" : "menu");
-    }
-  }, [autoReplyEnabled, tab, pixEnabled]);
+    if (tab !== "menu") setTab("menu");
+  }, [autoReplyEnabled, tab]);
 
   const { data: tenant } = useQuery({
     queryKey: ["tenant"],
@@ -1525,7 +1522,7 @@ export default function BotPage() {
         <div className="flex items-center justify-center h-48">
           <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
         </div>
-      ) : !autoReplyEnabled && !pixEnabled ? null : tab === "menu" && autoReplyEnabled ? (
+      ) : !autoReplyEnabled ? null : tab === "menu" && autoReplyEnabled ? (
         <BotMenuEditor
           businessId={businessId}
           initialMenu={initialMenu}
@@ -1546,8 +1543,6 @@ export default function BotPage() {
           }
           autoReplyEnabled={autoReplyEnabled}
         />
-      ) : tab === "payments" && pixEnabled ? (
-        <PaymentsPixPanel businessId={businessId} />
       ) : tab === "faqs" && autoReplyEnabled ? (
         <FAQsEditor businessId={businessId} businessType={business?.type} />
       ) : null}

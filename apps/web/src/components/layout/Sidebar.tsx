@@ -89,7 +89,7 @@ export function Sidebar() {
         { href: panelHref(businessId, "catalog"), icon: BookOpen, label: v.catalogNav, vocab: true },
         { href: panelHref(businessId, "status"), icon: CircleDot, label: "Stories", vocab: false },
         ...(pixEnabled
-          ? [{ href: `${panelHref(businessId, "faqs")}?sec=pix`, icon: Banknote, label: "Pagamentos", vocab: false as const }]
+          ? [{ href: panelHref(businessId, "payments"), icon: Banknote, label: "Pagamentos", vocab: false as const }]
           : []),
         { href: panelHref(businessId, "whatsapp"), icon: MessageSquare, label: "WhatsApp", vocab: false },
         { href: panelHref(businessId, "settings"), icon: Settings, label: "Configurações", vocab: false },

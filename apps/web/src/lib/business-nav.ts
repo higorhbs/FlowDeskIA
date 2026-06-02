@@ -18,7 +18,18 @@ function normPath(path: string): string {
 export function isActivePanelRoute(pathname: string, href: string): boolean {
   const p = normPath(pathname);
   const h = normPath(href);
-  return p === h || p.startsWith(`${h}/`);
+  if (p !== h && !p.startsWith(`${h}/`)) return false;
+  if (typeof window === "undefined") return true;
+  const current = new URLSearchParams(window.location.search);
+  if (href.includes("?")) {
+    const want = new URLSearchParams(href.split("?")[1] ?? "");
+    for (const [key, value] of want.entries()) {
+      if (current.get(key) !== value) return false;
+    }
+    return true;
+  }
+  if (current.has("sec") && h.endsWith("/faqs")) return false;
+  return true;
 }
 
 export function panelHref(businessId: string, segment: string): string {

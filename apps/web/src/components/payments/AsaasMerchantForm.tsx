@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { asaasApi } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
@@ -13,7 +13,6 @@ import { AsaasSetupGuide } from "./AsaasSetupGuide";
 
 type AsaasStatus = {
   configured: boolean;
-  sandbox: boolean;
   keyPreview: string | null;
   webhookTokenConfigured: boolean;
   webhookUrl: string;
@@ -45,7 +44,6 @@ export function AsaasMerchantForm({ businessId }: { businessId: string }) {
   const queryClient = useQueryClient();
   const [apiKey, setApiKey] = useState("");
   const [webhookToken, setWebhookToken] = useState("");
-  const [sandbox, setSandbox] = useState(true);
 
   const { data: asaas, isLoading } = useQuery({
     queryKey: ["asaas", businessId],
@@ -53,15 +51,11 @@ export function AsaasMerchantForm({ businessId }: { businessId: string }) {
     enabled: !!businessId,
   });
 
-  useEffect(() => {
-    if (asaas) setSandbox(asaas.sandbox);
-  }, [asaas]);
-
   const save = useMutation({
     mutationFn: () =>
       asaasApi.save(businessId, {
         ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
-        sandbox,
+        sandbox: false,
         ...(webhookToken.trim() ? { webhookToken: webhookToken.trim() } : {}),
       }),
     onSuccess: () => {
@@ -106,7 +100,7 @@ export function AsaasMerchantForm({ businessId }: { businessId: string }) {
               <CheckCircle2 className="w-3.5 h-3.5" /> Conta conectada
             </p>
             <p className="text-sm text-gray-700">
-              Chave {asaas.keyPreview} · {asaas.sandbox ? "Sandbox" : "Produção"}
+              Chave {asaas.keyPreview}
             </p>
             {asaas.webhookTokenConfigured && (
               <p className="text-xs text-gray-500 mt-1">Webhook com token configurado</p>
@@ -142,32 +136,6 @@ export function AsaasMerchantForm({ businessId }: { businessId: string }) {
               className="mt-1 font-mono text-sm"
             />
             <p className="text-xs text-gray-500 mt-1">Integrações → API no painel Asaas</p>
-          </div>
-
-          <div>
-            <Label>Ambiente</Label>
-            <div className="mt-2 flex gap-4 text-sm">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="asaas-env"
-                  checked={sandbox}
-                  onChange={() => setSandbox(true)}
-                  className="text-brand-600"
-                />
-                Sandbox (testes)
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="asaas-env"
-                  checked={!sandbox}
-                  onChange={() => setSandbox(false)}
-                  className="text-brand-600"
-                />
-                Produção (PIX real)
-              </label>
-            </div>
           </div>
 
           <div>

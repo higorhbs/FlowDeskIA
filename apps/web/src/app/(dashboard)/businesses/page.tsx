@@ -27,7 +27,7 @@ function businessSections(type?: string, pixEnabled?: boolean) {
     { href: "catalog", icon: BookOpen, label: v.catalogNav, desc: `${v.catalogItemPlural} no ${v.catalogNav.toLowerCase()}`, color: "bg-amber-50 text-amber-600" },
     { href: "status", icon: CircleDot, label: "Stories", desc: "Agendar arte no status do WhatsApp", color: "bg-teal-50 text-teal-600" },
     ...(pixEnabled
-      ? [{ href: "faqs", query: "sec=pix", icon: Banknote, label: "Pagamentos", desc: "PIX e recebimentos", color: "bg-emerald-50 text-emerald-600" }]
+      ? [{ href: "payments", icon: Banknote, label: "Pagamentos", desc: "PIX e recebimentos", color: "bg-emerald-50 text-emerald-600" }]
       : []),
     { href: "whatsapp", icon: Phone, label: "WhatsApp", desc: "Conectar dispositivo", color: "bg-emerald-50 text-emerald-600" },
     { href: "settings", icon: Settings, label: "Configurações", desc: "Dados, horários e mensagens", color: "bg-gray-100 text-gray-600" },
@@ -134,10 +134,10 @@ export default function BusinessesPage() {
 
       {/* Sections grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        {businessSections(business.type, pixEnabled).map(({ href, query, icon: Icon, label, desc, color }) => (
+        {businessSections(business.type, pixEnabled).map(({ href, icon: Icon, label, desc, color }) => (
           <Link
-            key={`${href}${query ?? ""}`}
-            href={query ? `${panelHref(business.id, href)}?${query}` : panelHref(business.id, href)}
+            key={href}
+            href={panelHref(business.id, href)}
             className="group flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 hover:border-brand-300 hover:shadow-md transition-all"
           >
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
