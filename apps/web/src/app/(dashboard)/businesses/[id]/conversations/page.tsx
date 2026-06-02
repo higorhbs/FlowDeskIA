@@ -147,6 +147,8 @@ export default function ConversationsPage() {
   }
 
   function resolveAttendantName() {
+    const enabled = (business as { attendantEnabled?: boolean } | undefined)?.attendantEnabled !== false;
+    if (!enabled) return "";
     const fromBusiness = (business as { attendantName?: string } | undefined)?.attendantName?.trim();
     if (fromBusiness) return fromBusiness;
     const fromAuth = getClientAuth().currentUser?.displayName?.trim();
@@ -155,8 +157,8 @@ export default function ConversationsPage() {
   }
 
   function isManualPrefixEnabled() {
-    return (business as { manualAttendantPrefixEnabled?: boolean } | undefined)
-      ?.manualAttendantPrefixEnabled !== false;
+    const b = business as { manualAttendantPrefixEnabled?: boolean; attendantEnabled?: boolean } | undefined;
+    return b?.manualAttendantPrefixEnabled !== false && b?.attendantEnabled !== false;
   }
 
   return (

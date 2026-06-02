@@ -63,7 +63,9 @@ export interface Business {
   /** false = IA não envia nenhuma mensagem automática (menu, FAQ, saudação, fora do horário) */
   botAutoReplyEnabled?: boolean;
   thanksMsg?: string;
+  thanksEnabled?: boolean;
   attendantName?: string;
+  attendantEnabled?: boolean;
   manualAttendantPrefixEnabled?: boolean;
   isConnected: boolean;
   createdAt: string;

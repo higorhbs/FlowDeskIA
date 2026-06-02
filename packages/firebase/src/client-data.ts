@@ -70,7 +70,9 @@ export async function createClientBusiness(
     description?: string;
     greetingMsg?: string;
     awayMsg?: string;
+    thanksEnabled?: boolean;
     attendantName?: string;
+    attendantEnabled?: boolean;
     manualAttendantPrefixEnabled?: boolean;
     workingHours?: Record<string, unknown>;
   }
@@ -90,7 +92,9 @@ export async function createClientBusiness(
     timezone: "America/Sao_Paulo",
     greetingMsg: data.greetingMsg ?? "Olá! Como posso ajudar?",
     awayMsg: data.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
+    thanksEnabled: data.thanksEnabled ?? true,
     attendantName: data.attendantName?.trim() || undefined,
+    attendantEnabled: data.attendantEnabled ?? true,
     manualAttendantPrefixEnabled: data.manualAttendantPrefixEnabled ?? true,
     isConnected: false,
     createdAt: ts,

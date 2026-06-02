@@ -273,7 +273,9 @@ function BotMenuEditor({
   initialMenuEnabled,
   initialGreetingEnabled,
   initialThanksMsg,
+  initialThanksEnabled,
   initialAttendantName,
+  initialAttendantEnabled,
   initialManualAttendantPrefixEnabled,
   autoReplyEnabled,
 }: {
@@ -285,7 +287,9 @@ function BotMenuEditor({
   initialMenuEnabled: boolean;
   initialGreetingEnabled: boolean;
   initialThanksMsg: string;
+  initialThanksEnabled: boolean;
   initialAttendantName: string;
+  initialAttendantEnabled: boolean;
   initialManualAttendantPrefixEnabled: boolean;
   autoReplyEnabled: boolean;
 }) {
@@ -296,7 +300,9 @@ function BotMenuEditor({
   const [greetingEnabled, setGreetingEnabled] = useState(initialGreetingEnabled);
   const [greetingMsg, setGreetingMsg] = useState(initialGreetingMsg);
   const [thanksMsg, setThanksMsg] = useState(initialThanksMsg);
+  const [thanksEnabled, setThanksEnabled] = useState(initialThanksEnabled);
   const [attendantName, setAttendantName] = useState(initialAttendantName);
+  const [attendantEnabled, setAttendantEnabled] = useState(initialAttendantEnabled);
   const [manualAttendantPrefixEnabled, setManualAttendantPrefixEnabled] = useState(
     initialManualAttendantPrefixEnabled
   );
@@ -370,7 +376,9 @@ function BotMenuEditor({
         botAutoReplyEnabled: autoReplyEnabled,
         greetingEnabled,
         greetingMsg: greetingMsg.trim() || "Olá! Como posso ajudar?",
+        thanksEnabled,
         thanksMsg: thanksMsg.trim() || DEFAULT_THANKS_MSG,
+        attendantEnabled,
         attendantName: attendantName.trim() || undefined,
         manualAttendantPrefixEnabled,
       } as any),
@@ -430,7 +438,9 @@ function BotMenuEditor({
     greetingEnabled,
     greetingMsg,
     attendantName,
+    thanksEnabled,
     thanksMsg,
+    attendantEnabled,
     manualAttendantPrefixEnabled,
     focus: previewFocus,
   });
@@ -610,6 +620,99 @@ function BotMenuEditor({
             onPreview={() => setPreviewFocus("menu")}
           />
 
+          {menuEnabled && (
+            <>
+              <p className="text-sm text-gray-500 mb-5">
+                Cada opção tem um <strong className="font-medium text-gray-700">nome</strong> que aparece no menu e uma{" "}
+                <strong className="font-medium text-gray-700">resposta</strong> que a IA envia quando o cliente escolhe aquele número.
+              </p>
+
+              <div className="rounded-2xl border border-gray-200 overflow-hidden mb-4 shadow-sm divide-y divide-gray-100">
+                {items.length === 0 && (
+                  <div className="px-4 py-10 text-center text-sm text-gray-400">
+                    Nenhum item ainda — clique em "Adicionar opção" abaixo
+                  </div>
+                )}
+                {items.map((item, i) => {
+                  const displayEmoji = item.emoji;
+                  return (
+                    <div
+                      key={`menu-${i}-${item.num}`}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-3 transition-colors group",
+                        item.enabled ? "bg-white hover:bg-gray-50/60" : "bg-gray-50 opacity-55"
+                      )}
+                    >
+                      <span className={cn(
+                        "w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0",
+                        item.enabled ? "bg-brand-600 text-white" : "bg-gray-200 text-gray-400"
+                      )}>
+                        {item.num}
+                      </span>
+                      {displayEmoji ? (
+                        <span className="text-[18px] flex-shrink-0 w-8 text-center leading-none">{displayEmoji}</span>
+                      ) : (
+                        <div className="w-8 flex-shrink-0" />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => openEdit(i)}
+                        className="flex-1 min-w-0 text-left"
+                      >
+                        <p className="text-sm font-medium text-gray-900 group-hover:text-brand-700 transition-colors truncate">
+                          {item.label}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5 truncate">
+                          {item.response || <span className="text-amber-500 italic">Sem resposta</span>}
+                        </p>
+                      </button>
+                      <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button type="button" onClick={() => openEdit(i)}
+                          className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+                          title="Editar">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <div className="flex rounded-lg border border-gray-200 overflow-hidden divide-x divide-gray-200">
+                          <button type="button" onClick={() => move(i, -1)} disabled={i === 0}
+                            className="w-7 h-7 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors">
+                            <ChevronUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button type="button" onClick={() => move(i, 1)} disabled={i === items.length - 1}
+                            className="w-7 h-7 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors">
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <button type="button" onClick={() => toggle(i)}
+                          className={cn(
+                            "relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
+                            item.enabled ? "bg-brand-600" : "bg-gray-200"
+                          )}>
+                          <span className={cn(
+                            "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200",
+                            item.enabled ? "translate-x-4" : "translate-x-0"
+                          )} />
+                        </button>
+                        <button type="button" onClick={() => removeItem(i)}
+                          className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button type="button" onClick={openCreate}
+                className="w-full flex items-center justify-center gap-2 py-3 mb-4 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50/50 transition-all group"
+              >
+                <div className="w-6 h-6 rounded-full bg-gray-100 group-hover:bg-brand-100 flex items-center justify-center transition-colors">
+                  <Plus className="w-3.5 h-3.5" />
+                </div>
+                Adicionar opção
+              </button>
+            </>
+          )}
+
           <div
             className={cn(
               "rounded-2xl border border-gray-200 bg-white px-4 py-3.5",
@@ -623,40 +726,64 @@ function BotMenuEditor({
                   Quando o cliente mandar obrigado, valeu, vlw ou parecido.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setPreviewFocus("thanks")}
-                className="text-xs text-brand-700 hover:text-brand-900 border border-brand-200 bg-brand-50 px-2 py-1 rounded-lg inline-flex items-center gap-1"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                Prévia
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPreviewFocus("thanks")}
+                  className="text-xs text-brand-700 hover:text-brand-900 border border-brand-200 bg-brand-50 px-2 py-1 rounded-lg inline-flex items-center gap-1"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  Prévia
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setThanksEnabled((v) => !v)}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 mt-0.5",
+                    thanksEnabled ? "bg-brand-600" : "bg-gray-200"
+                  )}
+                  title="Ativar/desativar resposta de agradecimento"
+                >
+                  <span
+                    className={cn(
+                      "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200",
+                      thanksEnabled ? "translate-x-5" : "translate-x-0"
+                    )}
+                  />
+                </button>
+              </div>
             </div>
-            <textarea
-              ref={thanksRef}
-              value={thanksMsg}
-              onChange={(e) => setThanksMsg(e.target.value)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                const token = e.dataTransfer.getData("text/plain");
-                if (token.startsWith("{") && token.endsWith("}")) {
-                  dropTokenInThanks(token);
-                }
-              }}
-              rows={2}
-              className="input resize-none w-full mt-3"
-              placeholder={DEFAULT_THANKS_MSG}
-              disabled={!autoReplyEnabled}
-            />
-            <div className="mt-2">
-              <TemplateVariableBar onPick={dropTokenInThanks} />
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              Variáveis: <code className="bg-gray-100 px-1 rounded font-mono">{"{nome}"}</code>,{" "}
-              <code className="bg-gray-100 px-1 rounded font-mono">{"{negocio}"}</code>,{" "}
-              <code className="bg-gray-100 px-1 rounded font-mono">{"{atendente}"}</code>.
-            </p>
+            {thanksEnabled ? (
+              <>
+                <textarea
+                  ref={thanksRef}
+                  value={thanksMsg}
+                  onChange={(e) => setThanksMsg(e.target.value)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const token = e.dataTransfer.getData("text/plain");
+                    if (token.startsWith("{") && token.endsWith("}")) {
+                      dropTokenInThanks(token);
+                    }
+                  }}
+                  rows={2}
+                  className="input resize-none w-full mt-3"
+                  placeholder={DEFAULT_THANKS_MSG}
+                  disabled={!autoReplyEnabled}
+                />
+                <div className="mt-2">
+                  <TemplateVariableBar onPick={dropTokenInThanks} />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Variáveis: <code className="bg-gray-100 px-1 rounded font-mono">{"{nome}"}</code>,{" "}
+                  <code className="bg-gray-100 px-1 rounded font-mono">{"{negocio}"}</code>,{" "}
+                  <code className="bg-gray-100 px-1 rounded font-mono">{"{atendente}"}</code>.
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-gray-500 mt-2">Resposta de agradecimento desativada.</p>
+            )}
           </div>
 
           <div
@@ -683,139 +810,48 @@ function BotMenuEditor({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setManualAttendantPrefixEnabled((v) => !v)}
+                  onClick={() => setAttendantEnabled((v) => !v)}
                   className={cn(
                     "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 mt-0.5",
-                    manualAttendantPrefixEnabled ? "bg-brand-600" : "bg-gray-200"
+                    attendantEnabled ? "bg-brand-600" : "bg-gray-200"
                   )}
-                  title="Usar no envio manual em Conversas"
+                  title="Ativar/desativar nome de quem atende"
                 >
                   <span
                     className={cn(
                       "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200",
-                      manualAttendantPrefixEnabled ? "translate-x-5" : "translate-x-0"
+                      attendantEnabled ? "translate-x-5" : "translate-x-0"
                     )}
                   />
                 </button>
               </div>
             </div>
-            <input
-              value={attendantName}
-              onChange={(e) => setAttendantName(e.target.value)}
-              className="input mt-3 w-full"
-              placeholder="Ex: Ana, Equipe de Atendimento, Time de Suporte"
-              disabled={!autoReplyEnabled}
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              Envio manual em Conversas: <strong>{manualAttendantPrefixEnabled ? "ativado" : "desativado"}</strong>.
-            </p>
-          </div>
-        </div>
-
-        {menuEnabled ? (
-          <>
-        <p className="text-sm text-gray-500 mb-5">
-          Cada opção tem um <strong className="font-medium text-gray-700">nome</strong> que aparece no menu e uma{" "}
-          <strong className="font-medium text-gray-700">resposta</strong> que a IA envia quando o cliente escolhe aquele número.
-        </p>
-
-        <div className="rounded-2xl border border-gray-200 overflow-hidden mb-4 shadow-sm divide-y divide-gray-100">
-          {items.length === 0 && (
-            <div className="px-4 py-10 text-center text-sm text-gray-400">
-              Nenhum item ainda — clique em "Adicionar opção" abaixo
-            </div>
-          )}
-          {items.map((item, i) => {
-            const displayEmoji = item.emoji;
-            return (
-              <div
-                key={`menu-${i}-${item.num}`}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 transition-colors group",
-                  item.enabled ? "bg-white hover:bg-gray-50/60" : "bg-gray-50 opacity-55"
-                )}
-              >
-                {/* Num badge */}
-                <span className={cn(
-                  "w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0",
-                  item.enabled ? "bg-brand-600 text-white" : "bg-gray-200 text-gray-400"
-                )}>
-                  {item.num}
-                </span>
-
-                {/* Emoji */}
-                {displayEmoji ? (
-                  <span className="text-[18px] flex-shrink-0 w-8 text-center leading-none">{displayEmoji}</span>
-                ) : (
-                  <div className="w-8 flex-shrink-0" />
-                )}
-
-                {/* Label + response */}
+            {attendantEnabled ? (
+              <>
+                <input
+                  value={attendantName}
+                  onChange={(e) => setAttendantName(e.target.value)}
+                  className="input mt-3 w-full"
+                  placeholder="Ex: Ana, Equipe de Atendimento, Time de Suporte"
+                  disabled={!autoReplyEnabled}
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Envio manual em Conversas:{" "}
+                  <strong>{manualAttendantPrefixEnabled ? "ativado" : "desativado"}</strong>.
+                </p>
                 <button
                   type="button"
-                  onClick={() => openEdit(i)}
-                  className="flex-1 min-w-0 text-left"
+                  onClick={() => setManualAttendantPrefixEnabled((v) => !v)}
+                  className="mt-2 text-xs text-brand-700 hover:text-brand-900 border border-brand-200 bg-brand-50 px-2.5 py-1.5 rounded-lg"
                 >
-                  <p className="text-sm font-medium text-gray-900 group-hover:text-brand-700 transition-colors truncate">
-                    {item.label}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5 truncate">
-                    {item.response || <span className="text-amber-500 italic">Sem resposta</span>}
-                  </p>
+                  {manualAttendantPrefixEnabled ? "Desativar no envio manual" : "Ativar no envio manual"}
                 </button>
-
-                {/* Controls */}
-                <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button type="button" onClick={() => openEdit(i)}
-                    className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
-                    title="Editar">
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <div className="flex rounded-lg border border-gray-200 overflow-hidden divide-x divide-gray-200">
-                    <button type="button" onClick={() => move(i, -1)} disabled={i === 0}
-                      className="w-7 h-7 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors">
-                      <ChevronUp className="w-3.5 h-3.5" />
-                    </button>
-                    <button type="button" onClick={() => move(i, 1)} disabled={i === items.length - 1}
-                      className="w-7 h-7 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors">
-                      <ChevronDown className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <button type="button" onClick={() => toggle(i)}
-                    className={cn(
-                      "relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
-                      item.enabled ? "bg-brand-600" : "bg-gray-200"
-                    )}>
-                    <span className={cn(
-                      "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200",
-                      item.enabled ? "translate-x-4" : "translate-x-0"
-                    )} />
-                  </button>
-                  <button type="button" onClick={() => removeItem(i)}
-                    className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+              </>
+            ) : (
+              <p className="text-xs text-gray-500 mt-2">Nome de quem atende desativado.</p>
+            )}
+          </div>
         </div>
-
-        <button type="button" onClick={openCreate}
-          className="w-full flex items-center justify-center gap-2 py-3 mb-4 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50/50 transition-all group"
-        >
-          <div className="w-6 h-6 rounded-full bg-gray-100 group-hover:bg-brand-100 flex items-center justify-center transition-colors">
-            <Plus className="w-3.5 h-3.5" />
-          </div>
-          Adicionar opção
-        </button>
-          </>
-        ) : (
-          <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500 mb-4">
-            Menu numérico desativado. A IA responde pelas{" "}
-            <strong className="text-gray-700">Perguntas &amp; Respostas</strong>.
-          </div>
-        )}
 
         <button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}
           className="btn-primary shadow-sm">
@@ -962,7 +998,9 @@ function buildPreviewLines(
     greetingEnabled: boolean;
     greetingMsg: string;
     attendantName: string;
+    thanksEnabled: boolean;
     thanksMsg: string;
+    attendantEnabled: boolean;
     manualAttendantPrefixEnabled: boolean;
     focus: PreviewFocus;
   },
@@ -985,6 +1023,7 @@ function buildPreviewLines(
   }
 
   if (opts.focus === "thanks") {
+    if (!opts.thanksEnabled) return [{ text: "_Resposta de agradecimento desativada_" }];
     const msg = renderTemplate(opts.thanksMsg?.trim() || DEFAULT_THANKS_MSG, {
       nome: "Maria",
       negocio: name,
@@ -997,6 +1036,7 @@ function buildPreviewLines(
   }
 
   if (opts.focus === "attendant") {
+    if (!opts.attendantEnabled) return [{ text: "_Nome de quem atende desativado_" }];
     const who = opts.attendantName?.trim() || "Atendente";
     if (!opts.manualAttendantPrefixEnabled) {
       return [{ text: "Olá bom dia, como vai?" }, { blank: true }, { text: "_Prefixo manual desativado_" }];
@@ -1498,7 +1538,9 @@ export default function BotPage() {
             (business as { thanksMsg?: string })?.thanksMsg?.trim() ||
             DEFAULT_THANKS_MSG
           }
+          initialThanksEnabled={(business as { thanksEnabled?: boolean })?.thanksEnabled !== false}
           initialAttendantName={(business as { attendantName?: string })?.attendantName?.trim() || ""}
+          initialAttendantEnabled={(business as { attendantEnabled?: boolean })?.attendantEnabled !== false}
           initialManualAttendantPrefixEnabled={
             (business as { manualAttendantPrefixEnabled?: boolean })?.manualAttendantPrefixEnabled !== false
           }
