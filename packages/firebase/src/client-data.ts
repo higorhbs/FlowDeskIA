@@ -79,7 +79,7 @@ export async function createClientBusiness(
 ): Promise<Business> {
   const id = newId();
   const ts = nowIso();
-  const business: Business = {
+  const businessBase: Business = {
     id,
     tenantId,
     name: data.name,
@@ -100,8 +100,8 @@ export async function createClientBusiness(
     createdAt: ts,
     updatedAt: ts,
   };
-  await setDoc(businessRef(id), business);
-  return business;
+  await setDoc(businessRef(id), firestoreData(businessBase as unknown as Record<string, unknown>));
+  return businessBase;
 }
 
 export async function updateClientBusiness(

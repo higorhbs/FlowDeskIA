@@ -17,6 +17,7 @@ import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
 import { useRequiresBusinessSetup } from "@/hooks/use-requires-business-setup";
+import { authErrorMessage } from "@/lib/firebase-auth";
 
 const schema = z
   .object({
@@ -85,7 +86,12 @@ export default function NewBusinessPage() {
       toast.success("Negócio criado com sucesso!");
       router.push(`/businesses/${business.id}/whatsapp`);
     } catch (err: any) {
-      toast.error(err.response?.data?.error ?? "Erro ao criar negócio");
+      const code = err?.code ? String(err.code) : "";
+      if (code) {
+        toast.error(authErrorMessage(err, "Erro ao criar negócio"));
+      } else {
+        toast.error(err?.response?.data?.error ?? err?.message ?? "Erro ao criar negócio");
+      }
     }
   }
 

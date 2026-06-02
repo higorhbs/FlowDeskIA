@@ -121,16 +121,10 @@ export default function PlanPage() {
         }
       : {}),
   };
-  const cancelFeedbackData = tenant as {
-    cancellationFeedbackRating?: number;
-    cancellationFeedbackText?: string;
-    cancellationFeedbackAt?: string;
-  };
-
   const inTrial = isStarterTrialActive(t);
   const trialDaysLeft = starterTrialDaysLeft(t);
   const limits = PLAN_LIMITS[t.plan];
-  const hasStripeBilling = Boolean(t.stripeCustomerId);
+  const hasStripeBilling = Boolean(t.stripeSubscriptionId) && t.plan !== "STARTER";
   const cancelScheduled = isSubscriptionCancelScheduled(t);
   const statusMeta = cancelScheduled
     ? { label: "Cancelamento agendado", color: "bg-amber-100 text-amber-800" }
@@ -359,28 +353,6 @@ export default function PlanPage() {
           );
         })}
       </div>
-
-      {(cancelFeedbackData.cancellationFeedbackRating || cancelFeedbackData.cancellationFeedbackText) && (
-        <div className="mt-8 rounded-xl border border-gray-200 bg-white p-4">
-          <p className="text-sm font-semibold text-gray-900">Última avaliação de cancelamento</p>
-          <div className="mt-2 flex items-center gap-1 text-amber-500">
-            {Array.from({ length: 5 }, (_, i) => (
-              <Star
-                key={i}
-                className={cn("w-4 h-4", i < (cancelFeedbackData.cancellationFeedbackRating ?? 0) && "fill-current")}
-              />
-            ))}
-          </div>
-          {cancelFeedbackData.cancellationFeedbackText && (
-            <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">{cancelFeedbackData.cancellationFeedbackText}</p>
-          )}
-          {cancelFeedbackData.cancellationFeedbackAt && (
-            <p className="mt-1 text-xs text-gray-500">
-              {fmtDateTime(new Date(cancelFeedbackData.cancellationFeedbackAt))}
-            </p>
-          )}
-        </div>
-      )}
 
       {cancelFeedbackOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">

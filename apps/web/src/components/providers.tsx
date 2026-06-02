@@ -55,7 +55,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           removeToken();
           return;
         }
-        const token = await user.getIdToken();
+        const token = await user.getIdToken(true);
         setToken(token);
       } else {
         removeToken();

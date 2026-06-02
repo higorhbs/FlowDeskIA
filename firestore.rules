@@ -11,7 +11,7 @@ service cloud.firestore {
       );
     }
     function signedInAndVerified() {
-      return emailVerified();
+      return signedIn();
     }
     function isOwner(tenantId) {
       return signedInAndVerified() && request.auth.uid == tenantId;
@@ -29,9 +29,6 @@ service cloud.firestore {
           'onboardingCompletedAt',
           'lgpdAcceptedAt',
           'lgpdPolicyVersion',
-          'cancellationFeedbackRating',
-          'cancellationFeedbackText',
-          'cancellationFeedbackAt',
           'updatedAt'
         ]);
     }
@@ -63,6 +60,24 @@ service cloud.firestore {
       allow create: if isOwner(tenantId) && tenantCreateAllowed(tenantId);
       allow update: if isOwner(tenantId) && tenantProfileUpdateAllowed();
       allow delete: if false;
+    }
+
+    match /tenantCancellationFeedback/{feedbackId} {
+      allow create: if signedInAndVerified()
+        && request.resource.data.keys().hasOnly([
+          'tenantId',
+          'rating',
+          'text',
+          'createdAt'
+        ])
+        && request.resource.data.tenantId == request.auth.uid
+        && request.resource.data.tenantId is string
+        && request.resource.data.rating is number
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && request.resource.data.createdAt is string
+        && (!('text' in request.resource.data) || request.resource.data.text is string || request.resource.data.text == null);
+      allow read, update, delete: if false;
     }
 
     match /businesses/{businessId} {

@@ -6,7 +6,7 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { getClientAuth } from "@flowdesk/firebase/client";
 import { authApi } from "@/lib/api";
 import { AuthContext } from "@/contexts/auth-context";
-import { removeToken } from "@/lib/auth";
+import { removeToken, setToken } from "@/lib/auth";
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const router = useAppRouter();
@@ -24,7 +24,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
         router.replace("/?auth=login");
         return;
       }
-      void user.reload().then(() => {
+      void user.reload().then(async () => {
         if (!user.emailVerified) {
           removeToken();
           setUid(null);
@@ -32,6 +32,8 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
           router.replace("/?auth=register");
           return;
         }
+        const token = await user.getIdToken(true);
+        setToken(token);
         setUid(user.uid);
         setReady(true);
         void authApi.sync(user.displayName ?? undefined).catch(() => {});

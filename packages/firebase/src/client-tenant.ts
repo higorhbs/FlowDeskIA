@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import type { Tenant } from "./types.js";
 import { getClientDb } from "./client.js";
 
@@ -79,18 +79,16 @@ export async function acceptClientLgpd(
 export async function submitClientCancellationFeedback(
   id: string,
   data: { rating: number; text?: string }
-): Promise<Tenant> {
-  const ref = doc(getClientDb(), "tenants", id);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) throw new Error("Conta não encontrada");
-  const current = { id: snap.id, ...snap.data() } as Tenant;
+): Promise<{ ok: true }> {
+  const tenantRef = doc(getClientDb(), "tenants", id);
+  const tenantSnap = await getDoc(tenantRef);
+  if (!tenantSnap.exists()) throw new Error("Conta não encontrada");
   const rating = Math.max(1, Math.min(5, Math.round(data.rating)));
-  const patch = {
-    cancellationFeedbackRating: rating,
-    cancellationFeedbackText: data.text?.trim() || undefined,
-    cancellationFeedbackAt: nowIso(),
-    updatedAt: nowIso(),
+  await addDoc(collection(getClientDb(), "tenantCancellationFeedback"), {
+    tenantId: id,
+    rating,
+    text: data.text?.trim() || null,
+    createdAt: nowIso(),
   };
-  await updateDoc(ref, patch);
-  return { ...current, ...patch };
+  return { ok: true };
 }
