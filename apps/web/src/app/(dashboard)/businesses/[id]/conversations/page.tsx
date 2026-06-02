@@ -163,10 +163,15 @@ export default function ConversationsPage() {
     return "Atendente";
   }
 
+  const rawAttendantNames = (business as { attendantNames?: unknown } | undefined)?.attendantNames;
   const attendantOptions = (
-    (business as { attendantNames?: string[] } | undefined)?.attendantNames ?? []
+    Array.isArray(rawAttendantNames)
+      ? rawAttendantNames
+      : typeof rawAttendantNames === "string"
+      ? rawAttendantNames.split("\n")
+      : []
   )
-    .map((name) => name.trim())
+    .map((name) => String(name).trim())
     .filter(Boolean);
 
   useEffect(() => {
