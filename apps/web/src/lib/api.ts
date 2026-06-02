@@ -78,34 +78,6 @@ export function resolveChatMediaUrl(mediaUrl: string | undefined): string | unde
   }
 }
 
-function guessAudioMimeFromPath(pathname: string): string {
-  const ext = pathname.split(".").pop()?.toLowerCase();
-  if (ext === "m4a" || ext === "mp4") return "audio/mp4";
-  if (ext === "mp3") return "audio/mpeg";
-  return "audio/ogg";
-}
-
-function headerContentType(value: unknown): string | undefined {
-  if (typeof value === "string") return value.split(";")[0]?.trim();
-  if (Array.isArray(value)) return headerContentType(value[0]);
-  return undefined;
-}
-
-export async function loadChatMediaPlayUrl(mediaUrl: string): Promise<string> {
-  const resolved = resolveChatMediaUrl(mediaUrl) ?? mediaUrl;
-  let pathname: string;
-  try {
-    pathname = new URL(resolved).pathname;
-  } catch {
-    return resolved;
-  }
-  if (!pathname.startsWith("/chat-media/")) return resolved;
-  const res = await waApi.get(pathname, { responseType: "blob" });
-  const blobType =
-    headerContentType(res.headers["content-type"]) || guessAudioMimeFromPath(pathname);
-  return URL.createObjectURL(new Blob([res.data], { type: blobType }));
-}
-
 function hasWaApi() {
   const wa = process.env.NEXT_PUBLIC_WA_API_URL?.trim();
   const api = process.env.NEXT_PUBLIC_API_URL?.trim();

@@ -1,14 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  businessApi,
-  conversationApi,
-  whatsappApi,
-  loadChatMediaPlayUrl,
-  resolveChatMediaUrl,
-} from "@/lib/api";
+import { businessApi, conversationApi, whatsappApi, resolveChatMediaUrl } from "@/lib/api";
 import { useBusinessId } from "@/lib/use-business-id";
 import { formatCustomerLabel, STATUS_LABELS, cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -61,40 +55,19 @@ const WAVE_BARS = [4,7,11,15,18,13,8,16,10,7,17,11,14,6,9,14,7,12,16,9,14,7,11,1
 
 function AudioPlayer({ src, isOwn }: { src: string; isOwn: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [playSrc, setPlaySrc] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const playSrc = useMemo(() => resolveChatMediaUrl(src) ?? src, [src]);
   const [loadError, setLoadError] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
 
   useEffect(() => {
-    let objectUrl: string | undefined;
-    let cancelled = false;
-    setLoading(true);
     setLoadError(false);
     setPlaying(false);
     setCurrent(0);
     setDuration(0);
-    void (async () => {
-      try {
-        objectUrl = await loadChatMediaPlayUrl(src);
-        if (cancelled) return;
-        setPlaySrc(objectUrl);
-      } catch {
-        if (!cancelled) {
-          setLoadError(true);
-          setPlaySrc(resolveChatMediaUrl(src) ?? src);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-      if (objectUrl?.startsWith("blob:")) URL.revokeObjectURL(objectUrl);
-    };
-  }, [src]);
+    audioRef.current?.load();
+  }, [playSrc]);
 
   const progress = duration > 0 ? current / duration : 0;
 
@@ -103,10 +76,18 @@ function AudioPlayer({ src, isOwn }: { src: string; isOwn: boolean }) {
     return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
   }
 
-  function toggle() {
+  async function toggle() {
     const a = audioRef.current;
-    if (!a || loading || !playSrc) return;
-    playing ? a.pause() : void a.play().catch(() => setLoadError(true));
+    if (!a || loadError) return;
+    if (playing) {
+      a.pause();
+      return;
+    }
+    try {
+      await a.play();
+    } catch {
+      setLoadError(true);
+    }
   }
 
   function seek(e: React.MouseEvent<HTMLDivElement>) {
@@ -118,29 +99,29 @@ function AudioPlayer({ src, isOwn }: { src: string; isOwn: boolean }) {
 
   return (
     <div className="flex items-center gap-2.5 min-w-[200px] py-0.5">
-      {playSrc && (
-        <audio
-          ref={audioRef}
-          src={playSrc}
-          preload="metadata"
-          onTimeUpdate={() => setCurrent(audioRef.current?.currentTime ?? 0)}
-          onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
-          onEnded={() => {
-            setPlaying(false);
-            setCurrent(0);
-            if (audioRef.current) audioRef.current.currentTime = 0;
-          }}
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
-          onError={() => setLoadError(true)}
-        />
-      )}
+      <audio
+        ref={audioRef}
+        src={playSrc}
+        preload="metadata"
+        playsInline
+        onTimeUpdate={() => setCurrent(audioRef.current?.currentTime ?? 0)}
+        onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
+        onCanPlay={() => setLoadError(false)}
+        onEnded={() => {
+          setPlaying(false);
+          setCurrent(0);
+          if (audioRef.current) audioRef.current.currentTime = 0;
+        }}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onError={() => setLoadError(true)}
+      />
 
       {/* Play / pause */}
       <button
         type="button"
         onClick={toggle}
-        disabled={loading || !playSrc}
+        disabled={loadError}
         className={cn(
           "w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center transition-colors disabled:opacity-50",
           isOwn
@@ -148,13 +129,7 @@ function AudioPlayer({ src, isOwn }: { src: string; isOwn: boolean }) {
             : "bg-brand-100 hover:bg-brand-200 text-brand-700"
         )}
       >
-        {loading ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        ) : playing ? (
-          <Pause className="w-3.5 h-3.5" />
-        ) : (
-          <Play className="w-3.5 h-3.5 ml-0.5" />
-        )}
+        {playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 ml-0.5" />}
       </button>
 
       {/* Waveform + duration */}
@@ -188,7 +163,7 @@ function AudioPlayer({ src, isOwn }: { src: string; isOwn: boolean }) {
         </p>
         {loadError && (
           <a
-            href={resolveChatMediaUrl(src)}
+            href={playSrc}
             target="_blank"
             rel="noopener noreferrer"
             className={cn("text-[10px] underline", isOwn ? "text-white/80" : "text-brand-600")}
