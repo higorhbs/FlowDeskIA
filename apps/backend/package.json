@@ -1,0 +1,19 @@
+{
+  "name": "@flowdesk/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "build": "node --check src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.14",
+    "@hono/swagger-ui": "^0.6.1",
+    "hono": "^4.12.23"
+  }
+}
