@@ -135,6 +135,13 @@ export function authErrorMessage(err: unknown, fallback: string): string {
       typeof window !== "undefined" ? window.location.origin : "seu domínio";
     return `Origem ${origin} não está no OAuth do Google. Console → Credentials → OAuth Web → Authorized JavaScript origins: adicione ${origin} (sem barra). Firebase → Auth → Authorized domains: mesmo host. Rode pnpm google:oauth-setup (WEB_ORIGIN no .env).`;
   }
+  if (/not found|erro 404/i.test(raw)) {
+    const api =
+      typeof window !== "undefined"
+        ? (process.env.NEXT_PUBLIC_API_URL?.trim() || "sua API")
+        : "sua API";
+    return `Rota de login não encontrada na API (${api}). Na VM, o nginx precisa repassar todo o backend FlowDesk (ex.: /auth/google), não só /health.`;
+  }
   if (raw.toLowerCase().includes("redirect_uri_mismatch")) {
     const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim();
     if (!authDomain) {
@@ -284,7 +291,7 @@ export async function loginWithGoogle(): Promise<EmailAuthResult | null> {
   return signInWithGoogleIdentity();
 }
 
-export function completeGoogleRedirect() {
+export function completeGoogleRedirect(): Promise<EmailAuthResult | null> {
   return Promise.resolve(null);
 }
 

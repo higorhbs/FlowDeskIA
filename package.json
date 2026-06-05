@@ -11,6 +11,7 @@
     "google:oauth-setup": "node scripts/google-oauth-setup.mjs",
     "prepare:hosting": "node scripts/prepare-hosting.mjs",
     "build:hosting": "pnpm run prepare:hosting && FIREBASE_STATIC=1 pnpm --filter @flowdesk/web build",
+    "deploy:hosting": "pnpm run build:hosting && npx firebase-tools deploy --only hosting",
     "stripe:sync-prices": "node scripts/stripe-sync-prices.mjs",
     "setup:billing-env": "node scripts/setup-billing-env.mjs"
   },

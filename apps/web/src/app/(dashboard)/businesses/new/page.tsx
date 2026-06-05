@@ -4,10 +4,12 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { businessApi } from "@/lib/api";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/app-navigation";
+import { panelHref } from "@/lib/business-nav";
+import { persistBusinessId } from "@/lib/use-business-id";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/AppLink";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -47,7 +49,7 @@ const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const DAY_PT = { mon: "Seg", tue: "Ter", wed: "Qua", thu: "Qui", fri: "Sex", sat: "Sáb", sun: "Dom" };
 
 export default function NewBusinessPage() {
-  const router = useRouter();
+  const router = useAppRouter();
   const queryClient = useQueryClient();
   const { uid, ready } = useAuth();
   const { active: setupRequired, lgpdOk } = useRequiresBusinessSetup();
@@ -70,7 +72,7 @@ export default function NewBusinessPage() {
   async function onSubmit(data: FormData) {
     if (existingBusiness) {
       toast.error("Sua conta já possui um negócio cadastrado.");
-      router.replace(`/businesses/${existingBusiness.id}/settings`);
+      router.replace(panelHref(existingBusiness.id, "settings"));
       return;
     }
     try {
@@ -91,7 +93,8 @@ export default function NewBusinessPage() {
       if (mobile) {
         sessionStorage.setItem("flowdesk_mobile_business_created", "1");
       }
-      router.push(mobile ? "/dashboard" : `/businesses/${business.id}/whatsapp`);
+      persistBusinessId(business.id);
+      router.push(mobile ? "/dashboard" : panelHref(business.id, "whatsapp"));
     } catch (err: any) {
       const code = err?.code ? String(err.code) : "";
       if (code) {
@@ -113,7 +116,7 @@ export default function NewBusinessPage() {
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Negócio já cadastrado</h2>
           <p className="text-sm text-gray-500 mb-4">Sua conta permite apenas um negócio. Você pode editar os dados existentes.</p>
-          <Link href={`/businesses/${existingBusiness.id}/settings`} className={buttonVariants()}>
+          <Link href={panelHref(existingBusiness.id, "settings")} className={buttonVariants()}>
             Ir para configurações
           </Link>
         </Card>

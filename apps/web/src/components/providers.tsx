@@ -26,7 +26,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
     completeGoogleRedirect()
       .then((res) => {
-        if (!active || !res) return;
+        if (!active || !res || res.status !== "VERIFIED") return;
         setToken(res.token);
         const dest = isFirebaseHostingClient() ? hostingHref("/dashboard") : "/dashboard";
         window.location.replace(dest);

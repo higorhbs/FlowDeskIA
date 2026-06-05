@@ -103,27 +103,35 @@ export function useBusinessSchedule(businessId: string) {
     queryClient.invalidateQueries({ queryKey: ["schedules"] });
   };
 
-  const putMutation = useMutation({
-    mutationFn: (overrides?: Partial<{ specialHours: SpecialHoursValue; lunchBreak: LunchBreakValue; lunchMsg: string }>) => {
-      if (overrides?.lunchBreak !== undefined || overrides?.lunchMsg !== undefined) {
-        const lb = overrides.lunchBreak ?? lunchBreak;
-        const msg = (overrides.lunchMsg ?? lunchMsg).trim();
-        if (lb && msg.length < 5) {
-          throw new Error("A mensagem de almoço precisa ter pelo menos 5 caracteres.");
-        }
-      } else if (lunchBreak && lunchMsg.trim().length < 5) {
+  type ScheduleOverrides = Partial<{
+    specialHours: SpecialHoursValue;
+    lunchBreak: LunchBreakValue;
+    lunchMsg: string;
+  }>;
+
+  const saveSchedule = (overrides?: ScheduleOverrides) => {
+    if (overrides?.lunchBreak !== undefined || overrides?.lunchMsg !== undefined) {
+      const lb = overrides.lunchBreak ?? lunchBreak;
+      const msg = (overrides.lunchMsg ?? lunchMsg).trim();
+      if (lb && msg.length < 5) {
         throw new Error("A mensagem de almoço precisa ter pelo menos 5 caracteres.");
       }
-      return scheduleApi.put(
-        businessId,
-        buildPutPayload(schedule, {
-          workingHours,
-          specialHours: overrides?.specialHours ?? specialHours,
-          lunchBreak: overrides?.lunchBreak ?? lunchBreak,
-          lunchMsg: overrides?.lunchMsg ?? lunchMsg,
-        }),
-      );
-    },
+    } else if (lunchBreak && lunchMsg.trim().length < 5) {
+      throw new Error("A mensagem de almoço precisa ter pelo menos 5 caracteres.");
+    }
+    return scheduleApi.put(
+      businessId,
+      buildPutPayload(schedule, {
+        workingHours,
+        specialHours: overrides?.specialHours ?? specialHours,
+        lunchBreak: overrides?.lunchBreak ?? lunchBreak,
+        lunchMsg: overrides?.lunchMsg ?? lunchMsg,
+      }),
+    );
+  };
+
+  const putMutation = useMutation({
+    mutationFn: saveSchedule,
     onSuccess: (_data, overrides) => {
       if (overrides?.specialHours) setSpecialHours(overrides.specialHours);
       if (overrides?.lunchBreak !== undefined) setLunchBreak(overrides.lunchBreak);
@@ -134,7 +142,7 @@ export function useBusinessSchedule(businessId: string) {
   });
 
   const quickSaveMutation = useMutation({
-    mutationFn: putMutation.mutateAsync,
+    mutationFn: saveSchedule,
     onSuccess: () => toast.success("Horários salvos"),
     onError: (err: Error) =>
       toast.error(err.message?.includes("almoço") ? err.message : "Erro ao salvar horários"),
@@ -152,7 +160,7 @@ export function useBusinessSchedule(businessId: string) {
     await quickSaveMutation.mutateAsync({ specialHours: next });
   };
 
-  const quickSaveWorkingHours = () => quickSaveMutation.mutateAsync();
+  const quickSaveWorkingHours = () => quickSaveMutation.mutateAsync(undefined);
 
   const quickSaveLunch = (data: { lunchBreak: LunchBreakValue; lunchMsg: string }) => {
     setLunchBreak(data.lunchBreak);
@@ -189,7 +197,7 @@ export function useBusinessSchedule(businessId: string) {
     },
     hoursDirty: dirty,
     clearHoursDirty: () => setDirty(false),
-    saveSchedule: () => putMutation.mutateAsync(),
+    saveSchedule: () => putMutation.mutateAsync(undefined),
     isSavingSchedule: putMutation.isPending,
     quickSaveException,
     quickSaveWorkingHours,

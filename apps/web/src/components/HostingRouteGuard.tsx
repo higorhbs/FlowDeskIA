@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { sanitizeHostingPath } from "@/lib/app-navigation";
 import { hostingHref, isFirebaseHostingClient } from "@/lib/hosting-href";
+import { normalizeHostingBusinessPath } from "@/lib/business-route";
 
 export function HostingRouteGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -27,6 +28,12 @@ export function HostingRouteGuard({ children }: { children: React.ReactNode }) {
     const path = window.location.pathname;
     const search = window.location.search;
     const hash = window.location.hash;
+    const panelFix = normalizeHostingBusinessPath(path);
+    if (panelFix) {
+      window.location.replace(`${hostingHref(panelFix)}${search}${hash}`);
+      return;
+    }
+
     const current = `${path}${search}${hash}`;
     const canonical = hostingHref(current);
     if (canonical !== current) {

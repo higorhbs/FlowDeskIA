@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/app-navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { authErrorMessage, loginWithGoogle } from "@/lib/firebase-auth";
@@ -10,7 +10,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export function GoogleSignInButton() {
-  const router = useRouter();
+  const router = useAppRouter();
   const [loading, setLoading] = useState(false);
 
   async function handleGoogle() {

@@ -53,13 +53,15 @@ type ErrorPayload = {
   code?: string;
 };
 
-async function parseJson(res: Response) {
-  return (await res.json().catch(() => ({}))) as VerifiedPayload & PendingPayload & ErrorPayload;
+type AuthJson = VerifiedPayload | PendingPayload | ErrorPayload;
+
+async function parseJson(res: Response): Promise<AuthJson> {
+  return (await res.json().catch(() => ({}))) as AuthJson;
 }
 
-function fail(data: ErrorPayload, status: number) {
-  const err = new Error(data.error ?? `Erro ${status}`);
-  if (data.code) (err as { code?: string }).code = data.code;
+function fail(data: AuthJson, status: number) {
+  const err = new Error("error" in data && data.error ? data.error : `Erro ${status}`);
+  if ("code" in data && data.code) (err as { code?: string }).code = data.code;
   throw err;
 }
 
@@ -83,8 +85,8 @@ export async function backendLogin(email: string, password: string) {
     body: JSON.stringify({ email, password }),
   });
   const data = await parseJson(res);
-  if (res.status === 403 && data.status === "VERIFICATION_REQUIRED") {
-    return data as PendingPayload;
+  if (res.status === 403 && "status" in data && data.status === "VERIFICATION_REQUIRED") {
+    return data;
   }
   if (!res.ok) fail(data, res.status);
   return data as VerifiedPayload;

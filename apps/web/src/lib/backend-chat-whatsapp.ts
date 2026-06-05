@@ -36,14 +36,28 @@ export async function backendDeleteWhatsAppConnection(
   }) as Promise<{ status: string }>;
 }
 
+export type WhatsAppChatMessage = {
+  id: string;
+  role: "CUSTOMER" | "IA" | "HUMAN" | "BOT";
+  content: string;
+  mediaUrl?: string;
+  mediaType?: "image" | "video" | "audio";
+  createdAt: string;
+};
+
+export type WhatsAppSendResult = {
+  messageId: string;
+  message?: WhatsAppChatMessage;
+};
+
 export async function backendSendWhatsAppMessage(
   businessId: string,
   body: { to: string; text: string; conversationId?: string },
-): Promise<{ messageId: string; message: unknown }> {
+): Promise<WhatsAppSendResult> {
   return authFetch(`/chat/whatsapp/messages/${businessId}`, {
     method: "POST",
     body: JSON.stringify(body),
-  }) as Promise<{ messageId: string; message: unknown }>;
+  }) as Promise<WhatsAppSendResult>;
 }
 
 export async function backendSendWhatsAppMedia(
@@ -51,7 +65,7 @@ export async function backendSendWhatsAppMedia(
   conversationId: string,
   file: File,
   caption?: string,
-): Promise<{ messageId: string; message: unknown }> {
+): Promise<WhatsAppSendResult> {
   const form = new FormData();
   form.append("file", file);
   form.append("conversationId", conversationId);
@@ -60,5 +74,5 @@ export async function backendSendWhatsAppMedia(
     method: "POST",
     body: form,
     timeoutMs: 120_000,
-  }) as Promise<{ messageId: string; message: unknown }>;
+  }) as Promise<WhatsAppSendResult>;
 }

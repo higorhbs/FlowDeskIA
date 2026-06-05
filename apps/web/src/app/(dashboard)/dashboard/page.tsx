@@ -13,6 +13,7 @@ import { AppLink as Link } from "@/components/AppLink";
 import { useState, useEffect, useRef } from "react";
 import { getBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { IaIcon } from "@/lib/ia-brand";
+import { panelHref } from "@/lib/business-nav";
 import { getSupportMailtoUrl } from "@/lib/legal-config";
 
 // ── Seeded deterministic data ──────────────────────────────────────────────────
@@ -497,7 +498,7 @@ function DashboardContent({ business }: { business: any }) {
                   </span>
                 ) : (
                   <Link
-                    href={`/businesses/${business.id}/whatsapp`}
+                    href={panelHref(business.id, "whatsapp")}
                     className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border bg-white/10 text-white/60 border-white/20 hover:bg-white/20 hover:text-white transition-colors"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
@@ -508,7 +509,7 @@ function DashboardContent({ business }: { business: any }) {
               <p className="text-white/70 text-sm mt-0.5">{business.phone}</p>
             </div>
           </div>
-          <Link href={`/businesses/${business.id}/conversations`}
+          <Link href={panelHref(business.id, "conversations")}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-brand-700 font-medium text-sm hover:bg-white/90 transition-colors shadow-sm flex-shrink-0">
             Abrir conversas
             <ArrowRight className="w-4 h-4" />
@@ -568,7 +569,7 @@ function DashboardContent({ business }: { business: any }) {
               <div>
                 <p className="text-2xl font-bold text-violet-600">{pend}</p>
                 <p className="text-xs text-gray-500 mt-0.5">pendentes</p>
-                <Link href={`/businesses/${business.id}/appointments`}
+                <Link href={panelHref(business.id, "appointments")}
                   className="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium mt-2 transition-colors">
                   Ver todos
                   <ArrowRight className="w-3 h-3" />
@@ -598,10 +599,10 @@ function DashboardContent({ business }: { business: any }) {
           {/* Quick links */}
           <div className="space-y-2">
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-1">Acesso rápido</p>
-            <QuickLink href={`/businesses/${business.id}/faqs`}       icon={IaIcon}      label="Configurar IA"   iconColor="text-brand-600"   iconBg="bg-brand-50" />
-            <QuickLink href={`/businesses/${business.id}/catalog`}    icon={ShoppingBag} label="Catálogo"         iconColor="text-violet-600"  iconBg="bg-violet-50" />
-            <QuickLink href={`/businesses/${business.id}/appointments`} icon={Calendar}  label="Agendamentos"    iconColor="text-emerald-600" iconBg="bg-emerald-50" />
-            <QuickLink href={`/businesses/${business.id}/settings`}   icon={Settings}    label="Configurações"   iconColor="text-gray-500"    iconBg="bg-gray-100" />
+            <QuickLink href={panelHref(business.id, "faqs")}       icon={IaIcon}      label="Configurar IA"   iconColor="text-brand-600"   iconBg="bg-brand-50" />
+            <QuickLink href={panelHref(business.id, "catalog")}    icon={ShoppingBag} label="Catálogo"         iconColor="text-violet-600"  iconBg="bg-violet-50" />
+            <QuickLink href={panelHref(business.id, "appointments")} icon={Calendar}  label="Agendamentos"    iconColor="text-emerald-600" iconBg="bg-emerald-50" />
+            <QuickLink href={panelHref(business.id, "settings")}   icon={Settings}    label="Configurações"   iconColor="text-gray-500"    iconBg="bg-gray-100" />
           </div>
         </div>
       </div>

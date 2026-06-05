@@ -1,3 +1,6 @@
+import { HOSTING_PLACEHOLDER_BUSINESS_ID } from "./business-route";
+import { isStaticHostingBuild } from "./static-hosting";
+
 export const BUSINESS_PANEL_SEGMENTS = [
   "conversations",
   "faqs",
@@ -33,7 +36,8 @@ export function isActivePanelRoute(pathname: string, href: string): boolean {
 }
 
 export function panelHref(businessId: string, segment: string): string {
-  return `/businesses/${businessId}/${segment}`;
+  const id = isStaticHostingBuild() ? HOSTING_PLACEHOLDER_BUSINESS_ID : businessId;
+  return `/businesses/${id}/${segment}`;
 }
 
 export function getBusinessPanelSegment(pathname: string): BusinessPanelSegment | null {

@@ -21,13 +21,31 @@ function loadEnv(filePath) {
 const webEnv = loadEnv(resolve(root, "apps/web/.env"));
 const backendEnv = loadEnv(resolve(root, "apps/backend/.env"));
 const env = { ...backendEnv, ...webEnv };
-const waUrlDirect =
-  env.NEXT_PUBLIC_WA_API_URL?.trim() || env.WA_API_PUBLIC_URL?.trim() || "";
-const apiDomain = (
-  waUrlDirect ||
-  env.NEXT_PUBLIC_API_URL?.trim() ||
-  env.API_PUBLIC_URL?.trim()
-)?.trim();
+
+function isLocalhostUrl(value) {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(String(value ?? "").trim());
+}
+
+function pickProductionUrl(...candidates) {
+  for (const raw of candidates) {
+    const url = raw?.trim();
+    if (!url || isLocalhostUrl(url)) continue;
+    return url.replace(/\/$/, "");
+  }
+  for (const raw of candidates) {
+    const url = raw?.trim();
+    if (url) return url.replace(/\/$/, "");
+  }
+  return "";
+}
+
+const waUrlDirect = pickProductionUrl(
+  env.NEXT_PUBLIC_WA_API_URL,
+  env.WA_API_PUBLIC_URL,
+  env.NEXT_PUBLIC_API_URL,
+  env.API_PUBLIC_URL,
+);
+const apiDomain = waUrlDirect;
 
 if (!apiDomain) {
   console.error("\n❌ Defina NEXT_PUBLIC_API_URL ou WA_API_PUBLIC_URL em apps/web/.env ou apps/backend/.env");
@@ -35,16 +53,8 @@ if (!apiDomain) {
   process.exit(1);
 }
 
-function resolveWaApiUrl() {
-  const direct =
-    env.NEXT_PUBLIC_WA_API_URL?.trim() ||
-    env.WA_API_PUBLIC_URL?.trim() ||
-    "";
-  if (direct) return direct.replace(/\/$/, "");
-  return apiDomain.startsWith("http") ? apiDomain.replace(/\/$/, "") : `https://${apiDomain}`;
-}
-
-const waApiUrl = resolveWaApiUrl();
+const waApiUrl =
+  apiDomain.startsWith("http") ? apiDomain.replace(/\/$/, "") : `https://${apiDomain}`;
 const apiUrl = waApiUrl;
 if (!waApiUrl) {
   console.warn(
@@ -97,4 +107,4 @@ console.log(`   NEXT_PUBLIC_API_URL=${apiUrl}`);
 if (waApiUrl) console.log(`   NEXT_PUBLIC_WA_API_URL=${waApiUrl}`);
 if (swetrixId) console.log(`   NEXT_PUBLIC_SWETRIX_PROJECT_ID=${swetrixId}`);
 else console.warn("   ⚠️  NEXT_PUBLIC_SWETRIX_PROJECT_ID vazio — Swetrix não grava visitas no build.");
-console.log("\nPróximo: pnpm build:hosting e publique apps/web/out no Firebase Hosting (console).\n");
+console.log("\nPróximo: pnpm deploy:hosting (ou pnpm build:hosting + firebase deploy --only hosting).\n");

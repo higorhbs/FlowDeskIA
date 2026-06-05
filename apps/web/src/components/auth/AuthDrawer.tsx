@@ -18,7 +18,7 @@ import { trackGoogleAdsSignUp } from "@/lib/google-ads-events";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { AuthDivider } from "@/components/auth/AuthDivider";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/lib/app-navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,7 +88,7 @@ type AuthDrawerProps = {
 };
 
 function LoginForm({ onSwitch }: { onSwitch: () => void }) {
-  const router = useRouter();
+  const router = useAppRouter();
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
   const {
     register,
@@ -168,7 +168,7 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
 }
 
 function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
-  const router = useRouter();
+  const router = useAppRouter();
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
   const {
     register,
@@ -268,7 +268,7 @@ function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
 }
 
 function VerificationPrompt({ email, onBack }: { email: string; onBack: () => void }) {
-  const router = useRouter();
+  const router = useAppRouter();
   const [loadingResend, setLoadingResend] = useState(false);
   const [loadingConfirm, setLoadingConfirm] = useState(false);
 
