@@ -92,12 +92,8 @@ if (!pick("STRIPE_WEBHOOK_SECRET")) {
 }
 const vmUser = process.env.VM_USER?.trim() || "ubuntu";
 const vmHost = process.env.VM_HOST?.trim() || "163.176.132.231";
-const waDir = process.env.VM_WA_DIR?.trim() || "~/flowdesk-wa";
-const apiDir = process.env.VM_API_DIR?.trim() || "~/FlowDesk";
-console.log("\nNa VM (WhatsApp / flowdesk-wa):");
-console.log(`  scp .env.server ${vmUser}@${vmHost}:${waDir}/.env`);
-console.log(`  scp .secrets/firebase-adminsdk.json ${vmUser}@${vmHost}:${waDir}/.secrets/`);
-console.log(`  ssh ${vmUser}@${vmHost} 'cd ${waDir} && docker compose -f docker-compose.https.yml up -d --build'`);
-console.log("\nCobrança Stripe (monorepo FlowDesk, se usar VM para billing):");
-console.log(`  scp .env.server ${vmUser}@${vmHost}:${apiDir}/.env`);
-console.log(`  ssh ${vmUser}@${vmHost} 'cd ${apiDir} && bash scripts/oracle/deploy-api.sh'\n`);
+const repoDir = process.env.VM_REPO_DIR?.trim() || "~/FlowDesk";
+console.log("\nNa VM (FlowDesk — api + backend + redis):");
+console.log(`  scp .env.server ${vmUser}@${vmHost}:${repoDir}/.env`);
+console.log(`  scp .secrets/firebase-adminsdk.json ${vmUser}@${vmHost}:${repoDir}/.secrets/`);
+console.log(`  ssh ${vmUser}@${vmHost} 'cd ${repoDir} && docker compose -f docker-compose.prod.yml up -d --build'\n`);

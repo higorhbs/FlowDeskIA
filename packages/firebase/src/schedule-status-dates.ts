@@ -1,4 +1,5 @@
 const MIN_LEAD_MS = 60_000;
+export const IMMEDIATE_LEAD_MS = 5_000;
 export const MAX_SCHEDULE_DAYS = 62;
 
 function pad(n: number) {
@@ -42,6 +43,20 @@ export function buildScheduledAtsFromDayKeys(
   }
 
   return out;
+}
+
+export function buildImmediateScheduledAt(leadMs = IMMEDIATE_LEAD_MS): string {
+  return new Date(Date.now() + leadMs).toISOString();
+}
+
+export function resolveStoryScheduledAts(input: {
+  publishNow?: boolean;
+  scheduledDays: string[];
+  hour: number;
+  minute: number;
+}): string[] {
+  if (input.publishNow) return [buildImmediateScheduledAt()];
+  return buildScheduledAtsFromDayKeys(input.scheduledDays, input.hour, input.minute);
 }
 
 export function addDaysToDayKey(dayKey: string, days: number): string {

@@ -132,9 +132,64 @@ export function detectMediaType(
 
 function socketIsOpen(sock: WASocket | null): boolean {
   if (!sock) return false;
-  const ws = (sock as { ws?: { readyState?: number } }).ws;
-  if (!ws) return true;
-  return ws.readyState === 1;
+  const client = (sock as unknown as { ws?: { isOpen?: boolean } }).ws;
+  if (!client) return true;
+  return client.isOpen === true;
+}
+
+function isStatusAudienceJid(jid: string): boolean {
+  if (!jid) return false;
+  if (isLidUser(jid)) return true;
+  return jid.endsWith("@s.whatsapp.net");
+}
+
+async function prepareStatusImage(buffer: Buffer) {
+  const sharp = (await import("sharp")).default;
+  const base = sharp(buffer, { failOn: "none" }).rotate();
+  const meta = await base.metadata();
+  const width = meta.width ?? undefined;
+  const height = meta.height ?? undefined;
+  const jpeg = await base.jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+  const thumbBuf = await sharp(jpeg).resize(32, 32, { fit: "inside" }).jpeg({ quality: 55 }).toBuffer();
+  return {
+    buffer: jpeg,
+    mimetype: "image/jpeg",
+    width,
+    height,
+    jpegThumbnail: thumbBuf.toString("base64"),
+  };
+}
+
+function formatPublishStatusError(err: unknown): Error {
+  const boom = err as { message?: string; output?: { statusCode?: number; payload?: { message?: string } } };
+  const msg = boom?.message ?? (err instanceof Error ? err.message : "");
+  const code = boom?.output?.statusCode;
+  if (msg === "not-acceptable" || code === 406 || code === 428) {
+    return new Error(
+      "WhatsApp recusou o status (mídia ou destinatários). Use foto JPEG/PNG ou vídeo MP4, reconecte o WhatsApp e tente de novo."
+    );
+  }
+  if (msg.includes("unsupported image") || msg.includes("Imagem inválida")) {
+    return new Error("Imagem inválida ou formato não suportado. Envie JPEG ou PNG.");
+  }
+  if (/no sessions/i.test(msg) || /sessionerror/i.test(msg)) {
+    return new Error(
+      "WhatsApp ainda não tem sessão com algum contato da lista. Abra Conversas, envie uma mensagem para o cliente e tente publicar o status de novo."
+    );
+  }
+  return err instanceof Error ? err : new Error(msg || "Falha ao publicar status");
+}
+
+function normalizeStatusAudienceJid(raw: string, lidToPhone: Map<string, string>): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  let jid = trimmed.includes("@") ? jidNormalizedUser(trimmed) || trimmed : toSendJid(trimmed);
+  if (isLidUser(jid)) {
+    const mapped = lidToPhone.get(jid);
+    if (!mapped) return null;
+    jid = mapped;
+  }
+  return jid.endsWith("@s.whatsapp.net") ? jid : null;
 }
 
 export class WhatsAppClient extends EventEmitter {
@@ -345,6 +400,9 @@ export class WhatsAppClient extends EventEmitter {
         printQRInTerminal: false,
         generateHighQualityLinkPreview: false,
         markOnlineOnConnect: false,
+        fireInitQueries: false,
+        connectTimeoutMs: 30_000,
+        defaultQueryTimeoutMs: 120_000,
         shouldSyncHistoryMessage: () => false,
         msgRetryCounterCache: this.msgRetryCounterCache as any,
         getMessage: async (key) => this.messageStore.get(messageStoreKey(key)),
@@ -358,10 +416,32 @@ export class WhatsAppClient extends EventEmitter {
     }
   }
 
+  private stashSentMessage(result: WAMessage | undefined) {
+    if (result?.message && result.key?.id) {
+      this.messageStore.set(messageStoreKey(result.key), result.message);
+    }
+  }
+
+  private async ensurePreKeys() {
+    const fn = (this.sock as { uploadPreKeysToServerIfRequired?: () => Promise<void> })
+      ?.uploadPreKeysToServerIfRequired;
+    if (typeof fn === "function") await fn.call(this.sock);
+  }
+
+  getOwnJid(): string | undefined {
+    const id = this.sock?.user?.id;
+    if (!id) return undefined;
+    const normalized = jidNormalizedUser(id);
+    if (normalized?.endsWith("@s.whatsapp.net")) return normalized;
+    return toSendJid(id);
+  }
+
   async sendText(to: string, text: string): Promise<string | undefined> {
     if (!this.sock) throw new Error("Socket not connected");
     const jid = toSendJid(to);
+    await this.ensurePreKeys();
     const result = await this.sock.sendMessage(jid, { text });
+    this.stashSentMessage(result);
     return result?.key.id ?? undefined;
   }
 
@@ -406,7 +486,7 @@ export class WhatsAppClient extends EventEmitter {
         const raw = await downloadMediaMessage(
           payload,
           "buffer",
-          { startTime: Date.now() - 60_000 },
+          {},
           { logger: this.logger as any, reuploadRequest: this.sock.updateMediaMessage }
         );
         if (!raw) continue;
@@ -458,8 +538,157 @@ export class WhatsAppClient extends EventEmitter {
               mimetype,
               ptt: mimetype.includes("ogg") || mimetype.includes("opus"),
             };
+    await this.ensurePreKeys();
     const result = await this.sock.sendMessage(jid, content);
+    this.stashSentMessage(result);
     return result?.key.id ?? undefined;
+  }
+
+  private buildStatusAudience(seedJids: string[]): string[] {
+    const audience = new Set<string>();
+    const ownRaw = this.sock?.user?.id;
+    if (ownRaw) audience.add(jidNormalizedUser(ownRaw) || ownRaw);
+
+    const ownPhone = this.getOwnJid();
+    if (ownPhone?.endsWith("@s.whatsapp.net")) audience.add(ownPhone);
+
+    for (const raw of seedJids) {
+      const jid = normalizeStatusAudienceJid(raw, this.lidToPhone);
+      if (jid) audience.add(jid);
+    }
+
+    return [...audience].slice(0, 500);
+  }
+
+  private async warmStatusSessions(jids: string[]): Promise<void> {
+    const assertSessions = (
+      this.sock as { assertSessions?: (jids: string[], force: boolean) => Promise<boolean> }
+    ).assertSessions;
+    if (typeof assertSessions !== "function") return;
+
+    const phoneJids = [...new Set(jids.filter((j) => j.endsWith("@s.whatsapp.net")))];
+    if (!phoneJids.length) return;
+
+    for (const jid of phoneJids) {
+      try {
+        await assertSessions([jid], false);
+      } catch (err) {
+        console.warn(`[wa:${this.businessId}] status session warmup skip ${jid}:`, err);
+      }
+    }
+    await new Promise((r) => setTimeout(r, 600));
+    try {
+      await assertSessions(phoneJids, false);
+    } catch (err) {
+      console.warn(`[wa:${this.businessId}] status session warmup batch:`, err);
+    }
+  }
+
+  private waitForStatusPublishAck(key: MsgKey, timeoutMs = 90_000): Promise<void> {
+    const sock = this.sock;
+    if (!sock) throw new Error("Socket not connected");
+
+    const minAck = proto.WebMessageInfo.Status.SERVER_ACK;
+    const errorStatus = proto.WebMessageInfo.Status.ERROR;
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error("WhatsApp não confirmou a publicação do status a tempo."));
+      }, timeoutMs);
+
+      const onUpdate = (updates: { key: MsgKey; update: Partial<WAMessage> }[]) => {
+        for (const { key: k, update } of updates) {
+          if (k.id !== key.id) continue;
+          if (k.fromMe !== key.fromMe) continue;
+          const remote = k.remoteJid ?? "";
+          if (remote !== key.remoteJid && remote !== "status@broadcast") continue;
+
+          const st = update.status;
+          if (st === errorStatus) {
+            cleanup();
+            reject(new Error("WhatsApp rejeitou a publicação do status."));
+            return;
+          }
+          if (st != null && st !== proto.WebMessageInfo.Status.PENDING && st >= minAck) {
+            cleanup();
+            resolve();
+            return;
+          }
+        }
+      };
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        sock.ev.off("messages.update", onUpdate);
+      };
+
+      sock.ev.on("messages.update", onUpdate);
+    });
+  }
+
+  async publishStatus(opts: {
+    mediaUrl: string;
+    mediaType: "image" | "video";
+    caption?: string;
+    statusJidList: string[];
+  }): Promise<string | undefined> {
+    if (!this.sock) throw new Error("Socket not connected");
+
+    const statusJidList = this.buildStatusAudience(opts.statusJidList);
+    const recipientCount = statusJidList.filter((j) => j.endsWith("@s.whatsapp.net")).length;
+    if (recipientCount < 1) {
+      throw new Error(
+        "Para publicar status, é preciso de conversas com telefone válido no ZapFlow. Peça ao cliente enviar uma mensagem; depois tente de novo."
+      );
+    }
+
+    await this.warmStatusSessions(statusJidList);
+
+    const { buffer, mimetype } = await this.loadRemoteMedia(opts.mediaUrl, opts.mediaType);
+
+    let content: Record<string, unknown>;
+    if (opts.mediaType === "video") {
+      const mt = mimetype.includes("mp4") ? mimetype : "video/mp4";
+      content = { video: buffer, mimetype: mt, caption: opts.caption };
+    } else {
+      try {
+        const img = await prepareStatusImage(buffer);
+        content = {
+          image: img.buffer,
+          mimetype: img.mimetype,
+          caption: opts.caption,
+          jpegThumbnail: img.jpegThumbnail,
+          width: img.width,
+          height: img.height,
+        };
+      } catch {
+        throw new Error("Imagem inválida ou formato não suportado. Envie JPEG ou PNG.");
+      }
+    }
+
+    await this.ensurePreKeys();
+    let result: WAMessage | undefined;
+    try {
+      result = await this.sock.sendMessage("status@broadcast", content as never, {
+        broadcast: true,
+        statusJidList,
+        mediaUploadTimeoutMs: 180_000,
+      });
+    } catch (err) {
+      throw formatPublishStatusError(err);
+    }
+    this.stashSentMessage(result);
+
+    if (result?.key?.id) {
+      try {
+        await this.waitForStatusPublishAck(result.key);
+      } catch (err) {
+        throw formatPublishStatusError(err);
+      }
+    }
+
+    return result?.key?.id ?? undefined;
   }
 
   async logout() {
@@ -483,6 +712,11 @@ export class WhatsAppClient extends EventEmitter {
   }
 
   isConnected(): boolean {
+    if (this.status !== "open" || !this.sock) return false;
+    return socketIsOpen(this.sock);
+  }
+
+  isReadyToSend(): boolean {
     return this.status === "open" && !!this.sock;
   }
 

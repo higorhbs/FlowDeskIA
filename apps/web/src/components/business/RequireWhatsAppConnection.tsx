@@ -5,7 +5,8 @@ import { Loader2, Smartphone, WifiOff } from "lucide-react";
 import { useBusinessId } from "@/lib/use-business-id";
 import { useSyncWhatsAppBusiness } from "@/lib/use-sync-wa-business";
 import { useAppRouter } from "@/lib/app-navigation";
-import { canUseBusinessPanelSpa, panelHref } from "@/lib/business-nav";
+import { canUseBusinessPanelSpa, getBusinessPanelSegment, panelHref } from "@/lib/business-nav";
+import { useEffectivePathname } from "@/lib/use-effective-pathname";
 import { navigateBusinessPanel } from "@/lib/use-business-panel-nav";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,8 +14,11 @@ import { Card } from "@/components/ui/card";
 export function RequireWhatsAppConnection({ children }: { children: React.ReactNode }) {
   const businessId = useBusinessId();
   const router = useAppRouter();
-  const { isInitialLoading, isFetched, connected } = useSyncWhatsAppBusiness(businessId);
+  const pathname = useEffectivePathname();
+  const onWhatsAppPanel = getBusinessPanelSegment(pathname) === "whatsapp";
+  const { isInitialLoading, isFetched, connected, data: waStatus } = useSyncWhatsAppBusiness(businessId);
   const whatsappPath = panelHref(businessId, "whatsapp");
+  const waMisconfigured = waStatus?.status === "misconfigured";
 
   const goWhatsApp = useCallback(() => {
     if (
@@ -29,9 +33,9 @@ export function RequireWhatsAppConnection({ children }: { children: React.ReactN
   }, [whatsappPath, router]);
 
   useEffect(() => {
-    if (!businessId || !isFetched || connected) return;
+    if (!businessId || !isFetched || connected || onWhatsAppPanel || waMisconfigured) return;
     goWhatsApp();
-  }, [businessId, isFetched, connected, goWhatsApp]);
+  }, [businessId, isFetched, connected, onWhatsAppPanel, waMisconfigured, goWhatsApp]);
 
   if (!businessId || isInitialLoading) {
     return (

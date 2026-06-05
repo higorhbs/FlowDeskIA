@@ -1,15 +1,38 @@
 import axios from "axios";
+import { reload } from "firebase/auth";
 import {
-  updateAccountName,
-  updateAccountEmail,
-  updateAccountPassword,
-} from "./firebase-auth";
+  backendSync,
+  backendUpdateProfileEmail,
+  backendUpdateProfileName,
+  backendUpdateProfilePassword,
+} from "./backend-auth";
+import { backendCreateBusiness, backendListBusinesses } from "./backend-business";
+import {
+  backendGetSchedule,
+  backendListSchedules,
+  backendPutSchedule,
+} from "./backend-schedule";
+import type { SchedulePayload } from "./backend-schedule";
+import {
+  backendDeleteWhatsAppConnection,
+  backendGetWhatsAppQr,
+  backendPostWhatsAppQr,
+  backendSendWhatsAppMedia,
+  backendSendWhatsAppMessage,
+} from "./backend-chat-whatsapp";
+import {
+  backendCancelStory,
+  backendCancelStorySeries,
+  backendCreateStories,
+  backendListStories,
+  backendRepostStory,
+} from "./backend-stories-whatsapp";
+import { getBackendBaseUrl } from "./backend-url";
+import type { CreateBusinessInput } from "./backend-business";
 import { setToken } from "./auth";
 import { getClientAuth } from "@flowdesk/firebase/client";
 import {
-  listClientBusinesses,
   getClientBusiness,
-  createClientBusiness,
   updateClientBusiness,
   listClientCatalog,
   createClientCatalogItem,
@@ -20,7 +43,6 @@ import {
   updateClientFaq,
   deleteClientFaq,
   getClientTenant,
-  ensureClientTenant,
   completeClientOnboarding,
   acceptClientLgpd,
   submitClientCancellationFeedback,
@@ -32,17 +54,12 @@ import {
   updateClientAppointment,
   listClientPayments,
   getClientAnalytics,
-  listClientScheduledStatuses,
-  createClientScheduledStatus,
-  repostClientScheduledStatus,
-  cancelClientScheduledStatus,
-  cancelClientScheduledStatusSeries,
+
 } from "@flowdesk/firebase/client";
 import type {
   ConversationStatus,
   AppointmentStatus,
   ScheduledStatus,
-  ScheduledStatusMediaType,
 } from "@flowdesk/firebase/client";
 
 function isLocalDevHost() {
@@ -50,38 +67,24 @@ function isLocalDevHost() {
   return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 }
 
-function resolveWaApiBaseUrl() {
-  const url = process.env.NEXT_PUBLIC_WA_API_URL?.trim();
-  const onLocal = isLocalDevHost();
-  if (url && !(url.includes("localhost") && !onLocal)) return url.replace(/\/$/, "");
-  if (onLocal) return url || process.env.NEXT_PUBLIC_API_URL?.trim()?.replace(/\/$/, "") || "http://localhost:3001";
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim()?.replace(/\/$/, "");
-  if (apiUrl && !apiUrl.includes("localhost")) return apiUrl;
-  throw new Error("NEXT_PUBLIC_WA_API_URL não configurada para produção.");
-}
-
-let waApiBaseUrl: string | undefined;
-export function getWaApiBaseUrl() {
-  if (!waApiBaseUrl) waApiBaseUrl = resolveWaApiBaseUrl();
-  return waApiBaseUrl;
-}
-
 export function resolveChatMediaUrl(mediaUrl: string | undefined): string | undefined {
   if (!mediaUrl?.trim()) return undefined;
+  const base = getBackendBaseUrl();
+  const rewrite = (pathname: string) => {
+    if (pathname.startsWith("/chat-media/") || pathname.startsWith("/status-media/")) {
+      return `${base}${pathname}`;
+    }
+    return mediaUrl;
+  };
   try {
     const u = new URL(mediaUrl);
-    if (!u.pathname.startsWith("/chat-media/")) return mediaUrl;
-    return `${getWaApiBaseUrl()}${u.pathname}`;
+    return rewrite(u.pathname);
   } catch {
-    if (mediaUrl.startsWith("/chat-media/")) return `${getWaApiBaseUrl()}${mediaUrl}`;
+    if (mediaUrl.startsWith("/chat-media/") || mediaUrl.startsWith("/status-media/")) {
+      return `${base}${mediaUrl}`;
+    }
     return mediaUrl;
   }
-}
-
-function hasWaApi() {
-  const wa = process.env.NEXT_PUBLIC_WA_API_URL?.trim();
-  const api = process.env.NEXT_PUBLIC_API_URL?.trim();
-  return Boolean(wa || api) || isLocalDevHost();
 }
 
 function resolveApiBaseUrl() {
@@ -120,10 +123,6 @@ export const api = axios.create({
   timeout: 90_000,
 });
 
-const waApi = axios.create({
-  timeout: 90_000,
-});
-
 function requireUid(): string {
   const uid = getClientAuth().currentUser?.uid;
   if (!uid) throw new Error("Faça login para continuar.");
@@ -133,10 +132,7 @@ function requireUid(): string {
 async function ensureTenantRecord() {
   const user = getClientAuth().currentUser;
   if (!user?.email) throw new Error("E-mail não encontrado na conta.");
-  await ensureClientTenant(user.uid, {
-    name: user.displayName ?? user.email.split("@")[0] ?? "Usuário",
-    email: user.email,
-  });
+  await backendSync(user.displayName ?? user.email.split("@")[0] ?? "Usuário");
 }
 
 api.interceptors.request.use(async (config) => {
@@ -151,52 +147,6 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-waApi.interceptors.request.use(async (config) => {
-  if (!config.baseURL) config.baseURL = getWaApiBaseUrl();
-  const user = getClientAuth().currentUser;
-  if (!user) return config;
-  const token = await user.getIdToken(false);
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-waApi.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    const data = err.response?.data;
-    const apiMsg =
-      typeof data?.error === "string"
-        ? data.error
-        : typeof data?.message === "string"
-          ? data.message
-          : null;
-    const waUrl = getWaApiBaseUrl();
-    if (apiMsg) {
-      err.message = apiMsg;
-    } else if (!err.response) {
-      const pageHttps =
-        typeof window !== "undefined" && window.location.protocol === "https:";
-      const waHttp = waUrl.startsWith("http://");
-      if (pageHttps && waHttp) {
-        err.message =
-          `O painel está em HTTPS, mas a API WhatsApp está em HTTP (${waUrl}). O navegador bloqueia isso. Use HTTPS na API (ex.: Caddy) e NEXT_PUBLIC_WA_API_URL=https://...`;
-      } else if (err.code === "ECONNABORTED") {
-        err.message =
-          "API WhatsApp demorou (geração do QR pode levar até 50s). Aguarde ou tente de novo.";
-      } else if (isLocalDevHost()) {
-        err.message = "API WhatsApp offline. Suba flowdesk-wa na porta 3001.";
-      } else {
-        err.message = `Não foi possível conectar à API WhatsApp (${waUrl}). Verifique firewall, CORS e se o container wa-api está no ar.`;
-      }
-    } else if (err.response?.status === 503) {
-      err.message = apiMsg ?? "API WhatsApp sem credencial Firebase Admin no servidor.";
-    }
-    return Promise.reject(err);
-  }
-);
-
 api.interceptors.response.use(
   (res) => res,
   async (err) => {
@@ -205,7 +155,7 @@ api.interceptors.response.use(
 
     if (status === 404 && typeof config?.url === "string" && config.url.includes("/privacy/")) {
       err.message =
-        "Função de privacidade indisponível no servidor. Atualize a API (flowdesk-wa) e faça deploy na VM.";
+        "Função de privacidade indisponível no servidor. Atualize apps/api e faça deploy.";
       return Promise.reject(err);
     }
 
@@ -266,10 +216,9 @@ export const authApi = {
   sync: async (name?: string) => {
     const user = getClientAuth().currentUser;
     if (!user?.email) return null;
-    return ensureClientTenant(user.uid, {
-      name: name ?? user.displayName ?? user.email.split("@")[0] ?? "Usuário",
-      email: user.email,
-    });
+    return backendSync(
+      name ?? user.displayName ?? user.email.split("@")[0] ?? "Usuário",
+    );
   },
 };
 
@@ -289,25 +238,44 @@ export const tenantApi = {
   },
 };
 
+async function reloadAuthUser() {
+  const user = getClientAuth().currentUser;
+  if (user) await reload(user);
+}
+
 export const profileApi = {
-  updateName: (name: string) => updateAccountName(name),
-  updateEmail: (email: string, password: string) => updateAccountEmail(email, password),
-  updatePassword: (current: string, next: string) => updateAccountPassword(current, next),
+  updateName: async (name: string) => {
+    const result = await backendUpdateProfileName(name);
+    await reloadAuthUser();
+    return result;
+  },
+  updateEmail: async (email: string, password: string) => {
+    const result = await backendUpdateProfileEmail(email, password);
+    await reloadAuthUser();
+    return result;
+  },
+  updatePassword: (current: string, next: string) =>
+    backendUpdateProfilePassword(current, next),
 };
 
 export const businessApi = {
-  list: () => listClientBusinesses(requireUid()),
+  list: () => backendListBusinesses(),
   get: (id: string) => getClientBusiness(id, requireUid()),
-  create: async (data: Parameters<typeof createClientBusiness>[1]) => {
-    const uid = requireUid();
-    const existing = await listClientBusinesses(uid);
+  create: async (data: CreateBusinessInput) => {
+    const existing = await backendListBusinesses();
     if (existing.length > 0) throw new Error("Sua conta já possui um negócio cadastrado.");
-    return createClientBusiness(uid, data);
+    return backendCreateBusiness(data);
   },
   update: (id: string, data: Parameters<typeof updateClientBusiness>[2]) =>
     updateClientBusiness(id, requireUid(), data),
   setConnected: (id: string, isConnected: boolean) =>
     updateClientBusiness(id, requireUid(), { isConnected }),
+};
+
+export const scheduleApi = {
+  list: (businessId?: string) => backendListSchedules(businessId),
+  get: (businessId: string) => backendGetSchedule(businessId),
+  put: (businessId: string, data: SchedulePayload) => backendPutSchedule(businessId, data),
 };
 
 async function assertBusinessAccess(businessId: string) {
@@ -363,77 +331,39 @@ export const conversationApi = {
     deleteClientConversation(businessId, requireUid(), conversationId),
 };
 
-function wakeWaApi() {
-  if (!hasWaApi()) return;
-  const base = getWaApiBaseUrl();
-  if (/localhost|127\.0\.0\.1/.test(base)) return;
-  void waApi.get("/health", { timeout: 4_000 }).catch(() => undefined);
-}
-
 export const scheduledStatusApi = {
-  list: (businessId: string) => listClientScheduledStatuses(businessId, requireUid()),
-  upload: async (businessId: string, file: File) => {
-    wakeWaApi();
-    const form = new FormData();
-    form.append("file", file);
-    const r = await waApi.post<{ mediaUrl: string; mediaType: ScheduledStatusMediaType }>(
-      `/businesses/${businessId}/whatsapp/status/upload`,
-      form,
-      { timeout: 120_000 }
-    );
-    return r.data;
-  },
+  list: (businessId: string) => backendListStories(businessId),
   create: (
     businessId: string,
     data: {
-      mediaUrl: string;
-      mediaType: ScheduledStatusMediaType;
+      file: File;
       caption?: string;
       scheduledDays: string[];
       hour: number;
       minute: number;
+      publishNow?: boolean;
     }
-  ) => createClientScheduledStatus(businessId, requireUid(), data),
+  ) => backendCreateStories(businessId, data),
   repost: (
     businessId: string,
     statusId: string,
-    data: { scheduledDays: string[]; hour: number; minute: number }
-  ) => repostClientScheduledStatus(businessId, requireUid(), statusId, data),
-  cancel: (businessId: string, statusId: string) =>
-    cancelClientScheduledStatus(businessId, requireUid(), statusId),
+    data: { scheduledDays: string[]; hour: number; minute: number; publishNow?: boolean }
+  ) => backendRepostStory(businessId, statusId, data),
+  cancel: (businessId: string, statusId: string) => backendCancelStory(businessId, statusId),
   cancelSeries: (businessId: string, seriesId: string) =>
-    cancelClientScheduledStatusSeries(businessId, requireUid(), seriesId),
+    backendCancelStorySeries(businessId, seriesId),
 };
 
 export type { ScheduledStatus };
 
 export const whatsappApi = {
-  connect: async (businessId: string, force = false) => {
-    wakeWaApi();
-    return waApi
-      .post(`/businesses/${businessId}/whatsapp/connect${force ? "?force=1" : ""}`, undefined, {
-        timeout: 50_000,
-      })
-      .then((r) => r.data);
-  },
-  status: (businessId: string) =>
-    waApi.get(`/businesses/${businessId}/whatsapp/status`, { timeout: 20_000 }).then((r) => r.data),
-  disconnect: (businessId: string) =>
-    waApi.post(`/businesses/${businessId}/whatsapp/disconnect`).then((r) => r.data),
+  connect: (businessId: string, force = false) => backendPostWhatsAppQr(businessId, force),
+  status: (businessId: string) => backendGetWhatsAppQr(businessId),
+  disconnect: (businessId: string) => backendDeleteWhatsAppConnection(businessId),
   send: (businessId: string, to: string, text: string, conversationId?: string) =>
-    waApi
-      .post(`/businesses/${businessId}/whatsapp/send`, { to, text, conversationId })
-      .then((r) => r.data),
-  sendMedia: async (businessId: string, conversationId: string, file: File, caption?: string) => {
-    wakeWaApi();
-    const form = new FormData();
-    form.append("file", file);
-    form.append("conversationId", conversationId);
-    if (caption?.trim()) form.append("text", caption.trim());
-    return waApi
-      .post(`/businesses/${businessId}/whatsapp/send-media`, form, { timeout: 120_000 })
-      .then((r) => r.data);
-  },
+    backendSendWhatsAppMessage(businessId, { to, text, conversationId }),
+  sendMedia: (businessId: string, conversationId: string, file: File, caption?: string) =>
+    backendSendWhatsAppMedia(businessId, conversationId, file, caption),
 };
 
 export const appointmentApi = {

@@ -10,7 +10,8 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import type { Business, BusinessType, CatalogItem, FAQ } from "./types.js";
+import type { Business, BusinessCreateInput, CatalogItem, FAQ } from "./types.js";
+import { buildBusinessCreateRecord, normalizeBusiness } from "./business-record.js";
 import { getClientDb } from "./client.js";
 
 function nowIso() {
@@ -49,65 +50,27 @@ function faqsCol(businessId: string) {
 export async function listClientBusinesses(tenantId: string): Promise<Business[]> {
   const q = query(businessesCol(), where("tenantId", "==", tenantId));
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Business);
+  return snap.docs.map((d) =>
+    normalizeBusiness(d.id, d.data() as Record<string, unknown>)
+  );
 }
 
 export async function getClientBusiness(id: string, tenantId: string): Promise<Business | null> {
   const snap = await getDoc(businessRef(id));
   if (!snap.exists()) return null;
-  const b = { id: snap.id, ...snap.data() } as Business;
+  const b = normalizeBusiness(snap.id, snap.data() as Record<string, unknown>);
   return b.tenantId === tenantId ? b : null;
 }
 
 export async function createClientBusiness(
   tenantId: string,
-  data: {
-    name: string;
-    type: BusinessType;
-    typeLabel?: string;
-    phone: string;
-    address?: string;
-    description?: string;
-    greetingMsg?: string;
-    awayMsg?: string;
-    thanksEnabled?: boolean;
-    attendantName?: string;
-    attendantNames?: string[];
-    attendantEnabled?: boolean;
-    manualAttendantPrefixEnabled?: boolean;
-    workingHours?: Record<string, unknown>;
-  }
+  data: BusinessCreateInput
 ): Promise<Business> {
   const id = newId();
   const ts = nowIso();
-  const businessBase: Business = {
-    id,
-    tenantId,
-    name: data.name,
-    type: data.type,
-    typeLabel: data.typeLabel?.trim() || undefined,
-    phone: data.phone,
-    address: data.address,
-    description: data.description,
-    workingHours: data.workingHours ?? {},
-    timezone: "America/Sao_Paulo",
-    greetingMsg: data.greetingMsg ?? "Olá! Como posso ajudar?",
-    awayMsg: data.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
-    thanksEnabled: data.thanksEnabled ?? true,
-    attendantName: data.attendantName?.trim() || undefined,
-    attendantNames:
-      data.attendantNames
-        ?.map((name) => name.trim())
-        .filter(Boolean)
-        .slice(0, 20) || undefined,
-    attendantEnabled: data.attendantEnabled ?? true,
-    manualAttendantPrefixEnabled: data.manualAttendantPrefixEnabled ?? true,
-    isConnected: false,
-    createdAt: ts,
-    updatedAt: ts,
-  };
-  await setDoc(businessRef(id), firestoreData(businessBase as unknown as Record<string, unknown>));
-  return businessBase;
+  const record = buildBusinessCreateRecord(tenantId, id, data, ts);
+  await setDoc(businessRef(id), record);
+  return normalizeBusiness(id, record);
 }
 
 export async function updateClientBusiness(

@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, useEffect, useState } from "react";
 import { watchAuth, completeGoogleRedirect, authErrorMessage } from "@/lib/firebase-auth";
+import { authApi } from "@/lib/api";
 import { setToken, removeToken } from "@/lib/auth";
 import { readLastAuthUid, writeLastAuthUid, clearAuthSessionMarkers } from "@/lib/business-route";
 import { AuthDrawerProvider } from "@/contexts/auth-drawer-context";
@@ -57,6 +58,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         }
         const token = await user.getIdToken(true);
         setToken(token);
+        void authApi.sync().catch(() => undefined);
       } else {
         removeToken();
       }

@@ -11,7 +11,13 @@ import {
   formatPlanLimit,
   type PlanTier,
 } from "@flowdesk/shared";
-import { scheduledStatusApi, businessApi, tenantApi, type ScheduledStatus } from "@/lib/api";
+import {
+  scheduledStatusApi,
+  businessApi,
+  tenantApi,
+  resolveChatMediaUrl,
+  type ScheduledStatus,
+} from "@/lib/api";
 import { useBusinessId } from "@/lib/use-business-id";
 import { useAuth } from "@/contexts/auth-context";
 import { useSyncWhatsAppBusiness } from "@/lib/use-sync-wa-business";
@@ -21,6 +27,7 @@ import {
   Upload,
   Loader2,
   CalendarClock,
+  Zap,
   Trash2,
   AlertTriangle,
   ImageIcon,
@@ -68,6 +75,7 @@ export default function StatusSchedulePage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
+  const [publishNow, setPublishNow] = useState(false);
 
   const initialSchedule = useMemo(() => defaultSchedule(), []);
   const [selectedDayKeys, setSelectedDayKeys] = useState<string[]>(() => [
@@ -113,7 +121,7 @@ export default function StatusSchedulePage() {
     ? Math.max(0, storiesLimit - storiesUsed)
     : Infinity;
   const selectionExceedsQuota =
-    Number.isFinite(storiesLimit) && selectedDayKeys.length > storiesLeft;
+    !publishNow && Number.isFinite(storiesLimit) && selectedDayKeys.length > storiesLeft;
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -125,12 +133,13 @@ export default function StatusSchedulePage() {
             : `Seu plano permite ${storiesLimit} publicações de stories por mês. Você pode agendar mais ${storiesLeft} neste mês.`,
         );
       }
-      const { mediaUrl, mediaType } = await scheduledStatusApi.upload(businessId, file);
-      if (selectedDayKeys.length === 0) throw new Error("Selecione pelo menos um dia no calendário.");
+      if (!publishNow && selectedDayKeys.length === 0) {
+        throw new Error("Selecione pelo menos um dia no calendário.");
+      }
       return scheduledStatusApi.create(businessId, {
-        mediaUrl,
-        mediaType,
+        file,
         caption: caption.trim() || undefined,
+        publishNow,
         scheduledDays: selectedDayKeys,
         hour: selectedHour,
         minute: selectedMinute,
@@ -141,6 +150,7 @@ export default function StatusSchedulePage() {
       setFile(null);
       setPreview(null);
       setCaption("");
+      setPublishNow(false);
       const next = defaultSchedule();
       setSelectedDayKeys([dateDayKey(next)]);
       setRecurrenceMode("none");
@@ -150,7 +160,13 @@ export default function StatusSchedulePage() {
       setSelectedHour(next.getHours());
       setSelectedMinute(next.getMinutes());
       if (fileRef.current) fileRef.current.value = "";
-      toast.success(rows.length > 1 ? `${rows.length} stories agendados!` : "Status agendado!");
+      toast.success(
+        publishNow
+          ? "Story enfileirado para publicação imediata!"
+          : rows.length > 1
+            ? `${rows.length} stories agendados!`
+            : "Status agendado!",
+      );
     },
     onError: (err: Error) => toast.error(err.message ?? "Erro ao agendar"),
   });
@@ -296,31 +312,54 @@ export default function StatusSchedulePage() {
             />
           </div>
 
-          <StatusMultiDayPicker
-            selectedDayKeys={selectedDayKeys}
-            onSelectedDayKeysChange={setSelectedDayKeys}
-            selectedHour={selectedHour}
-            selectedMinute={selectedMinute}
-            onHourChange={setSelectedHour}
-            onMinuteChange={setSelectedMinute}
-            mountedAt={mountedAt}
-            disableDaySelection={recurrenceMode !== "none"}
-          />
-          <StatusRecurrenceControls
-            mode={recurrenceMode}
-            onModeChange={setRecurrenceMode}
-            intervalDays={recurrenceIntervalDays}
-            onIntervalDaysChange={setRecurrenceIntervalDays}
-            weekdayNumbers={recurrenceWeekdays}
-            onWeekdayNumbersChange={setRecurrenceWeekdays}
-            startDayKey={recurrenceStartDayKey}
-            onStartDayKeyChange={setRecurrenceStartDayKey}
-            onApplyGeneratedDays={setSelectedDayKeys}
-          />
+          <label className="flex items-start gap-3 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 cursor-pointer">
+            <input
+              type="checkbox"
+              className="mt-1 rounded border-brand-300 text-brand-600 focus:ring-brand-500"
+              checked={publishNow}
+              onChange={(e) => setPublishNow(e.target.checked)}
+            />
+            <span className="text-sm text-gray-800">
+              <span className="font-medium flex items-center gap-1.5">
+                <Zap className="w-4 h-4 text-brand-600" />
+                Publicar agora
+              </span>
+              <span className="block text-xs text-gray-600 mt-0.5">
+                Envia em alguns segundos (WhatsApp precisa estar conectado).
+              </span>
+            </span>
+          </label>
+
+          {!publishNow && (
+            <>
+              <StatusMultiDayPicker
+                selectedDayKeys={selectedDayKeys}
+                onSelectedDayKeysChange={setSelectedDayKeys}
+                selectedHour={selectedHour}
+                selectedMinute={selectedMinute}
+                onHourChange={setSelectedHour}
+                onMinuteChange={setSelectedMinute}
+                mountedAt={mountedAt}
+                disableDaySelection={recurrenceMode !== "none"}
+              />
+              <StatusRecurrenceControls
+                mode={recurrenceMode}
+                onModeChange={setRecurrenceMode}
+                intervalDays={recurrenceIntervalDays}
+                onIntervalDaysChange={setRecurrenceIntervalDays}
+                weekdayNumbers={recurrenceWeekdays}
+                onWeekdayNumbersChange={setRecurrenceWeekdays}
+                startDayKey={recurrenceStartDayKey}
+                onStartDayKeyChange={setRecurrenceStartDayKey}
+                onApplyGeneratedDays={setSelectedDayKeys}
+              />
+            </>
+          )}
 
           <p className="text-xs text-gray-500">
-            O status será visível para contatos que já conversaram com você no {APP_DISPLAY_NAME}. Mantenha o
-            agente WhatsApp online no horário agendado.
+            {publishNow
+              ? "A publicação entra na fila assim que você confirmar. Mantenha o agente WhatsApp online."
+              : `O status será visível para contatos que já conversaram com você no ${APP_DISPLAY_NAME}. Mantenha o agente WhatsApp online no horário agendado.`}
           </p>
           <p className="text-xs text-gray-500 leading-relaxed rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
             Para conferir a arte: use &quot;Abrir prévia da arte&quot; no histórico após publicar,
@@ -334,17 +373,20 @@ export default function StatusSchedulePage() {
             disabled={
               !file ||
               createMutation.isPending ||
-              selectedDayKeys.length === 0 ||
-              selectionExceedsQuota
+              (!publishNow && selectedDayKeys.length === 0) ||
+              selectionExceedsQuota ||
+              (publishNow && storiesLeft === 0)
             }
             onClick={() => createMutation.mutate()}
           >
             {createMutation.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : publishNow ? (
+              <Zap className="w-4 h-4 mr-2" />
             ) : (
               <CalendarClock className="w-4 h-4 mr-2" />
             )}
-            Agendar publicação
+            {publishNow ? "Publicar agora" : "Agendar publicação"}
           </Button>
         </div>
       </div>
@@ -432,14 +474,15 @@ function StatusRow({
   const [repostOpen, setRepostOpen] = useState(false);
   const when = format(new Date(row.scheduledAt), "dd/MM/yyyy HH:mm", { locale: ptBR });
   const isVideo = row.mediaType === "video";
+  const mediaSrc = resolveChatMediaUrl(row.mediaUrl);
   const canRepost = REPOSTABLE.includes(row.status);
 
   return (
     <li className="flex gap-3 p-3 rounded-xl border border-gray-100 bg-white shadow-sm">
       <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-        {row.mediaUrl && !isVideo ? (
+        {mediaSrc && !isVideo ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={row.mediaUrl} alt="" className="w-full h-full object-cover" />
+          <img src={mediaSrc} alt="" className="w-full h-full object-cover" />
         ) : isVideo ? (
           <Video className="w-6 h-6 text-gray-500" />
         ) : (
@@ -596,10 +639,10 @@ function StoryPreviewModal({
 
         {/* Media — fills the frame */}
         <div className="absolute inset-0 bg-gray-900">
-          {row.mediaUrl && (
+          {mediaSrc && (
             isVideo ? (
               <video
-                src={row.mediaUrl}
+                src={mediaSrc}
                 className="w-full h-full object-cover"
                 autoPlay
                 loop
@@ -608,7 +651,7 @@ function StoryPreviewModal({
               />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={row.mediaUrl} alt="" className="w-full h-full object-cover" />
+              <img src={mediaSrc} alt="" className="w-full h-full object-cover" />
             )
           )}
         </div>

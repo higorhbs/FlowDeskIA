@@ -10,7 +10,10 @@ import {
 } from "firebase/firestore";
 import type { Plan } from "./types.js";
 import type { ScheduledStatus, ScheduledStatusMediaType } from "./types.js";
-import { buildScheduledAtsFromDayKeys } from "./schedule-status-dates.js";
+import {
+  buildImmediateScheduledAt,
+  resolveStoryScheduledAts,
+} from "./schedule-status-dates.js";
 import {
   assertScheduledStoriesQuota,
   countScheduledStoriesInMonth,
@@ -85,6 +88,7 @@ export type CreateScheduledStatusInput = {
   scheduledDays: string[];
   hour: number;
   minute: number;
+  publishNow?: boolean;
 };
 
 export async function createClientScheduledStatuses(
@@ -97,6 +101,7 @@ export async function createClientScheduledStatuses(
     scheduledAts: string[];
     sourceStatusId?: string;
     seriesId?: string;
+    publishNow?: boolean;
   }
 ): Promise<ScheduledStatus[]> {
   await assertBusinessOwned(businessId, tenantId);
@@ -107,10 +112,13 @@ export async function createClientScheduledStatuses(
   const ts = nowIso();
   const batch = writeBatch(getClientDb());
   const rows: ScheduledStatus[] = [];
-
   for (const scheduledAt of data.scheduledAts) {
-    const at = new Date(scheduledAt).getTime();
-    if (!Number.isFinite(at) || at <= Date.now() + 60_000) {
+    const atIso = data.publishNow ? buildImmediateScheduledAt() : scheduledAt;
+    const at = new Date(atIso).getTime();
+    if (!Number.isFinite(at)) {
+      throw new Error("Horário de agendamento inválido.");
+    }
+    if (!data.publishNow && at < Date.now() + 60_000) {
       throw new Error("Todos os horários devem ser pelo menos 1 minuto no futuro.");
     }
     const id = newId();
@@ -120,7 +128,7 @@ export async function createClientScheduledStatuses(
       mediaUrl: data.mediaUrl,
       mediaType: data.mediaType,
       caption: data.caption?.trim() || undefined,
-      scheduledAt: new Date(at).toISOString(),
+      scheduledAt: new Date(atIso).toISOString(),
       status: "scheduled",
       seriesId,
       sourceStatusId: data.sourceStatusId,
@@ -140,17 +148,14 @@ export async function createClientScheduledStatus(
   tenantId: string,
   input: CreateScheduledStatusInput
 ): Promise<ScheduledStatus[]> {
-  const scheduledAts = buildScheduledAtsFromDayKeys(
-    input.scheduledDays,
-    input.hour,
-    input.minute
-  );
+  const scheduledAts = resolveStoryScheduledAts(input);
 
   return createClientScheduledStatuses(businessId, tenantId, {
     mediaUrl: input.mediaUrl,
     mediaType: input.mediaType,
     caption: input.caption,
     scheduledAts,
+    publishNow: input.publishNow,
   });
 }
 
@@ -160,7 +165,7 @@ export async function repostClientScheduledStatus(
   businessId: string,
   tenantId: string,
   sourceStatusId: string,
-  input: { scheduledDays: string[]; hour: number; minute: number }
+  input: { scheduledDays: string[]; hour: number; minute: number; publishNow?: boolean }
 ): Promise<ScheduledStatus[]> {
   await assertBusinessOwned(businessId, tenantId);
   const ref = doc(scheduledStatusesCol(businessId), sourceStatusId);
@@ -172,11 +177,7 @@ export async function repostClientScheduledStatus(
   }
   if (!source.mediaUrl) throw new Error("Arte original indisponível para reagendar.");
 
-  const scheduledAts = buildScheduledAtsFromDayKeys(
-    input.scheduledDays,
-    input.hour,
-    input.minute
-  );
+  const scheduledAts = resolveStoryScheduledAts(input);
 
   return createClientScheduledStatuses(businessId, tenantId, {
     mediaUrl: source.mediaUrl,
@@ -184,6 +185,7 @@ export async function repostClientScheduledStatus(
     caption: source.caption,
     scheduledAts,
     sourceStatusId: source.id,
+    publishNow: input.publishNow,
   });
 }
 

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Loader2, RotateCcw, X } from "lucide-react";
+import { Loader2, RotateCcw, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -43,12 +43,16 @@ export function RepostStatusModal({ businessId, row, onClose, onScheduled }: Pro
   const [recurrenceStartDayKey, setRecurrenceStartDayKey] = useState<string>(dateDayKey(initial));
   const [selectedHour, setSelectedHour] = useState(initial.getHours());
   const [selectedMinute, setSelectedMinute] = useState(initial.getMinutes());
+  const [publishNow, setPublishNow] = useState(false);
   const mountedAt = useMemo(() => new Date(), []);
 
   const repostMutation = useMutation({
     mutationFn: () => {
-      if (selectedDayKeys.length === 0) throw new Error("Selecione pelo menos um dia no calendário.");
+      if (!publishNow && selectedDayKeys.length === 0) {
+        throw new Error("Selecione pelo menos um dia no calendário.");
+      }
       return scheduledStatusApi.repost(businessId, row.id, {
+        publishNow,
         scheduledDays: selectedDayKeys,
         hour: selectedHour,
         minute: selectedMinute,
@@ -56,7 +60,11 @@ export function RepostStatusModal({ businessId, row, onClose, onScheduled }: Pro
     },
     onSuccess: (rows) => {
       toast.success(
-        rows.length > 1 ? `${rows.length} republicações agendadas!` : "Story reagendado!",
+        publishNow
+          ? "Republicação imediata enfileirada!"
+          : rows.length > 1
+            ? `${rows.length} republicações agendadas!`
+            : "Story reagendado!",
       );
       onScheduled();
       onClose();
@@ -83,7 +91,8 @@ export function RepostStatusModal({ businessId, row, onClose, onScheduled }: Pro
               Reagendar story
             </h2>
             <p className="text-sm text-gray-600 mt-1">
-              Mesma arte{row.caption ? " e legenda" : ""} nos dias que você marcar.
+              Mesma arte{row.caption ? " e legenda" : ""}
+              {publishNow ? " — publicação imediata." : " nos dias que você marcar."}
             </p>
           </div>
           <button
@@ -118,31 +127,51 @@ export function RepostStatusModal({ businessId, row, onClose, onScheduled }: Pro
           </div>
         </div>
 
-        <div className="mb-6">
-          <StatusMultiDayPicker
-            selectedDayKeys={selectedDayKeys}
-            onSelectedDayKeysChange={setSelectedDayKeys}
-            selectedHour={selectedHour}
-            selectedMinute={selectedMinute}
-            onHourChange={setSelectedHour}
-            onMinuteChange={setSelectedMinute}
-            mountedAt={mountedAt}
-            disableDaySelection={recurrenceMode !== "none"}
+        <label className="flex items-start gap-3 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 cursor-pointer mb-4">
+          <input
+            type="checkbox"
+            className="mt-1 rounded border-brand-300 text-brand-600 focus:ring-brand-500"
+            checked={publishNow}
+            onChange={(e) => setPublishNow(e.target.checked)}
           />
-          <div className="mt-3">
-            <StatusRecurrenceControls
-              mode={recurrenceMode}
-              onModeChange={setRecurrenceMode}
-              intervalDays={recurrenceIntervalDays}
-              onIntervalDaysChange={setRecurrenceIntervalDays}
-              weekdayNumbers={recurrenceWeekdays}
-              onWeekdayNumbersChange={setRecurrenceWeekdays}
-              startDayKey={recurrenceStartDayKey}
-              onStartDayKeyChange={setRecurrenceStartDayKey}
-              onApplyGeneratedDays={setSelectedDayKeys}
+          <span className="text-sm text-gray-800">
+            <span className="font-medium flex items-center gap-1.5">
+              <Zap className="w-4 h-4 text-brand-600" />
+              Publicar agora
+            </span>
+            <span className="block text-xs text-gray-600 mt-0.5">
+              Republica em alguns segundos (WhatsApp conectado).
+            </span>
+          </span>
+        </label>
+
+        {!publishNow && (
+          <div className="mb-6">
+            <StatusMultiDayPicker
+              selectedDayKeys={selectedDayKeys}
+              onSelectedDayKeysChange={setSelectedDayKeys}
+              selectedHour={selectedHour}
+              selectedMinute={selectedMinute}
+              onHourChange={setSelectedHour}
+              onMinuteChange={setSelectedMinute}
+              mountedAt={mountedAt}
+              disableDaySelection={recurrenceMode !== "none"}
             />
+            <div className="mt-3">
+              <StatusRecurrenceControls
+                mode={recurrenceMode}
+                onModeChange={setRecurrenceMode}
+                intervalDays={recurrenceIntervalDays}
+                onIntervalDaysChange={setRecurrenceIntervalDays}
+                weekdayNumbers={recurrenceWeekdays}
+                onWeekdayNumbersChange={setRecurrenceWeekdays}
+                startDayKey={recurrenceStartDayKey}
+                onStartDayKeyChange={setRecurrenceStartDayKey}
+                onApplyGeneratedDays={setSelectedDayKeys}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="flex gap-3">
           <Button
@@ -157,11 +186,18 @@ export function RepostStatusModal({ businessId, row, onClose, onScheduled }: Pro
           <Button
             type="button"
             className="flex-1"
-            disabled={repostMutation.isPending || selectedDayKeys.length === 0}
+            disabled={
+              repostMutation.isPending || (!publishNow && selectedDayKeys.length === 0)
+            }
             onClick={() => repostMutation.mutate()}
           >
             {repostMutation.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
+            ) : publishNow ? (
+              <>
+                <Zap className="w-4 h-4 mr-1.5" />
+                Publicar agora
+              </>
             ) : (
               <>
                 <RotateCcw className="w-4 h-4 mr-1.5" />

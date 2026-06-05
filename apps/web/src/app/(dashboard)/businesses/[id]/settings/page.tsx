@@ -24,22 +24,16 @@ import {
   Settings2,
   CheckCircle2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import {
   TemplateMessageField,
   TemplateVariablesHelp,
 } from "@/components/business/TemplateMessageField";
 import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
-import {
-  WorkingHoursEditor,
-  defaultWorkingHours,
-  type WorkingHoursValue,
-  type SpecialHoursValue,
-  type LunchBreakValue,
-} from "@/components/business/WorkingHoursEditor";
+import { WorkingHoursEditor } from "@/components/business/WorkingHoursEditor";
 import { useBusinessId } from "@/lib/use-business-id";
+import { useBusinessSchedule } from "@/hooks/use-business-schedule";
 import { persistBusinessSnapshot } from "@/lib/business-route";
-import { DEFAULT_LUNCH_MSG } from "@flowdesk/shared";
 import { cn } from "@/lib/utils";
 
 const businessTypeSchema = z.enum(["BARBERSHOP", "SALON", "RESTAURANT", "DENTAL", "STORE", "OTHER"]);
@@ -66,45 +60,6 @@ const schema = z
   });
 
 type FormData = z.infer<typeof schema>;
-
-function normalizeWorkingHours(raw: unknown): WorkingHoursValue {
-  if (!raw || typeof raw !== "object") return defaultWorkingHours();
-  const wh = raw as WorkingHoursValue;
-  return Object.keys(wh).length > 0 ? wh : defaultWorkingHours();
-}
-
-function normalizeLunchBreak(raw: unknown): LunchBreakValue {
-  if (
-    Array.isArray(raw) &&
-    raw.length === 2 &&
-    typeof raw[0] === "string" &&
-    typeof raw[1] === "string"
-  ) {
-    return [raw[0], raw[1]];
-  }
-  return null;
-}
-
-function normalizeSpecialHours(raw: unknown): SpecialHoursValue {
-  if (!raw || typeof raw !== "object") return {};
-  const input = raw as Record<string, unknown>;
-  const out: SpecialHoursValue = {};
-  for (const [day, slot] of Object.entries(input)) {
-    if (slot === null) {
-      out[day] = null;
-      continue;
-    }
-    if (
-      Array.isArray(slot) &&
-      slot.length === 2 &&
-      typeof slot[0] === "string" &&
-      typeof slot[1] === "string"
-    ) {
-      out[day] = [slot[0], slot[1]];
-    }
-  }
-  return out;
-}
 
 // ── UI helpers ─────────────────────────────────────────────────────────────────
 
@@ -177,17 +132,14 @@ export default function SettingsPage() {
   const businessId = useBusinessId();
   const queryClient = useQueryClient();
 
-  const { data: business, isLoading, isError } = useQuery({
+  const { data: business, isLoading: businessLoading, isError } = useQuery({
     queryKey: ["business", businessId],
     queryFn: () => businessApi.get(businessId),
     enabled: !!businessId,
   });
 
-  const [workingHours, setWorkingHours] = useState<WorkingHoursValue>(defaultWorkingHours());
-  const [specialHours, setSpecialHours] = useState<SpecialHoursValue>({});
-  const [lunchBreak, setLunchBreak] = useState<LunchBreakValue>(null);
-  const [lunchMsg, setLunchMsg] = useState(DEFAULT_LUNCH_MSG);
-  const [hoursDirty, setHoursDirty] = useState(false);
+  const scheduleState = useBusinessSchedule(businessId);
+  const isLoading = businessLoading || scheduleState.isLoading;
 
   const {
     register,
@@ -217,34 +169,27 @@ export default function SettingsPage() {
       greetingMsg: business.greetingMsg ?? "Olá! Como posso ajudar?",
       awayMsg: business.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
     });
-    setWorkingHours(normalizeWorkingHours(business.workingHours));
-    setSpecialHours(normalizeSpecialHours((business as { specialHours?: unknown }).specialHours));
-    setLunchBreak(normalizeLunchBreak((business as { lunchBreak?: unknown }).lunchBreak));
-    setLunchMsg(
-      typeof (business as { lunchMsg?: unknown }).lunchMsg === "string" &&
-        (business as { lunchMsg: string }).lunchMsg.trim()
-        ? (business as { lunchMsg: string }).lunchMsg
-        : DEFAULT_LUNCH_MSG
-    );
-    setHoursDirty(false);
   }, [business, reset]);
 
   const saveMutation = useMutation({
-    mutationFn: (data: FormData) => {
-      if (lunchBreak && lunchMsg.trim().length < 5) {
-        throw new Error("A mensagem de almoço precisa ter pelo menos 5 caracteres.");
-      }
-      return businessApi.update(businessId, {
-        ...data,
-        typeLabel: data.type === "OTHER" ? data.typeLabel?.trim() : undefined,
-        workingHours,
-        specialHours,
-        lunchBreak,
-        lunchMsg: lunchBreak ? lunchMsg.trim() : undefined,
-      });
+    mutationFn: async (data: FormData) => {
+      scheduleState.validateLunchMsg();
+      await Promise.all([
+        businessApi.update(businessId, {
+          name: data.name,
+          type: data.type,
+          typeLabel: data.type === "OTHER" ? data.typeLabel?.trim() : undefined,
+          phone: data.phone,
+          address: data.address,
+          description: data.description,
+          greetingMsg: data.greetingMsg,
+          awayMsg: data.awayMsg,
+        }),
+        scheduleState.saveSchedule(),
+      ]);
     },
     onSuccess: (_data, variables) => {
-      setHoursDirty(false);
+      scheduleState.clearHoursDirty();
       persistBusinessSnapshot({ id: businessId, type: variables.type });
       queryClient.invalidateQueries({ queryKey: ["business", businessId] });
       queryClient.invalidateQueries({ queryKey: ["businesses"] });
@@ -254,7 +199,7 @@ export default function SettingsPage() {
       toast.error(err.message?.includes("almoço") ? err.message : "Erro ao salvar configurações"),
   });
 
-  const hasChanges = isDirty || hoursDirty;
+  const hasChanges = isDirty || scheduleState.hoursDirty;
   const W = "w-full max-w-2xl mx-auto px-4 sm:px-6";
 
   if (!businessId || isLoading) {
@@ -392,18 +337,17 @@ export default function SettingsPage() {
           description="Fuso de Brasília · almoço e horários excepcionais por data"
         >
           <WorkingHoursEditor
-            value={workingHours}
-            onChange={(v) => { setWorkingHours(v); setHoursDirty(true); }}
-            specialHours={specialHours}
-            onSpecialHoursChange={(v) => { setSpecialHours(v); setHoursDirty(true); }}
-            lunchBreak={lunchBreak}
-            onLunchBreakChange={(v) => { setLunchBreak(v); setHoursDirty(true); }}
-            lunchMsg={lunchMsg}
-            onLunchMsgChange={(v) => { setLunchMsg(v); setHoursDirty(true); }}
-            onCommit={() => {
-              if (saveMutation.isPending) return;
-              void handleSubmit((d) => saveMutation.mutate(d))();
-            }}
+            value={scheduleState.workingHours}
+            onChange={scheduleState.setWorkingHours}
+            specialHours={scheduleState.specialHours}
+            onSpecialHoursChange={scheduleState.setSpecialHours}
+            lunchBreak={scheduleState.lunchBreak}
+            onLunchBreakChange={scheduleState.setLunchBreak}
+            lunchMsg={scheduleState.lunchMsg}
+            onLunchMsgChange={scheduleState.setLunchMsg}
+            onQuickSaveException={(p) => scheduleState.quickSaveException(p)}
+            onQuickSaveWorkingHours={() => scheduleState.quickSaveWorkingHours()}
+            onQuickSaveLunch={(data) => scheduleState.quickSaveLunch(data)}
           />
         </SectionCard>
 

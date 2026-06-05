@@ -9,6 +9,7 @@
     "dev:web": "pnpm --filter @flowdesk/web dev",
     "dev:api": "pnpm --filter @flowdesk/api dev",
     "dev:backend": "pnpm --filter @flowdesk/backend dev",
+    "dev:redis": "docker compose up -d redis",
     "build": "turbo run build",
     "google:oauth-setup": "node scripts/google-oauth-setup.mjs",
     "prepare:hosting": "node scripts/prepare-hosting.mjs",

@@ -218,7 +218,11 @@ type Props = {
   onLunchBreakChange: (value: LunchBreakValue) => void;
   lunchMsg: string;
   onLunchMsgChange: (value: string) => void;
-  onCommit?: () => void;
+  onQuickSaveException?: (
+    payload: { date: string; slot: [string, string] | null } | { date: string; remove: true },
+  ) => void | Promise<void>;
+  onQuickSaveWorkingHours?: () => void | Promise<void>;
+  onQuickSaveLunch?: (data: { lunchBreak: LunchBreakValue; lunchMsg: string }) => void | Promise<void>;
 };
 
 export function WorkingHoursEditor({
@@ -230,7 +234,9 @@ export function WorkingHoursEditor({
   onLunchBreakChange,
   lunchMsg,
   onLunchMsgChange,
-  onCommit,
+  onQuickSaveException,
+  onQuickSaveWorkingHours,
+  onQuickSaveLunch,
 }: Props) {
   const [editingDay, setEditingDay] = useState<string | null>(null);
   const [specialDate, setSpecialDate] = useState("");
@@ -278,15 +284,16 @@ export function WorkingHoursEditor({
     const dayKey = dayKeyFromDate(today);
     const baseSlot = specialHours[todayKey] ?? value[dayKey] ?? ["09:00", "18:00"];
     const openAt = baseSlot ? baseSlot[0] : "09:00";
-    onSpecialHoursChange({ ...specialHours, [todayKey]: [openAt, time] });
-    onCommit?.();
+    const slot: [string, string] = [openAt, time];
+    onSpecialHoursChange({ ...specialHours, [todayKey]: slot });
+    void onQuickSaveException?.({ date: todayKey, slot });
   }
 
   function addSpecialDay() {
     if (!specialDate) return;
     const slot: [string, string] | null = specialClosed ? null : [specialOpen, specialClose];
     onSpecialHoursChange({ ...specialHours, [specialDate]: slot });
-    onCommit?.();
+    void onQuickSaveException?.({ date: specialDate, slot });
     setSpecialDate("");
     setSpecialClosed(false);
   }
@@ -380,7 +387,7 @@ export function WorkingHoursEditor({
                         type="button"
                         onClick={() => {
                           setEditingDay(null);
-                          onCommit?.();
+                          void onQuickSaveWorkingHours?.();
                         }}
                         className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-800 transition-colors"
                       >
@@ -442,8 +449,9 @@ export function WorkingHoursEditor({
           <Toggle
             checked={lunchBreak !== null}
             onChange={(enabled) => {
-              onLunchBreakChange(enabled ? lunchBreak ?? ["12:00", "13:00"] : null);
-              onCommit?.();
+              const next = enabled ? lunchBreak ?? ["12:00", "13:00"] : null;
+              onLunchBreakChange(next);
+              void onQuickSaveLunch?.({ lunchBreak: next, lunchMsg });
             }}
           />
         </div>
@@ -461,7 +469,7 @@ export function WorkingHoursEditor({
               />
               <button
                 type="button"
-                onClick={() => onCommit?.()}
+                onClick={() => void onQuickSaveLunch?.({ lunchBreak, lunchMsg })}
                 className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-800 transition-colors"
               >
                 <Check className="w-3.5 h-3.5" />
@@ -536,8 +544,9 @@ export function WorkingHoursEditor({
           <button
             type="button"
             onClick={() => {
-              onSpecialHoursChange({ ...specialHours, [dateKeyFromOffset(0)]: null });
-              onCommit?.();
+              const todayKey = dateKeyFromOffset(0);
+              onSpecialHoursChange({ ...specialHours, [todayKey]: null });
+              void onQuickSaveException?.({ date: todayKey, slot: null });
             }}
             className="text-xs border border-red-200 bg-red-50 text-red-700 rounded-lg px-3 py-1.5 hover:bg-red-100"
           >
@@ -572,7 +581,7 @@ export function WorkingHoursEditor({
                     const next = { ...specialHours };
                     delete next[day];
                     onSpecialHoursChange(next);
-                    onCommit?.();
+                    void onQuickSaveException?.({ date: day, remove: true });
                   }}
                   className="text-xs text-red-600 hover:text-red-700"
                 >

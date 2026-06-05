@@ -1,24 +1,23 @@
 import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  GoogleAuthProvider,
-  EmailAuthProvider,
-  signInWithCredential,
+  signInWithCustomToken,
   signOut,
   onAuthStateChanged,
-  updateProfile,
-  updateEmail,
-  updatePassword,
-  reauthenticateWithCredential,
-  sendEmailVerification,
   reload,
   type User,
 } from "firebase/auth";
+import { getClientAuth } from "@flowdesk/firebase/client";
 import {
-  getClientAuth,
-  ensureClientTenant,
-  updateClientTenantProfile,
-} from "@flowdesk/firebase/client";
+  backendConfirmVerification,
+  backendConfirmVerificationSession,
+  backendGoogle,
+  backendLogin,
+  backendRegister,
+  backendResendVerification,
+  backendResendVerificationSession,
+  backendUpdateProfileEmail,
+  backendUpdateProfileName,
+  backendUpdateProfilePassword,
+} from "./backend-auth";
 
 type GoogleTokenResponse = {
   access_token?: string;
@@ -54,7 +53,9 @@ let googleIdentityScriptPromise: Promise<void> | null = null;
 
 function loadGoogleIdentityScript(): Promise<void> {
   if (typeof window === "undefined") {
-    return Promise.reject(new Error("Google Identity Services só funciona no navegador"));
+    return Promise.reject(
+      new Error("Google Identity Services só funciona no navegador"),
+    );
   }
   if (window.google?.accounts?.oauth2) {
     return Promise.resolve();
@@ -66,67 +67,41 @@ function loadGoogleIdentityScript(): Promise<void> {
       script.async = true;
       script.defer = true;
       script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Falha ao carregar o Google Sign-In."));
+      script.onerror = () =>
+        reject(new Error("Falha ao carregar o Google Sign-In."));
       document.head.appendChild(script);
     });
   }
   return googleIdentityScriptPromise;
 }
 
-async function ensureTenantProfile(user: User, name?: string) {
-  const email = user.email;
-  if (!email) throw new Error("E-mail não encontrado na conta Firebase");
-  const displayName = name ?? user.displayName ?? email.split("@")[0] ?? "Usuário";
-  await user.getIdToken(true);
-  await ensureClientTenant(user.uid, { name: displayName, email });
-}
-
-function verificationContinueUrl(): string | undefined {
-  if (typeof window === "undefined") return undefined;
-  return `${window.location.origin}/?auth=register`;
-}
-
-async function sendVerificationLink(user: User) {
-  const url = verificationContinueUrl();
-  await sendEmailVerification(user, url ? { url } : undefined);
-}
-
-async function ensureVerified(user: User): Promise<boolean> {
-  await reload(user);
-  return user.emailVerified === true;
-}
-
-export async function resendVerificationEmail() {
-  const user = getClientAuth().currentUser;
-  if (!user) throw new Error("Faça login para continuar.");
-  await sendVerificationLink(user);
-}
-
-export async function refreshVerifiedSession() {
-  const user = getClientAuth().currentUser;
-  if (!user) throw new Error("Faça login para continuar.");
-  const verified = await ensureVerified(user);
-  if (!verified) {
-    throw new Error("Seu e-mail ainda não foi confirmado.");
-  }
-  await ensureTenantProfile(user);
-  const token = await user.getIdToken(true);
-  return { token, user };
+async function establishSession(
+  customToken: string,
+): Promise<{ token: string; user: User }> {
+  const auth = getClientAuth();
+  const cred = await signInWithCustomToken(auth, customToken);
+  const token = await cred.user.getIdToken(true);
+  return { token, user: cred.user };
 }
 
 export type EmailAuthResult =
   | { status: "VERIFIED"; token: string; user: User }
-  | { status: "VERIFICATION_REQUIRED"; email: string; user: User };
+  | { status: "VERIFICATION_REQUIRED"; email: string };
 
 export function authErrorMessage(err: unknown, fallback: string): string {
-  const code = err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
+  const code =
+    err && typeof err === "object" && "code" in err
+      ? String((err as { code: string }).code)
+      : "";
   const map: Record<string, string> = {
     "auth/popup-closed-by-user": "Login cancelado.",
-    "auth/popup-blocked": "Popup bloqueado. Permita popups para localhost:3000.",
+    "auth/popup-blocked":
+      "Popup bloqueado. Permita popups para localhost:3000.",
     "auth/cancelled-popup-request": "Login cancelado.",
     "auth/unauthorized-domain":
       "Domínio não autorizado. Em Firebase → Authentication → Settings, adicione localhost.",
-    "auth/operation-not-allowed": "Ative o provedor Google em Firebase → Authentication → Sign-in method.",
+    "auth/operation-not-allowed":
+      "Ative o provedor Google em Firebase → Authentication → Sign-in method.",
     "auth/account-exists-with-different-credential":
       "Este e-mail já está cadastrado com outro método de login.",
     "auth/invalid-credential": "Credenciais inválidas.",
@@ -134,11 +109,14 @@ export function authErrorMessage(err: unknown, fallback: string): string {
     "auth/wrong-password": "Senha incorreta.",
     "auth/email-already-in-use": "E-mail já cadastrado.",
     "auth/weak-password": "Senha muito fraca (mínimo 6 caracteres).",
-    "auth/requires-recent-login": "Por segurança, saia e entre de novo antes de alterar e-mail ou senha.",
+    "auth/requires-recent-login":
+      "Por segurança, saia e entre de novo antes de alterar e-mail ou senha.",
     "auth/invalid-email": "E-mail inválido.",
+    "auth/email-not-verified": "Confirme seu e-mail antes de acessar o painel.",
     "auth/network-request-failed":
-      "Firebase Auth inacessível. Se o site foi publicado pelo GitHub Actions, confira se o secret NEXT_PUBLIC_FIREBASE_API_KEY é a chave real (AIza...), não \"test\" — rode pnpm setup:github-deploy e redeploy. Também: flowdesk.ia.br nos domínios autorizados e na API Key do Google Cloud.",
-    "permission-denied": "Sem permissão no Firestore. Confira as regras e o login.",
+      "API de autenticação inacessível. Confira se o backend está no ar e NEXT_PUBLIC_BACKEND_URL.",
+    "permission-denied":
+      "Sem permissão no Firestore. Confira as regras e o login.",
   };
   const raw = err instanceof Error ? err.message : fallback;
   if (raw.toLowerCase().includes("confirme seu e-mail")) {
@@ -167,38 +145,58 @@ export function authErrorMessage(err: unknown, fallback: string): string {
   return map[code] ?? raw;
 }
 
-export async function registerWithEmail(name: string, email: string, password: string): Promise<EmailAuthResult> {
-  const auth = getClientAuth();
-  const cred = await createUserWithEmailAndPassword(auth, email, password);
-  await updateProfile(cred.user, { displayName: name });
-  await sendVerificationLink(cred.user);
-  return {
-    status: "VERIFICATION_REQUIRED",
-    email,
-    user: cred.user,
-  };
-}
-
-export async function loginWithEmail(email: string, password: string): Promise<EmailAuthResult> {
-  const auth = getClientAuth();
-  const cred = await signInWithEmailAndPassword(auth, email, password);
-  if (!(await ensureVerified(cred.user))) {
-    await sendVerificationLink(cred.user);
-    return {
-      status: "VERIFICATION_REQUIRED",
-      email: cred.user.email ?? email,
-      user: cred.user,
-    };
+export async function resendVerificationEmail(
+  email?: string,
+  password?: string,
+) {
+  if (email && password) {
+    await backendResendVerification(email, password);
+    return;
   }
-  await ensureTenantProfile(cred.user);
-  const token = await cred.user.getIdToken();
-  return { status: "VERIFIED", token, user: cred.user };
+  const user = getClientAuth().currentUser;
+  if (!user) throw new Error("Faça login para continuar.");
+  const idToken = await user.getIdToken();
+  await backendResendVerificationSession(idToken);
 }
 
-function googleProvider() {
-  const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: "select_account" });
-  return provider;
+export async function refreshVerifiedSession(
+  email?: string,
+  password?: string,
+) {
+  if (email && password) {
+    const res = await backendConfirmVerification(email, password);
+    return establishSession(res.customToken);
+  }
+  const user = getClientAuth().currentUser;
+  if (!user) throw new Error("Faça login para continuar.");
+  await reload(user);
+  if (!user.emailVerified) {
+    throw new Error("Seu e-mail ainda não foi confirmado.");
+  }
+  const idToken = await user.getIdToken(true);
+  const res = await backendConfirmVerificationSession(idToken);
+  return establishSession(res.customToken);
+}
+
+export async function registerWithEmail(
+  name: string,
+  email: string,
+  password: string,
+): Promise<EmailAuthResult> {
+  const res = await backendRegister(name, email, password);
+  return { status: "VERIFICATION_REQUIRED", email: res.email ?? email };
+}
+
+export async function loginWithEmail(
+  email: string,
+  password: string,
+): Promise<EmailAuthResult> {
+  const res = await backendLogin(email, password);
+  if (res.status === "VERIFICATION_REQUIRED") {
+    return { status: "VERIFICATION_REQUIRED", email: res.email ?? email };
+  }
+  const session = await establishSession(res.customToken);
+  return { status: "VERIFIED", token: session.token, user: session.user };
 }
 
 function isPrivateNetworkHost(host: string): boolean {
@@ -216,23 +214,15 @@ function assertGoogleAuthOrigin(): void {
   if (isPrivateNetworkHost(host)) {
     const port = window.location.port || "3000";
     throw new Error(
-      `Abra http://localhost:${port} (não use ${window.location.host}). O Google OAuth não aceita IP da rede (${host}).`
+      `Abra http://localhost:${port} (não use ${window.location.host}). O Google OAuth não aceita IP da rede (${host}).`,
     );
   }
 }
 
-async function finishGoogleLogin(user: User): Promise<EmailAuthResult> {
-  if (!(await ensureVerified(user))) {
-    throw new Error("Confirme seu e-mail antes de continuar.");
-  }
-  await ensureTenantProfile(user);
-  const token = await user.getIdToken();
-  return { status: "VERIFIED" as const, token, user };
-}
-
 async function signInWithGoogleIdentity(): Promise<EmailAuthResult> {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-  if (!clientId) throw new Error("Configure NEXT_PUBLIC_GOOGLE_CLIENT_ID no .env");
+  if (!clientId)
+    throw new Error("Configure NEXT_PUBLIC_GOOGLE_CLIENT_ID no .env");
 
   await loadGoogleIdentityScript();
 
@@ -252,7 +242,13 @@ async function signInWithGoogleIdentity(): Promise<EmailAuthResult> {
     };
 
     const timeoutId = window.setTimeout(() => {
-      finish(() => reject(new Error("Não foi possível abrir o login do Google. Tente novamente.")));
+      finish(() =>
+        reject(
+          new Error(
+            "Não foi possível abrir o login do Google. Tente novamente.",
+          ),
+        ),
+      );
     }, 15000);
 
     const tokenClient = googleOAuth2.initTokenClient({
@@ -263,8 +259,10 @@ async function signInWithGoogleIdentity(): Promise<EmailAuthResult> {
           if (!response.access_token) {
             reject(
               new Error(
-                response.error_description ?? response.error ?? "Não foi possível obter a credencial do Google."
-              )
+                response.error_description ??
+                  response.error ??
+                  "Não foi possível obter a credencial do Google.",
+              ),
             );
             return;
           }
@@ -276,10 +274,9 @@ async function signInWithGoogleIdentity(): Promise<EmailAuthResult> {
     tokenClient.requestAccessToken({ prompt: "select_account" });
   });
 
-  const credential = GoogleAuthProvider.credential(undefined, accessToken);
-  const auth = getClientAuth();
-  const result = await signInWithCredential(auth, credential);
-  return finishGoogleLogin(result.user);
+  const res = await backendGoogle(accessToken);
+  const session = await establishSession(res.customToken);
+  return { status: "VERIFIED", token: session.token, user: session.user };
 }
 
 export async function loginWithGoogle(): Promise<EmailAuthResult | null> {
@@ -287,10 +284,8 @@ export async function loginWithGoogle(): Promise<EmailAuthResult | null> {
   return signInWithGoogleIdentity();
 }
 
-let googleRedirectPromise: Promise<{ token: string; user: User } | null> | null = null;
-
 export function completeGoogleRedirect() {
-  return googleRedirectPromise ?? Promise.resolve(null);
+  return Promise.resolve(null);
 }
 
 export async function logoutFirebase() {
@@ -309,26 +304,27 @@ export function hasGoogleProvider(user: User | null): boolean {
   return !!user?.providerData.some((p) => p.providerId === "google.com");
 }
 
+async function reloadCurrentUser() {
+  const user = getClientAuth().currentUser;
+  if (user) await reload(user);
+}
+
 export async function updateAccountName(name: string) {
-  const user = getClientAuth().currentUser;
-  if (!user) throw new Error("Faça login para continuar.");
-  await updateProfile(user, { displayName: name });
-  await updateClientTenantProfile(user.uid, { name });
+  await backendUpdateProfileName(name);
+  await reloadCurrentUser();
 }
 
-export async function updateAccountEmail(newEmail: string, currentPassword: string) {
-  const user = getClientAuth().currentUser;
-  if (!user?.email) throw new Error("E-mail não encontrado na conta.");
-  const cred = EmailAuthProvider.credential(user.email, currentPassword);
-  await reauthenticateWithCredential(user, cred);
-  await updateEmail(user, newEmail);
-  await updateClientTenantProfile(user.uid, { email: newEmail });
+export async function updateAccountEmail(
+  newEmail: string,
+  currentPassword: string,
+) {
+  await backendUpdateProfileEmail(newEmail, currentPassword);
+  await reloadCurrentUser();
 }
 
-export async function updateAccountPassword(currentPassword: string, newPassword: string) {
-  const user = getClientAuth().currentUser;
-  if (!user?.email) throw new Error("Conta sem e-mail/senha. Use login com Google.");
-  const cred = EmailAuthProvider.credential(user.email, currentPassword);
-  await reauthenticateWithCredential(user, cred);
-  await updatePassword(user, newPassword);
+export async function updateAccountPassword(
+  currentPassword: string,
+  newPassword: string,
+) {
+  await backendUpdateProfilePassword(currentPassword, newPassword);
 }

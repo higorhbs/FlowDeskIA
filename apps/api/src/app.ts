@@ -5,7 +5,6 @@ import fastifyRawBody from "fastify-raw-body";
 import { authRoutes } from "./routes/auth";
 import { webhookRoutes } from "./routes/webhooks";
 import { privacyRoutes } from "./routes/privacy";
-import { whatsappRoutes } from "./routes/whatsapp";
 import { runPrivacyRetentionForAllTenants } from "./services/privacy-compliance";
 import { billingRoutes } from "./routes/billing";
 import { hasAdminCredential } from "@flowdesk/firebase";
@@ -70,7 +69,6 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(asaasIntegrationRoutes);
   await app.register(privacyRoutes);
   await app.register(webhookRoutes);
-  await app.register(whatsappRoutes);
 
   const retentionRaw = process.env.PRIVACY_RETENTION_INTERVAL_HOURS?.trim();
   const retentionIntervalHours = retentionRaw ? Number(retentionRaw) : 0;

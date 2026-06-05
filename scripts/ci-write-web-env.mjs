@@ -5,11 +5,14 @@ import { fileURLToPath } from "url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || "";
-const waApiUrl = process.env.NEXT_PUBLIC_WA_API_URL?.trim() || apiUrl;
+const backendUrl =
+  process.env.NEXT_PUBLIC_BACKEND_URL?.trim() ||
+  process.env.NEXT_PUBLIC_WA_API_URL?.trim() ||
+  apiUrl;
 
 const keys = [
   "NEXT_PUBLIC_API_URL",
-  "NEXT_PUBLIC_WA_API_URL",
+  "NEXT_PUBLIC_BACKEND_URL",
   "NEXT_PUBLIC_FIREBASE_API_KEY",
   "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
   "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
@@ -48,7 +51,7 @@ const projectId =
 const lines = keys.map((k) => {
   if (k === "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN") return `${k}=${authDomain}`;
   if (k === "NEXT_PUBLIC_FIREBASE_PROJECT_ID") return `${k}=${projectId}`;
-  if (k === "NEXT_PUBLIC_WA_API_URL") return `${k}=${waApiUrl}`;
+  if (k === "NEXT_PUBLIC_BACKEND_URL") return `${k}=${backendUrl}`;
   return `${k}=${process.env[k] ?? ""}`;
 });
 writeFileSync(resolve(root, "apps/web/.env.production"), `${lines.join("\n")}\n`);

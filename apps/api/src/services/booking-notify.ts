@@ -1,8 +1,9 @@
 import type { Appointment, Business } from "@flowdesk/firebase";
+import { forwardBookingNotify } from "../lib/backend-notify";
 
 export async function notifyBookingAccepted(
-  _business: Pick<Business, "id" | "name" | "type">,
-  _apt: Appointment
+  business: Pick<Business, "id" | "name" | "type">,
+  apt: Appointment
 ): Promise<void> {
-  return;
+  await forwardBookingNotify(business, apt);
 }

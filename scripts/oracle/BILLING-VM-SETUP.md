@@ -16,14 +16,14 @@
 
 ## Na VM Oracle
 
-**Dois repositórios na mesma VM (comum):**
+**Mesmo repositório FlowDesk na VM:**
 
-| Pasta na VM | Repo | Função |
-|-------------|------|--------|
-| `~/flowdesk-wa` | flowdesk-wa | WhatsApp (Baileys), `zapflow.duckdns.org` |
-| `~/FlowDesk` | FlowDesk | Cobrança Stripe (`/billing/*`), `scripts/oracle/deploy-api.sh` |
+| Serviço Docker | Função |
+|----------------|--------|
+| `api` | Cobrança Stripe, webhooks Asaas, privacy (`API_DOMAIN`) |
+| `backend` | WhatsApp Baileys + Redis (`WA_API_PUBLIC_URL` / domínio WA) |
 
-Se só existir `~/flowdesk-wa`, o checkout de planos **não funciona** — clone o FlowDesk ou use Firebase `/api`.
+Configure `BACKEND_NOTIFY_URL` na API apontando para o backend (ex.: `http://backend:3001`) e o mesmo `INTERNAL_NOTIFY_SECRET` nos dois `.env`.
 
 Siga na ordem (billing = pasta **FlowDesk**).
 

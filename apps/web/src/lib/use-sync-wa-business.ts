@@ -27,6 +27,9 @@ export function useSyncWhatsAppBusiness(businessId: string) {
     placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,
     refetchInterval: (q) => {
+      if (q.state.data?.status === "misconfigured" || q.state.data?.status === "unavailable") {
+        return false;
+      }
       const live = q.state.data?.connected === true;
       const stored = businessQuery.data?.isConnected === true;
       if (live || stored) return 60_000;
@@ -35,7 +38,11 @@ export function useSyncWhatsAppBusiness(businessId: string) {
       if (q.state.status === "error") return 15_000;
       return 8_000;
     },
-    retry: 2,
+    retry: (failureCount, err) => {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("WA_SESSION_PATH") || msg.includes("misconfigured")) return false;
+      return failureCount < 2;
+    },
   });
 
   const waLive = query.data?.connected === true;

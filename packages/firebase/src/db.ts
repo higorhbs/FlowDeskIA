@@ -14,7 +14,22 @@ import type {
   Plan,
   PlanStatus,
   BusinessAsaasIntegration,
+  BusinessCreateInput,
+  ScheduledStatus,
+  ScheduledStatusState,
+  ScheduledStatusMediaType,
 } from "./types.js";
+import {
+  buildImmediateScheduledAt,
+  resolveStoryScheduledAts,
+} from "./schedule-status-dates.js";
+import {
+  assertScheduledStoriesQuota,
+  countScheduledStoriesInMonth,
+  type PlanTier,
+} from "@flowdesk/shared";
+import { buildBusinessCreateRecord, normalizeBusiness } from "./business-record.js";
+import { getBusinessSchedule } from "./schedule.js";
 import type { Query, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { FieldValue as AdminFieldValue } from "firebase-admin/firestore";
 import { getDb, newId, nowIso } from "./admin.js";
@@ -98,6 +113,15 @@ function asaasIntegrationRef(businessId: string) {
   return businessRef(businessId).collection("integrations").doc("asaas");
 }
 
+function scheduledStatusesCol(businessId: string) {
+  return businessRef(businessId).collection("scheduledStatuses");
+}
+
+function phoneToJid(phone: string): string | null {
+  const digits = phone.replace(/\D/g, "");
+  return digits ? `${digits}@s.whatsapp.net` : null;
+}
+
 // ─── Tenants ─────────────────────────────────────────────────────────────────
 
 export async function getTenant(id: string): Promise<Tenant | null> {
@@ -156,13 +180,15 @@ export async function updateTenant(
 
 export async function listBusinesses(tenantId: string): Promise<Business[]> {
   const snap = await businesses().where("tenantId", "==", tenantId).get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Business);
+  return snap.docs.map((d) =>
+    normalizeBusiness(d.id, d.data() as Record<string, unknown>)
+  );
 }
 
 export async function getBusiness(id: string, tenantId?: string): Promise<Business | null> {
   const snap = await businessRef(id).get();
   if (!snap.exists) return null;
-  const b = { id: snap.id, ...snap.data() } as Business;
+  const b = normalizeBusiness(snap.id, snap.data() as Record<string, unknown>);
   if (tenantId && b.tenantId !== tenantId) return null;
   return b;
 }
@@ -228,14 +254,25 @@ export async function deleteBusinessAsaasIntegration(businessId: string): Promis
 export async function getBusinessForBot(id: string): Promise<BusinessWithRelations | null> {
   const business = await getBusiness(id);
   if (!business) return null;
-  const [catalog, faqs, asaas] = await Promise.all([
+  const [catalog, faqs, asaas, schedule] = await Promise.all([
     resolveCatalogForBot(business),
     resolveFaqsForBot(business),
     getBusinessAsaasIntegration(id),
+    getBusinessSchedule(id),
   ]);
   const tenant = await getTenant(business.tenantId);
+  const withSchedule = schedule
+    ? {
+        ...business,
+        timezone: schedule.timezone,
+        workingHours: schedule.workingHours,
+        specialHours: schedule.specialHours,
+        lunchBreak: schedule.lunchBreak,
+        lunchMsg: schedule.lunchMsg,
+      }
+    : business;
   return {
-    ...business,
+    ...withSchedule,
     catalog,
     faqs,
     tenantPlan: tenant?.plan,
@@ -245,33 +282,13 @@ export async function getBusinessForBot(id: string): Promise<BusinessWithRelatio
 
 export async function createBusiness(
   tenantId: string,
-  data: Omit<Business, "id" | "tenantId" | "createdAt" | "updatedAt" | "isConnected">
+  data: BusinessCreateInput
 ): Promise<Business> {
   const id = newId();
   const ts = nowIso();
-  const business: Business = {
-    ...data,
-    id,
-    tenantId,
-    isConnected: false,
-    workingHours: data.workingHours ?? {},
-    timezone: data.timezone ?? "America/Sao_Paulo",
-    greetingMsg: data.greetingMsg ?? "Olá! Como posso ajudar?",
-    awayMsg: data.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
-    thanksEnabled: data.thanksEnabled ?? true,
-    attendantName: data.attendantName?.trim() || undefined,
-    attendantNames:
-      data.attendantNames
-        ?.map((name) => name.trim())
-        .filter(Boolean)
-        .slice(0, 20) || undefined,
-    attendantEnabled: data.attendantEnabled ?? true,
-    manualAttendantPrefixEnabled: data.manualAttendantPrefixEnabled ?? true,
-    createdAt: ts,
-    updatedAt: ts,
-  };
-  await businessRef(id).set(business);
-  return business;
+  const record = buildBusinessCreateRecord(tenantId, id, data, ts);
+  await businessRef(id).set(record);
+  return normalizeBusiness(id, record);
 }
 
 export async function updateBusiness(
@@ -759,6 +776,232 @@ export async function updatePaymentsByAsaasId(
 export async function listPayments(businessId: string, limit = 50): Promise<Payment[]> {
   const snap = await paymentsCol(businessId).orderBy("createdAt", "desc").limit(limit).get();
   return snap.docs.map((d) => ({ id: d.id, businessId, ...d.data() }) as Payment);
+}
+
+// ─── Scheduled WhatsApp status ───────────────────────────────────────────────
+
+export async function listScheduledStatuses(businessId: string): Promise<ScheduledStatus[]> {
+  const snap = await scheduledStatusesCol(businessId).orderBy("scheduledAt", "desc").get();
+  return snap.docs.map((d) => ({ id: d.id, businessId, ...d.data() }) as ScheduledStatus);
+}
+
+export async function listDueScheduledStatuses(limit = 25): Promise<ScheduledStatus[]> {
+  const snap = await getDb()
+    .collectionGroup("scheduledStatuses")
+    .where("status", "==", "scheduled")
+    .where("scheduledAt", "<=", nowIso())
+    .orderBy("scheduledAt", "asc")
+    .limit(limit)
+    .get();
+  const rows = snap.docs.map((d) => {
+    const businessId = d.ref.parent.parent?.id ?? "";
+    return { id: d.id, businessId, ...d.data() } as ScheduledStatus;
+  });
+  return rows.sort(
+    (a, b) => a.scheduledAt.localeCompare(b.scheduledAt) || a.createdAt.localeCompare(b.createdAt)
+  );
+}
+
+export async function claimScheduledStatus(
+  businessId: string,
+  id: string
+): Promise<ScheduledStatus | null> {
+  const ref = scheduledStatusesCol(businessId).doc(id);
+  return getDb().runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return null;
+    const row = { id: snap.id, businessId, ...snap.data() } as ScheduledStatus;
+    if (row.status !== "scheduled") return null;
+    const ts = nowIso();
+    tx.update(ref, { status: "publishing" satisfies ScheduledStatusState, updatedAt: ts });
+    return { ...row, status: "publishing", updatedAt: ts };
+  });
+}
+
+export async function finishScheduledStatus(
+  businessId: string,
+  id: string,
+  outcome: { status: "published" } | { status: "failed"; error: string }
+) {
+  const ts = nowIso();
+  const patch: Record<string, unknown> = { status: outcome.status, updatedAt: ts };
+  if (outcome.status === "published") patch.publishedAt = ts;
+  if (outcome.status === "failed") patch.error = outcome.error.slice(0, 500);
+  await scheduledStatusesCol(businessId).doc(id).update(patch);
+}
+
+const REPOSTABLE_STATUS: ScheduledStatus["status"][] = ["published", "failed", "cancelled"];
+
+async function assertStoriesQuotaForCreate(
+  businessId: string,
+  tenantId: string,
+  adding: number
+) {
+  const tenant = await getTenant(tenantId);
+  const plan = (tenant?.plan ?? "STARTER") as PlanTier;
+  const rows = await listScheduledStatuses(businessId);
+  const used = countScheduledStoriesInMonth(rows);
+  assertScheduledStoriesQuota(plan, used, adding);
+}
+
+export async function createScheduledStatuses(
+  businessId: string,
+  tenantId: string,
+  data: {
+    mediaUrl: string;
+    mediaType: ScheduledStatusMediaType;
+    caption?: string;
+    scheduledAts: string[];
+    sourceStatusId?: string;
+    seriesId?: string;
+    publishNow?: boolean;
+  }
+): Promise<ScheduledStatus[]> {
+  if (!data.scheduledAts.length) throw new Error("Informe pelo menos um horário.");
+  await assertStoriesQuotaForCreate(businessId, tenantId, data.scheduledAts.length);
+
+  const seriesId = data.seriesId ?? (data.scheduledAts.length > 1 ? newId() : undefined);
+  const ts = nowIso();
+  const batch = getDb().batch();
+  const rows: ScheduledStatus[] = [];
+  for (const scheduledAt of data.scheduledAts) {
+    const atIso = data.publishNow ? buildImmediateScheduledAt() : scheduledAt;
+    const at = new Date(atIso).getTime();
+    if (!Number.isFinite(at)) {
+      throw new Error("Horário de agendamento inválido.");
+    }
+    if (!data.publishNow && at < Date.now() + 60_000) {
+      throw new Error("Todos os horários devem ser pelo menos 1 minuto no futuro.");
+    }
+    const id = newId();
+    const row = removeUndefined({
+      id,
+      businessId,
+      mediaUrl: data.mediaUrl,
+      mediaType: data.mediaType,
+      caption: data.caption?.trim() || undefined,
+      scheduledAt: new Date(atIso).toISOString(),
+      status: "scheduled",
+      seriesId,
+      sourceStatusId: data.sourceStatusId,
+      createdAt: ts,
+      updatedAt: ts,
+    }) as ScheduledStatus;
+    batch.set(scheduledStatusesCol(businessId).doc(id), row);
+    rows.push(row);
+  }
+
+  await batch.commit();
+  return rows.sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
+}
+
+export async function createScheduledStatus(
+  businessId: string,
+  tenantId: string,
+  input: {
+    mediaUrl: string;
+    mediaType: ScheduledStatusMediaType;
+    caption?: string;
+    scheduledDays: string[];
+    hour: number;
+    minute: number;
+    publishNow?: boolean;
+  }
+): Promise<ScheduledStatus[]> {
+  const scheduledAts = resolveStoryScheduledAts(input);
+  return createScheduledStatuses(businessId, tenantId, {
+    mediaUrl: input.mediaUrl,
+    mediaType: input.mediaType,
+    caption: input.caption,
+    scheduledAts,
+    publishNow: input.publishNow,
+  });
+}
+
+export async function repostScheduledStatus(
+  businessId: string,
+  tenantId: string,
+  sourceStatusId: string,
+  input: { scheduledDays: string[]; hour: number; minute: number; publishNow?: boolean }
+): Promise<ScheduledStatus[]> {
+  const ref = scheduledStatusesCol(businessId).doc(sourceStatusId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new Error("Status não encontrado.");
+  const source = { id: snap.id, businessId, ...snap.data() } as ScheduledStatus;
+  if (!REPOSTABLE_STATUS.includes(source.status)) {
+    throw new Error("Só é possível reagendar status já publicados, cancelados ou com falha.");
+  }
+  if (!source.mediaUrl) throw new Error("Arte original indisponível para reagendar.");
+
+  const scheduledAts = resolveStoryScheduledAts(input);
+
+  return createScheduledStatuses(businessId, tenantId, {
+    mediaUrl: source.mediaUrl,
+    mediaType: source.mediaType,
+    caption: source.caption,
+    scheduledAts,
+    sourceStatusId: source.id,
+    publishNow: input.publishNow,
+  });
+}
+
+export async function cancelScheduledStatus(
+  businessId: string,
+  statusId: string
+): Promise<void> {
+  const ref = scheduledStatusesCol(businessId).doc(statusId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new Error("Agendamento não encontrado.");
+  const row = snap.data() as ScheduledStatus;
+  if (row.status !== "scheduled") {
+    throw new Error("Só é possível cancelar publicações ainda não enviadas.");
+  }
+  await ref.update({ status: "cancelled", updatedAt: nowIso() });
+}
+
+export async function cancelScheduledStatusSeries(
+  businessId: string,
+  seriesId: string
+): Promise<void> {
+  const snap = await scheduledStatusesCol(businessId).orderBy("scheduledAt", "asc").get();
+  const pending = snap.docs.filter((d) => {
+    const row = d.data() as ScheduledStatus;
+    return row.seriesId === seriesId && row.status === "scheduled";
+  });
+  if (!pending.length) throw new Error("Nenhum agendamento pendente nesta série.");
+  const batch = getDb().batch();
+  const ts = nowIso();
+  for (const d of pending) {
+    batch.update(d.ref, { status: "cancelled", updatedAt: ts });
+  }
+  await batch.commit();
+}
+
+export async function getScheduledStatus(
+  businessId: string,
+  statusId: string
+): Promise<ScheduledStatus | null> {
+  const snap = await scheduledStatusesCol(businessId).doc(statusId).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, businessId, ...snap.data() } as ScheduledStatus;
+}
+
+function isStatusAudienceJid(jid: string): boolean {
+  return !!jid && jid.endsWith("@s.whatsapp.net");
+}
+
+export async function listStatusAudienceJids(businessId: string, max = 400): Promise<string[]> {
+  const snap = await conversationsCol(businessId).get();
+  const jids = new Set<string>();
+  for (const d of snap.docs) {
+    const c = d.data() as Conversation;
+    const raw = c.customerPhone?.trim() || c.replyJid?.trim() || "";
+    if (!raw) continue;
+    if (raw.endsWith("@lid")) continue;
+    const jid = raw.includes("@") ? raw : phoneToJid(raw);
+    if (jid && isStatusAudienceJid(jid)) jids.add(jid);
+  }
+  return [...jids].slice(0, max);
 }
 
 // ─── Analytics ─────────────────────────────────────────────────────────────

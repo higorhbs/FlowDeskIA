@@ -69,13 +69,84 @@ src/
   index.js
   app.js
   config/env.js
+  middleware/cors.js
+  lib/
+    auth-errors.js
+    firebase-identity.js
+    tenant.js
   openapi/
     document.js
     index.js
   routes/
     index.js
     health/
-      handler.js
-      index.js
-      openapi.js
+    auth/
+    business/
 ```
+
+## Auth (Firebase via servidor)
+
+| Método | Path | Descrição |
+| ------ | ---- | --------- |
+| `POST` | `/register` | Cadastro e-mail/senha + envio de verificação |
+| `POST` | `/login` | Login; retorna `customToken` se verificado |
+| `POST` | `/auth/google` | Login Google (`accessToken`) |
+| `POST` | `/auth/resend-verification` | Reenviar e-mail (e-mail + senha) |
+| `POST` | `/auth/confirm-verification` | Confirmar e liberar sessão (e-mail + senha) |
+| `POST` | `/auth/resend-verification/session` | Reenviar (Bearer) |
+| `POST` | `/auth/confirm-verification/session` | Confirmar sessão (Bearer) |
+| `POST` | `/auth/sync` | Criar tenant Firestore (Bearer) |
+
+Env: `FIREBASE_WEB_API_KEY`, credencial Admin (igual `@flowdesk/api`), `WEB_ORIGIN`, `CORS_ORIGIN`.
+
+### Negócios (onboarding)
+
+| Método | Path | Auth | Descrição |
+| ------ | ---- | ---- | --------- |
+| `POST` | `/business` | Bearer | Cria negócio (`name`, `type`, `whatsapp`, `description?`) |
+| `GET` | `/businesses` | Bearer | Lista negócios do tenant logado |
+
+### Horários (`businessSchedules/{businessId}`)
+
+| Método | Path | Descrição |
+| ------ | ---- | --------- |
+| `GET` | `/schedules` | Lista horários do tenant (`?businessId=` opcional) |
+| `PUT` | `/businesses/:id/schedule` | Salva todos os campos (semanal, almoço, exceções, timezone) |
+
+### Chat WhatsApp
+
+Requer `ENABLE_WORKERS=true` e `WA_SESSION_PATH`.
+
+| Método | Path | Descrição |
+| ------ | ---- | --------- |
+| `GET` | `/chat/whatsapp/qr-code/:businessId` | Status + QR atual |
+| `POST` | `/chat/whatsapp/qr-code/:businessId` | Iniciar pareamento (`?force=1` nova sessão) |
+| `DELETE` | `/chat/whatsapp/connection/:businessId` | Desconectar |
+| `POST` | `/chat/whatsapp/messages/:businessId` | Enviar texto (`to`, `text`, `conversationId?`) |
+| `POST` | `/chat/whatsapp/messages/:businessId/media` | Enviar mídia (multipart) |
+
+### Stories WhatsApp (`/stories/whatsapp/:businessId`)
+
+| Método | Path | Body / notas |
+| ------ | ---- | ------------ |
+| `GET` | `/stories/whatsapp/:businessId` | Lista agendamentos |
+| `POST` | `/stories/whatsapp/:businessId` | multipart: `file`, `scheduledDays` (JSON), `hour`, `minute`, `caption?` (upload + agendamento) |
+| `POST` | `/stories/whatsapp/:businessId/:statusId/repost` | `scheduledDays[]`, `hour`, `minute` |
+| `DELETE` | `/stories/whatsapp/:businessId/:statusId` | Cancela pendente |
+| `DELETE` | `/stories/whatsapp/:businessId/series/:seriesId` | Cancela série |
+
+### Notificações internas (`INTERNAL_NOTIFY_SECRET` + header `x-internal-secret`)
+
+| Método | Path | Uso |
+| ------ | ---- | --- |
+| `POST` | `/internal/notifications/payment` | `apps/api` após pagamento Asaas `PAID` |
+| `POST` | `/internal/notifications/booking` | Confirmação de agendamento via WA |
+
+### Deploy Docker
+
+```bash
+docker compose -f docker-compose.prod.yml build backend
+docker compose -f docker-compose.prod.yml up -d backend redis
+```
+
+Imagem: `apps/backend/Dockerfile`. Workers exigem `REDIS_URL` e `ENABLE_WORKERS=true`.

@@ -39,20 +39,15 @@ services:
     init: true
     logging: *default-logging
     env_file: .env
-    depends_on:
-      redis:
-        condition: service_healthy
     expose:
       - "3001"
     environment:
       NODE_ENV: production
       API_PORT: 3001
-      BUSINESS_TIMEZONE: ${BUSINESS_TIMEZONE}
-      ENABLE_WORKERS: ${ENABLE_WORKERS}
-      REDIS_URL: redis://redis:6379
-      WA_SESSION_PATH: /app/sessions
       CORS_ORIGIN: ${CORS_ORIGIN}
       WEB_ORIGIN: ${WEB_ORIGIN:-}
+      BACKEND_NOTIFY_URL: ${BACKEND_NOTIFY_URL:-http://backend:3001}
+      INTERNAL_NOTIFY_SECRET: ${INTERNAL_NOTIFY_SECRET}
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
       FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
       FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
@@ -68,7 +63,42 @@ services:
       ASAAS_WEBHOOK_TOKEN: ${ASAAS_WEBHOOK_TOKEN}
       ASAAS_DEFAULT_CPF: ${ASAAS_DEFAULT_CPF}
     volumes:
+      - ./.secrets:/app/.secrets:ro
+    mem_limit: "512m"
+
+  backend:
+    image: ${BACKEND_IMAGE:-flowdesk-backend}
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+      args:
+        NODE_OPTIONS: --max-old-space-size=384
+    restart: unless-stopped
+    init: true
+    logging: *default-logging
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      ENABLE_WORKERS: ${ENABLE_WORKERS:-true}
+      REDIS_URL: redis://redis:6379
+      WA_SESSION_PATH: /app/sessions
+      WA_API_PUBLIC_URL: ${WA_API_PUBLIC_URL:-}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      WEB_ORIGIN: ${WEB_ORIGIN:-}
+      INTERNAL_NOTIFY_SECRET: ${INTERNAL_NOTIFY_SECRET}
+      FIREBASE_WEB_API_KEY: ${FIREBASE_WEB_API_KEY:-}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS}
+    volumes:
       - wa_sessions:/app/sessions
+      - wa_chat_media:/app/chat-media
+      - wa_status_media:/app/status-media
       - ./.secrets:/app/.secrets:ro
     mem_limit: "1g"
 
@@ -78,6 +108,7 @@ services:
     logging: *default-logging
     depends_on:
       - api
+      - backend
     ports:
       - "80:80"
       - "443:443"
@@ -92,5 +123,7 @@ services:
 volumes:
   redis_data:
   wa_sessions:
+  wa_chat_media:
+  wa_status_media:
   caddy_data:
   caddy_config:

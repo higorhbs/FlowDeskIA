@@ -28,7 +28,6 @@ const billingDomain = (
 )
   .replace(/^https?:\/\//, "")
   .replace(/\/$/, "");
-const unifiedApi = billingDomain === waHost;
 
 const acmeEmail = pick("ACME_EMAIL");
 if (!acmeEmail) {
@@ -50,13 +49,15 @@ const corsOrigin = [...new Set([...hostingOrigins, ...corsFromEnv.filter((o) => 
 );
 
 const webOrigin = pick("WEB_ORIGIN", "https://flowdesk.ia.br");
+const internalSecret = pick("INTERNAL_NOTIFY_SECRET", "change-me-internal-secret");
 
-const unifiedLines = [
-  "# flowdesk-wa na VM — WhatsApp + Stripe (cole em ~/flowdesk-wa/.env)",
-  `# Webhook Stripe: https://${waHost}/webhooks/stripe`,
-  "# Depois: docker compose -f docker-compose.https.yml up -d --build",
+const vmLines = [
+  "# FlowDesk na VM — cole em ~/FlowDesk/.env",
+  `# Billing: https://${billingDomain} (Caddy → api)`,
+  `# WhatsApp: https://${waHost} (proxy para backend:3001)`,
   "",
-  "API_PORT=3001",
+  `API_DOMAIN=${billingDomain}`,
+  `ACME_EMAIL=${acmeEmail}`,
   `WA_API_PUBLIC_URL=https://${waHost}`,
   `WEB_ORIGIN=${webOrigin}`,
   `CORS_ORIGIN=${corsOrigin}`,
@@ -65,9 +66,14 @@ const unifiedLines = [
   `FIREBASE_CLIENT_EMAIL=${pick("FIREBASE_CLIENT_EMAIL", "firebase-adminsdk-fbsvc@zapflow-higor-2026.iam.gserviceaccount.com")}`,
   "GOOGLE_APPLICATION_CREDENTIALS=/app/.secrets/firebase-adminsdk.json",
   "",
+  "ENABLE_WORKERS=true",
   "REDIS_URL=redis://redis:6379",
   "WA_SESSION_PATH=/app/sessions",
   "WA_STATUS_MEDIA_PATH=/app/status-media",
+  "WA_CHAT_MEDIA_PATH=/app/chat-media",
+  "",
+  `BACKEND_NOTIFY_URL=http://backend:3001`,
+  `INTERNAL_NOTIFY_SECRET=${internalSecret}`,
   "",
   `STRIPE_SECRET_KEY=${pick("STRIPE_SECRET_KEY")}`,
   `STRIPE_WEBHOOK_SECRET=${pick("STRIPE_WEBHOOK_SECRET")}`,
@@ -82,21 +88,17 @@ const unifiedLines = [
 ];
 
 const vmPath = resolve(root, ".env.vm");
-writeFileSync(vmPath, `${unifiedLines.join("\n")}\n`);
+writeFileSync(vmPath, `${vmLines.join("\n")}\n`);
 
 console.log(`\n✅ ${vmPath}`);
-console.log(`   API pública: https://${waHost} (WhatsApp + billing)`);
-if (!unifiedApi) {
-  console.warn(`   ⚠️  BILLING_API_DOMAIN (${billingDomain}) ≠ WA host — use o mesmo host ou ajuste NEXT_PUBLIC_API_URL`);
-}
+console.log(`   Billing API: https://${billingDomain}`);
+console.log(`   Backend WA: https://${waHost}`);
 if (!pick("STRIPE_WEBHOOK_SECRET")) {
   console.warn("\n⚠️  STRIPE_WEBHOOK_SECRET vazio no .env — preencha na VM após criar webhook no Stripe");
 }
-console.log("\nNa VM:");
-console.log("  mkdir -p ~/flowdesk-wa/.secrets");
-console.log("  nano ~/flowdesk-wa/.env   # cole .env.vm");
-console.log("  export WA_API_IMAGE=ghcr.io/higorhbs/flowdesk-wa:latest");
-console.log("  docker compose -f docker-compose.https.pull.yml pull");
-console.log("  docker compose -f docker-compose.https.pull.yml up -d");
+console.log("\nNa VM (~/FlowDesk):");
+console.log("  mkdir -p .secrets");
+console.log("  nano .env   # cole .env.vm");
+console.log("  docker compose -f docker-compose.prod.yml up -d --build");
 console.log("\nNo Mac (credencial):");
-console.log("  scp -i ~/Documents/ssh-key-2026-05-28.key .secrets/firebase-adminsdk.json ubuntu@163.176.132.231:~/flowdesk-wa/.secrets/\n");
+console.log("  scp .secrets/firebase-adminsdk.json ubuntu@VM:~/FlowDesk/.secrets/\n");

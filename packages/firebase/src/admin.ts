@@ -12,6 +12,7 @@ function resolveServiceAccountPath(): string | undefined {
   const candidates = [
     resolve(raw),
     resolve(process.cwd(), raw),
+    resolve(process.cwd(), "apps/backend", raw),
     resolve(process.cwd(), "../..", raw),
     resolve(process.cwd(), "..", raw),
   ];

@@ -19,13 +19,7 @@ function loadEnv(filePath) {
 }
 
 const env = loadEnv(resolve(root, ".env"));
-const waUrlDirect =
-  env.NEXT_PUBLIC_WA_API_URL?.trim() || env.WA_API_PUBLIC_URL?.trim() || "";
-const apiDomain = (
-  waUrlDirect ||
-  env.BILLING_API_DOMAIN ||
-  env.API_DOMAIN
-)?.trim();
+const apiDomain = (env.BILLING_API_DOMAIN || env.API_DOMAIN)?.trim();
 
 if (!apiDomain) {
   console.error("\n❌ Defina BILLING_API_DOMAIN ou API_DOMAIN no .env da raiz");
@@ -35,23 +29,25 @@ if (!apiDomain) {
 
 const apiUrl = apiDomain.startsWith("http") ? apiDomain.replace(/\/$/, "") : `https://${apiDomain}`;
 
-function resolveWaApiUrl() {
+function resolveBackendUrl() {
   const direct =
+    env.NEXT_PUBLIC_BACKEND_URL?.trim() ||
     env.NEXT_PUBLIC_WA_API_URL?.trim() ||
     env.WA_API_PUBLIC_URL?.trim() ||
+    env.BACKEND_PUBLIC_URL?.trim() ||
     "";
   if (direct) return direct.replace(/\/$/, "");
-  const waDomain = env.WA_API_DOMAIN?.trim();
-  if (!waDomain) return "";
-  return waDomain.startsWith("http") ? waDomain.replace(/\/$/, "") : `https://${waDomain}`;
+  const host = env.BACKEND_DOMAIN?.trim() || env.WA_API_DOMAIN?.trim();
+  if (!host) return "";
+  return host.startsWith("http") ? host.replace(/\/$/, "") : `https://${host}`;
 }
 
-const waApiUrl = resolveWaApiUrl();
-if (!waApiUrl) {
+const backendUrl = resolveBackendUrl();
+if (!backendUrl) {
   console.warn(
-    "\n⚠️  NEXT_PUBLIC_WA_API_URL / WA_API_PUBLIC_URL / WA_API_DOMAIN ausente no .env da raiz.",
+    "\n⚠️  NEXT_PUBLIC_BACKEND_URL / WA_API_PUBLIC_URL / BACKEND_DOMAIN ausente no .env da raiz.",
   );
-  console.warn("   WhatsApp (QR Code) não funcionará até configurar e rodar deploy:hosting de novo.\n");
+  console.warn("   WhatsApp (QR, bot) não funcionará até configurar e rodar deploy:hosting de novo.\n");
 }
 
 const keys = [
@@ -71,7 +67,7 @@ const keys = [
 const lines = [
   `# Gerado por scripts/setup-billing-env.mjs — não commitar`,
   `NEXT_PUBLIC_API_URL=${apiUrl}`,
-  `NEXT_PUBLIC_WA_API_URL=${waApiUrl}`,
+  `NEXT_PUBLIC_BACKEND_URL=${backendUrl}`,
   "",
   ...keys.map((k) => `${k}=${env[k] ?? ""}`),
   "",
@@ -87,5 +83,5 @@ const outPath = resolve(root, "apps/web/.env.production");
 writeFileSync(outPath, lines.join("\n"));
 console.log(`\n✅ ${outPath}`);
 console.log(`   NEXT_PUBLIC_API_URL=${apiUrl}`);
-if (waApiUrl) console.log(`   NEXT_PUBLIC_WA_API_URL=${waApiUrl}`);
+if (backendUrl) console.log(`   NEXT_PUBLIC_BACKEND_URL=${backendUrl}`);
 console.log("\nPróximo: pnpm deploy:hosting\n");

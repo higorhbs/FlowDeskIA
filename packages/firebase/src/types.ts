@@ -1,6 +1,20 @@
 export type Plan = "STARTER" | "PRO" | "UNLIMITED";
 export type PlanStatus = "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED";
 export type BusinessType = "BARBERSHOP" | "SALON" | "RESTAURANT" | "DENTAL" | "STORE" | "OTHER";
+
+export type TimeSlot = [string, string] | null;
+
+export interface BusinessSchedule {
+  businessId: string;
+  tenantId: string;
+  timezone: string;
+  workingHours: Record<string, TimeSlot>;
+  specialHours: Record<string, TimeSlot>;
+  lunchBreak: TimeSlot;
+  lunchMsg?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 export type ConversationStatus = "OPEN" | "ATTENDING" | "CLOSED";
 export type MessageRole = "CUSTOMER" | "IA" | "HUMAN";
 export type AppointmentStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED" | "NO_SHOW";
@@ -46,23 +60,33 @@ export interface BotMenuItemConfig {
   action?: "APPOINTMENT" | "CATALOG" | "FAQ" | "PAYMENT" | "HUMAN";
 }
 
+export type BusinessCreateInput = {
+  name: string;
+  type: BusinessType;
+  phone: string;
+  description?: string;
+};
+
+/** Documento Firestore na criação: id, tenantId, name, type, phone, description?, createdAt, updatedAt */
 export interface Business {
   id: string;
   tenantId: string;
   name: string;
   type: BusinessType;
-  typeLabel?: string;
   phone: string;
-  address?: string;
+  createdAt: string;
+  updatedAt: string;
   description?: string;
+  typeLabel?: string;
+  address?: string;
   logoUrl?: string;
-  workingHours: Record<string, unknown>;
+  workingHours?: Record<string, unknown>;
   specialHours?: Record<string, [string, string] | null>;
   lunchBreak?: [string, string] | null;
   lunchMsg?: string;
   timezone?: string;
-  greetingMsg: string;
-  awayMsg: string;
+  greetingMsg?: string;
+  awayMsg?: string;
   botMenu?: BotMenuItemConfig[];
   botMenuEnabled?: boolean;
   greetingEnabled?: boolean;
@@ -74,9 +98,7 @@ export interface Business {
   attendantNames?: string[];
   attendantEnabled?: boolean;
   manualAttendantPrefixEnabled?: boolean;
-  isConnected: boolean;
-  createdAt: string;
-  updatedAt: string;
+  isConnected?: boolean;
 }
 
 export interface CatalogItem {
