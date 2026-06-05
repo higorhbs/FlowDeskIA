@@ -10,7 +10,7 @@
     "dev": "node ../../scripts/backend-dev.mjs",
     "build": "pnpm run build:deps && pnpm run build:whatsapp && node --check src/index.js",
     "build:deps": "pnpm --filter @flowdesk/shared --filter @flowdesk/firebase --filter @flowdesk/whatsapp-client --parallel run build",
-    "build:whatsapp": "tsc -p tsconfig.whatsapp.json",
+    "build:whatsapp": "tsc -p tsconfig.whatsapp.json && node ../../scripts/copy-backend-whatsapp-js.mjs",
     "start": "node src/index.js"
   },
   "dependencies": {

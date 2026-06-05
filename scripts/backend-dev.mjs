@@ -50,6 +50,7 @@ const whatsappDist = join(backendRoot, "dist/whatsapp/wa-lifecycle.js");
 if (isStale(whatsappDist, join(backendRoot, "src/whatsapp"))) {
   run("pnpm exec tsc -p tsconfig.whatsapp.json", backendRoot);
 }
+run("node scripts/copy-backend-whatsapp-js.mjs", root);
 
 let server;
 let restartTimer;
@@ -76,6 +77,12 @@ function scheduleServerRestart(reason) {
 spawn("pnpm", ["exec", "tsc", "-p", "tsconfig.whatsapp.json", "--watch", "--preserveWatchOutput"], {
   cwd: backendRoot,
   stdio: "inherit",
+});
+
+watch(join(backendRoot, "src/whatsapp"), { recursive: true }, (_, filename) => {
+  if (!filename?.endsWith(".js")) return;
+  run("node scripts/copy-backend-whatsapp-js.mjs", root);
+  scheduleServerRestart("whatsapp-js");
 });
 
 const watchTargets = [
