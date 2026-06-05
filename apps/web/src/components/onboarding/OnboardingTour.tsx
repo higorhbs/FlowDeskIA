@@ -37,6 +37,8 @@ interface StepDef {
   storyCard?: StoryCard;
 }
 
+const DEMO_BUSINESS = "Horizonte Serviços";
+
 const STEPS: StepDef[] = [
   {
     badge: "Atendimento automático",
@@ -50,12 +52,12 @@ const STEPS: StepDef[] = [
       { icon: Star, text: "Experiência profissional para o cliente" },
     ],
     chat: {
-      businessName: "Barbearia do João",
+      businessName: DEMO_BUSINESS,
       messages: [
         { from: "customer", text: "Oi, boa noite! Vocês ainda atendem?", time: "21:42" },
         {
           from: "ia",
-          text: "Olá! 👋 Sou o assistente da *Barbearia do João*\n\nComo posso ajudar?\n\n*1* — 📅 Agendamentos\n*2* — 🛍️ Catálogo\n*3* — ❓ Dúvidas\n*0* — 👤 Falar com atendente",
+          text: `Olá! 👋 Sou o assistente da *${DEMO_BUSINESS}*\n\nComo posso ajudar?\n\n*1* — 📅 Agendamentos\n*2* — 🛍️ Catálogo\n*3* — ❓ Dúvidas\n*0* — 👤 Falar com atendente`,
           time: "21:42",
         },
       ],
@@ -73,14 +75,14 @@ const STEPS: StepDef[] = [
       { icon: Users, text: "Histórico completo no painel" },
     ],
     chat: {
-      businessName: "Barbearia do João",
+      businessName: DEMO_BUSINESS,
       messages: [
         { from: "customer", text: "1", time: "10:05" },
-        { from: "ia", text: "Qual serviço deseja?\n\n*1* — ✂️ Corte Masculino  R$ 40\n*2* — 🪒 Barba  R$ 25\n*3* — ✂️🪒 Corte + Barba  R$ 60", time: "10:05" },
+        { from: "ia", text: "Qual serviço deseja?\n\n*1* — 📋 Serviço Básico  R$ 40\n*2* — ⭐ Serviço Padrão  R$ 55\n*3* — ✨ Pacote Completo  R$ 80", time: "10:05" },
         { from: "customer", text: "1", time: "10:06" },
         { from: "ia", text: "Disponibilidade:\n\n▸ Seg 02/06 — 09h, 11h, 14h\n▸ Ter 03/06 — 10h, 15h, 17h\n\nQual prefere?", time: "10:06" },
         { from: "customer", text: "terça 10h", time: "10:07" },
-        { from: "ia", text: "✅ Agendado!\n\n📅 Terça, 03/06 às 10:00\n✂️ Corte Masculino\n\nAté lá! 💈", time: "10:07" },
+        { from: "ia", text: "✅ Agendado!\n\n📅 Terça, 03/06 às 10:00\n📋 Serviço Básico\n\nAté lá! ✨", time: "10:07" },
       ],
     },
   },
@@ -96,12 +98,12 @@ const STEPS: StepDef[] = [
       { icon: Star, text: "Fotos, descrições e preços" },
     ],
     chat: {
-      businessName: "Barbearia do João",
+      businessName: DEMO_BUSINESS,
       messages: [
         { from: "customer", text: "2", time: "14:30" },
         {
           from: "ia",
-          text: "🛍️ *Nosso Catálogo*\n\n✂️ *Corte Masculino*\nAcabamento preciso e moderno\n💰 R$ 40,00\n\n🪒 *Barba*\nModelagem completa\n💰 R$ 25,00\n\n✂️🪒 *Corte + Barba*\nCombo completo com desconto\n💰 R$ 60,00\n\nDigite *1* para agendar!",
+          text: "🛍️ *Nosso Catálogo*\n\n📋 *Serviço Básico*\nAtendimento rápido e objetivo\n💰 R$ 40,00\n\n⭐ *Serviço Padrão*\nMais tempo e atenção ao detalhe\n💰 R$ 55,00\n\n✨ *Pacote Completo*\nExperiência completa com desconto\n💰 R$ 80,00\n\nDigite *1* para agendar!",
           time: "14:30",
         },
       ],
@@ -119,24 +121,24 @@ const STEPS: StepDef[] = [
       { icon: Star, text: "Clientes veem o story e agendam pelo WhatsApp" },
     ],
     chat: {
-      businessName: "Barbearia do João",
+      businessName: DEMO_BUSINESS,
       messages: [
         { from: "customer", text: "Oi! Vi o story de vocês com a promoção, ainda tem vaga hoje?", time: "10:14" },
         {
           from: "ia",
-          text: "Oi! 👋 Sim, a promoção está ativa hoje!\n\n*20% OFF* em qualquer serviço 🎉\n\nHorários disponíveis:\n• 11:00 — ✂️ Corte\n• 14:30 — ✂️🪒 Corte + Barba\n• 17:00 — ✂️ Corte\n\nQual prefere?",
+          text: "Oi! 👋 Sim, a promoção está ativa hoje!\n\n*20% OFF* em qualquer serviço 🎉\n\nHorários disponíveis:\n• 11:00 — 📋 Serviço Básico\n• 14:30 — ✨ Pacote Completo\n• 17:00 — ⭐ Serviço Padrão\n\nQual prefere?",
           time: "10:14",
         },
         { from: "customer", text: "14:30 perfeito!", time: "10:15" },
         {
           from: "ia",
-          text: "✅ *Agendado com sucesso!*\n\nHoje às 14:30\n✂️🪒 Corte + Barba\n_De R$ 60 por R$ 48_\n\nAproveite a promoção! 💈",
+          text: "✅ *Agendado com sucesso!*\n\nHoje às 14:30\n✨ Pacote Completo\n_De R$ 80 por R$ 64_\n\nAproveite a promoção! 🎉",
           time: "10:15",
         },
       ],
     },
     storyCard: {
-      caption: "✂️ PROMOÇÃO HOJE!\n20% OFF em qualquer serviço\n\nAgende agora pelo WhatsApp 👇",
+      caption: "🎉 PROMOÇÃO HOJE!\n20% OFF em qualquer serviço\n\nAgende agora pelo WhatsApp 👇",
       timeLabel: "10:00",
     },
   },
@@ -152,18 +154,18 @@ const STEPS: StepDef[] = [
       { icon: Wallet, text: "Dinheiro cai na sua conta Asaas na hora" },
     ],
     chat: {
-      businessName: "Barbearia do João",
+      businessName: DEMO_BUSINESS,
       messages: [
         { from: "customer", text: "Quero pagar pelo WhatsApp mesmo", time: "11:20" },
         {
           from: "ia",
-          text: "💰 Cobrança PIX gerada!\n\n💵 *R$ 60,00* — Corte + Barba\n\nCopie o código abaixo e cole no app do seu banco 👇\n\n`00020126580014BR.GOV.BCB.PIX0136...`\n\n⏰ Válido por 1 hora",
+          text: "💰 Cobrança PIX gerada!\n\n💵 *R$ 80,00* — Pacote Completo\n\nCopie o código abaixo e cole no app do seu banco 👇\n\n`00020126580014BR.GOV.BCB.PIX0136...`\n\n⏰ Válido por 1 hora",
           time: "11:20",
         },
         { from: "customer", text: "Paguei!", time: "11:23" },
         {
           from: "ia",
-          text: "✅ *Pagamento confirmado!*\n\nRecebemos R$ 60,00 com sucesso 🙌\n\nAté terça-feira, 03/06 às 10h!\n💈 Barbearia do João",
+          text: `✅ *Pagamento confirmado!*\n\nRecebemos R$ 80,00 com sucesso 🙌\n\nAté terça-feira, 03/06 às 10h!\n✨ ${DEMO_BUSINESS}`,
           time: "11:23",
         },
       ],
@@ -181,7 +183,7 @@ const STEPS: StepDef[] = [
       { icon: Users, text: "Passa ao atendente quando necessário" },
     ],
     chat: {
-      businessName: "Barbearia do João",
+      businessName: DEMO_BUSINESS,
       messages: [
         { from: "customer", text: "Aceita cartão de crédito?", time: "16:15" },
         {
@@ -285,7 +287,7 @@ function WaChat({ businessName, messages }: { businessName: string; messages: Ch
   );
 }
 
-function WaStoryCard({ caption, timeLabel }: StoryCard) {
+function WaStoryCard({ businessName, caption, timeLabel }: StoryCard & { businessName: string }) {
   return (
     <div
       className="relative rounded-2xl overflow-hidden shadow-lg flex-shrink-0"
@@ -303,9 +305,9 @@ function WaStoryCard({ caption, timeLabel }: StoryCard) {
       {/* Business header */}
       <div className="absolute top-5 left-3 right-3 flex items-center gap-2 z-10">
         <div className="w-6 h-6 rounded-full bg-[#128C7E] flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
-          B
+          {businessName.trim()[0]}
         </div>
-        <span className="text-white text-xs font-medium">Barbearia do João</span>
+        <span className="text-white text-xs font-medium">{businessName}</span>
         <span className="text-white/50 text-[10px] ml-auto">{timeLabel}</span>
       </div>
 
@@ -466,7 +468,7 @@ export function OnboardingTour({ variant = "dashboard" }: OnboardingTourProps) {
           {/* Right: chat demo */}
           <div className="flex-1 bg-gradient-to-br from-brand-50 via-white to-emerald-50 p-5 flex flex-col min-h-0 gap-3 border-t md:border-t-0 md:border-l border-gray-100">
             {current.storyCard && (
-              <WaStoryCard caption={current.storyCard.caption} timeLabel={current.storyCard.timeLabel} />
+              <WaStoryCard businessName={current.chat.businessName} caption={current.storyCard.caption} timeLabel={current.storyCard.timeLabel} />
             )}
             <div className="flex-1 min-h-0">
               <WaChat

@@ -1,13 +1,14 @@
 import {
   Building2,
+  Camera,
   Dumbbell,
   PawPrint,
   Pizza,
-  Scissors,
   Sparkles,
   Stethoscope,
   Store,
   UtensilsCrossed,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 import { Marquee } from "@/components/ui/marquee";
@@ -32,12 +33,12 @@ type Testimonial = {
 
 const TESTIMONIALS: Testimonial[] = [
   {
-    id: "barbearia-norte",
-    business: "Barbearia Norte",
-    segment: "Barbearia",
+    id: "estudio-beleza",
+    business: "Estúdio Beleza",
+    segment: "Estética",
     quote: "Agendamento no WhatsApp sem eu pegar no celular o dia todo.",
     author: "Marcos · São Paulo",
-    icon: Scissors,
+    icon: Sparkles,
   },
   {
     id: "studio-bella",
@@ -72,12 +73,12 @@ const TESTIMONIALS: Testimonial[] = [
     icon: Building2,
   },
   {
-    id: "corte-estilo",
-    business: "Corte & Estilo",
-    segment: "Barbearia",
+    id: "auto-center",
+    business: "Auto Center",
+    segment: "Oficina",
     quote: "Dobrei os agendamentos no fim de semana sem contratar ninguém.",
-    author: "João · Brasília",
-    icon: Scissors,
+    author: "Ricardo · Brasília",
+    icon: Wrench,
   },
   {
     id: "pizzaria-roma",
@@ -112,12 +113,12 @@ const TESTIMONIALS: Testimonial[] = [
     icon: Sparkles,
   },
   {
-    id: "barbearia-classic",
-    business: "Barbearia Classic",
-    segment: "Barbearia",
-    quote: "PIX do sinal cai antes do cliente sentar na cadeira.",
+    id: "foto-luz",
+    business: "Foto & Luz",
+    segment: "Fotografia",
+    quote: "PIX do sinal cai antes da sessão começar.",
     author: "Thiago · Rio de Janeiro",
-    icon: Scissors,
+    icon: Camera,
   },
   {
     id: "lanches-praca",
@@ -168,12 +169,12 @@ const TESTIMONIALS: Testimonial[] = [
     icon: UtensilsCrossed,
   },
   {
-    id: "barbearia-raiz",
-    business: "Barbearia Raiz",
-    segment: "Barbearia",
+    id: "consultoria-nova",
+    business: "Consultoria Nova",
+    segment: "Serviços",
     quote: "Cliente VIP lembra horário sozinho toda semana.",
     author: "Felipe · Cuiabá",
-    icon: Scissors,
+    icon: Building2,
   },
   {
     id: "cafe-central",
@@ -252,7 +253,7 @@ export function LandingSocialProof() {
             Negócios locais que já automatizaram o WhatsApp
           </h2>
           <p className="mt-3 text-base text-muted-foreground sm:text-lg">
-            Barbearias, salões, restaurantes e clínicas usando o {APP_DISPLAY_NAME} todos
+            Comércios, serviços e clínicas locais usando o {APP_DISPLAY_NAME} todos
             os dias.
           </p>
         </div>

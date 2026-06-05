@@ -49,7 +49,7 @@ export default function NewBusinessPage() {
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { type: "BARBERSHOP" },
+    defaultValues: { type: "STORE" },
   });
 
   async function onSubmit(data: FormData) {
@@ -120,7 +120,7 @@ export default function NewBusinessPage() {
               <Card className="p-6 space-y-6">
                 <div className="space-y-1.5">
                   <Label>Nome do negócio *</Label>
-                  <Input type="text" placeholder="Barbearia do João" {...register("name")} />
+                  <Input type="text" placeholder="Meu Negócio" {...register("name")} />
                   {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
                 </div>
 

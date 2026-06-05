@@ -65,7 +65,7 @@ export function HeroVisualMotion({
           <motion.div variants={v.imageInner} className="absolute inset-0">
             <Image
               src="/landing/hero-main.jpg"
-              alt="Ambiente de barbearia profissional"
+              alt="Atendimento profissional no negócio local"
               fill
               priority
               className="object-cover"

@@ -262,7 +262,7 @@ export default function SettingsPage() {
           <Field label="Nome do negócio" icon={<Building2 className="w-3.5 h-3.5" />} error={errors.name?.message}>
             <Input
               type="text"
-              placeholder="Ex.: Barbearia do João"
+              placeholder="Ex.: Horizonte Serviços"
               {...register("name")}
               className={cn(errors.name && "border-red-300 focus-visible:ring-red-300")}
             />

@@ -29,10 +29,10 @@ export function WhatsAppInset({ className }: { className?: string }) {
       </div>
       <div className="space-y-2 p-2.5">
         <div className="ml-auto max-w-[85%] rounded-lg rounded-tr-none bg-[#dcf8c6] px-2 py-1.5 text-[10px] leading-snug text-gray-800">
-          Quanto custa o corte?
+          Quanto custa o serviço?
         </div>
         <div className="max-w-[90%] rounded-lg rounded-tl-none bg-white px-2 py-1.5 text-[10px] leading-snug text-gray-800">
-          Corte R$ 45. Digite <strong>agendar</strong> para marcar!
+          A partir de R$ 45. Digite <strong>agendar</strong> para marcar!
         </div>
         <div className="ml-auto max-w-[70%] rounded-lg rounded-tr-none bg-[#dcf8c6] px-2 py-1.5 text-[10px] text-gray-800">
           agendar
