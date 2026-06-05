@@ -191,22 +191,25 @@ export default function AppointmentsPage() {
                       <p className="mt-1 font-medium opacity-90">{getBookingStatusLabel(bizType, apt.status)}</p>
                       {v.bookingRequiresApproval && apt.status === "PENDING" && (
                         <div className="flex gap-1 mt-2">
-                          <button
+                          <Button
                             type="button"
-                            className="flex-1 rounded-md bg-green-600 text-white py-1 text-[10px] font-semibold hover:bg-green-700 disabled:opacity-50"
+                            size="xs"
+                            className="flex-1 rounded-md bg-green-600 text-white py-1 text-[10px] font-semibold hover:bg-green-700 h-auto"
                             disabled={patchMutation.isPending}
                             onClick={() => patchMutation.mutate({ id: apt.id, status: "CONFIRMED" })}
                           >
                             Aceitar
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             type="button"
-                            className="flex-1 rounded-md border border-red-300 text-red-700 py-1 text-[10px] font-semibold hover:bg-red-50 disabled:opacity-50"
+                            variant="outline"
+                            size="xs"
+                            className="flex-1 rounded-md border-red-300 text-red-700 py-1 text-[10px] font-semibold hover:bg-red-50 h-auto"
                             disabled={patchMutation.isPending}
                             onClick={() => patchMutation.mutate({ id: apt.id, status: "CANCELLED" })}
                           >
                             Recusar
-                          </button>
+                          </Button>
                         </div>
                       )}
                       {apt.status !== "PENDING" && (

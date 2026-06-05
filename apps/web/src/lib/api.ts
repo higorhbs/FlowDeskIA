@@ -20,13 +20,6 @@ import {
   backendSendWhatsAppMedia,
   backendSendWhatsAppMessage,
 } from "./backend-chat-whatsapp";
-import {
-  backendCancelStory,
-  backendCancelStorySeries,
-  backendCreateStories,
-  backendListStories,
-  backendRepostStory,
-} from "./backend-stories-whatsapp";
 import { getBackendBaseUrl } from "./backend-url";
 import type { CreateBusinessInput } from "./backend-business";
 import { setToken } from "./auth";
@@ -42,9 +35,6 @@ import {
   createClientFaq,
   updateClientFaq,
   deleteClientFaq,
-  getClientTenant,
-  completeClientOnboarding,
-  acceptClientLgpd,
   submitClientCancellationFeedback,
   listClientConversations,
   getClientConversation,
@@ -59,7 +49,7 @@ import {
 import type {
   ConversationStatus,
   AppointmentStatus,
-  ScheduledStatus,
+  Tenant,
 } from "@flowdesk/firebase/client";
 
 function isLocalDevHost() {
@@ -68,29 +58,7 @@ function isLocalDevHost() {
 }
 
 export function resolveChatMediaUrl(mediaUrl: string | undefined): string | undefined {
-  if (!mediaUrl?.trim()) return undefined;
-  const base = getBackendBaseUrl();
-  const rewrite = (pathname: string) => {
-    if (pathname.startsWith("/chat-media/") || pathname.startsWith("/status-media/")) {
-      return `${base}${pathname}`;
-    }
-    if (
-      u.hostname === "storage.googleapis.com" ||
-      u.hostname === "firebasestorage.googleapis.com"
-    ) {
-      return mediaUrl;
-    }
-    return mediaUrl;
-  };
-  try {
-    const u = new URL(mediaUrl);
-    return rewrite(u.pathname);
-  } catch {
-    if (mediaUrl.startsWith("/chat-media/") || mediaUrl.startsWith("/status-media/")) {
-      return `${base}${mediaUrl}`;
-    }
-    return mediaUrl;
-  }
+  return mediaUrl?.trim() || undefined;
 }
 
 function resolveApiBaseUrl() {
@@ -150,6 +118,12 @@ async function ensureTenantRecord() {
   const user = getClientAuth().currentUser;
   if (!user?.email) throw new Error("E-mail não encontrado na conta.");
   await backendSync(user.displayName ?? user.email.split("@")[0] ?? "Usuário");
+}
+
+async function fetchTenantFromBackend(): Promise<Tenant> {
+  const user = getClientAuth().currentUser;
+  if (!user?.email) throw new Error("E-mail não encontrado na conta.");
+  return backendSync(user.displayName ?? user.email.split("@")[0] ?? "Usuário") as Promise<Tenant>;
 }
 
 api.interceptors.request.use(async (config) => {
@@ -240,14 +214,24 @@ export const authApi = {
 };
 
 export const tenantApi = {
-  get: () => getClientTenant(requireUid()),
+  get: () => fetchTenantFromBackend(),
   completeOnboarding: async () => {
     await ensureTenantRecord();
-    return completeClientOnboarding(requireUid());
+    return api.post("/auth/onboarding/complete").then((r) => r.data);
   },
   acceptLgpd: async (policyVersion: string) => {
     await ensureTenantRecord();
-    return acceptClientLgpd(requireUid(), policyVersion);
+    const base: Tenant = await fetchTenantFromBackend();
+    const { data } = await api.post<{ ok: true; acceptedAt: string; policyVersion: string }>(
+      "/privacy/consent",
+      { policyVersion },
+    );
+    return {
+      ...base,
+      lgpdAcceptedAt: data.acceptedAt,
+      lgpdPolicyVersion: data.policyVersion,
+      updatedAt: data.acceptedAt,
+    };
   },
   submitCancellationFeedback: async (data: { rating: number; text?: string }) => {
     await ensureTenantRecord();
@@ -347,31 +331,6 @@ export const conversationApi = {
   remove: (businessId: string, conversationId: string) =>
     deleteClientConversation(businessId, requireUid(), conversationId),
 };
-
-export const scheduledStatusApi = {
-  list: (businessId: string) => backendListStories(businessId),
-  create: (
-    businessId: string,
-    data: {
-      file: File;
-      caption?: string;
-      scheduledDays: string[];
-      hour: number;
-      minute: number;
-      publishNow?: boolean;
-    }
-  ) => backendCreateStories(businessId, data),
-  repost: (
-    businessId: string,
-    statusId: string,
-    data: { scheduledDays: string[]; hour: number; minute: number; publishNow?: boolean }
-  ) => backendRepostStory(businessId, statusId, data),
-  cancel: (businessId: string, statusId: string) => backendCancelStory(businessId, statusId),
-  cancelSeries: (businessId: string, seriesId: string) =>
-    backendCancelStorySeries(businessId, seriesId),
-};
-
-export type { ScheduledStatus };
 
 export const whatsappApi = {
   connect: (businessId: string, force = false) => backendPostWhatsAppQr(businessId, force),

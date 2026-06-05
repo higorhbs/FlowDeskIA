@@ -80,7 +80,7 @@ export function HeroCopyMotion({ adMode = false }: { adMode?: boolean }) {
       >
         {adMode
           ? AD_SUBTITLE
-          : `Automatize seu atendimento no WhatsApp com IA. O ${APP_DISPLAY_NAME} responde clientes, agenda horários, envia confirmações, cobra via PIX e publica stories automaticamente.`}
+          : `Automatize seu atendimento no WhatsApp com IA. O ${APP_DISPLAY_NAME} responde clientes, agenda horários, envia confirmações e cobra via PIX.`}
       </motion.p>
     </motion.div>
   );

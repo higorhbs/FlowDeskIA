@@ -7,6 +7,7 @@ import {
   resendVerificationHandler,
   resendVerificationSessionHandler,
   syncHandler,
+  completeOnboardingHandler,
   updateProfileEmailHandler,
   updateProfileNameHandler,
   updateProfilePasswordHandler,
@@ -21,6 +22,7 @@ export function register(app) {
   app.post('/auth/resend-verification/session', resendVerificationSessionHandler)
   app.post('/auth/confirm-verification/session', confirmVerificationSessionHandler)
   app.post('/auth/sync', syncHandler)
+  app.post('/auth/onboarding/complete', completeOnboardingHandler)
   app.patch('/auth/profile/name', updateProfileNameHandler)
   app.patch('/auth/profile/email', updateProfileEmailHandler)
   app.patch('/auth/profile/password', updateProfilePasswordHandler)

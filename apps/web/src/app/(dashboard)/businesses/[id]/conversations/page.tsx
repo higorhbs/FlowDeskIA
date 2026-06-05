@@ -118,19 +118,21 @@ function AudioPlayer({ src, isOwn }: { src: string; isOwn: boolean }) {
       />
 
       {/* Play / pause */}
-      <button
+      <Button
         type="button"
         onClick={toggle}
         disabled={loadError}
+        variant="ghost"
+        size="icon-sm"
         className={cn(
-          "w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center transition-colors disabled:opacity-50",
+          "rounded-full flex-shrink-0",
           isOwn
             ? "bg-white/20 hover:bg-white/30 text-white"
             : "bg-brand-100 hover:bg-brand-200 text-brand-700"
         )}
       >
         {playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 ml-0.5" />}
-      </button>
+      </Button>
 
       {/* Waveform + duration */}
       <div className="flex-1 min-w-0">
@@ -461,12 +463,13 @@ export default function ConversationsPage() {
             <div className="text-center text-gray-400 text-sm py-12">Nenhuma conversa</div>
           ) : (
             filtered.map((conv) => (
-              <button
+              <Button
                 key={conv.id}
                 type="button"
+                variant="ghost"
                 onClick={() => setSelected(conv.id)}
                 className={cn(
-                  "w-full text-left p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors",
+                  "w-full h-auto justify-start rounded-none px-4 py-4 border-b border-gray-50 hover:bg-gray-50",
                   selected === conv.id && "bg-brand-50 border-brand-100"
                 )}
               >
@@ -488,7 +491,7 @@ export default function ConversationsPage() {
                     </p>
                   </div>
                 </div>
-              </button>
+              </Button>
             ))
           )}
         </div>
@@ -633,8 +636,10 @@ export default function ConversationsPage() {
                 {pendingFile && (
                   <div className="mb-3 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
                     <span className="truncate flex-1">{pendingFile.name}</span>
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon-xs"
                       className="text-gray-400 hover:text-gray-600"
                       onClick={() => {
                         setPendingFile(null);
@@ -642,7 +647,7 @@ export default function ConversationsPage() {
                       }}
                     >
                       <X className="w-4 h-4" />
-                    </button>
+                    </Button>
                   </div>
                 )}
                 <input

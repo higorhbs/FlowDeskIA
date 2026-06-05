@@ -14,7 +14,7 @@ function requireAdmin(c) {
   if (!hasAdminCredential()) {
     return json(c, 503, {
       error:
-        'Credencial Firebase Admin ausente. Configure GOOGLE_APPLICATION_CREDENTIALS.',
+        'Credencial Firebase Admin ausente. Configure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY.',
     })
   }
   return null

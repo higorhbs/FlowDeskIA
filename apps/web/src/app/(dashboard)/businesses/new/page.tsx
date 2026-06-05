@@ -50,7 +50,7 @@ export default function NewBusinessPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { uid, ready } = useAuth();
-  const { active: setupRequired } = useRequiresBusinessSetup();
+  const { active: setupRequired, lgpdOk } = useRequiresBusinessSetup();
   const { data: businesses, isLoading: checkingBusiness } = useQuery({
     queryKey: ["businesses", uid],
     queryFn: businessApi.list,
@@ -212,7 +212,7 @@ export default function NewBusinessPage() {
           </div>
         </Card>
 
-        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting || !lgpdOk}>
           {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
           {setupRequired ? "Criar meu negócio e continuar" : "Criar negócio e conectar WhatsApp"}
         </Button>

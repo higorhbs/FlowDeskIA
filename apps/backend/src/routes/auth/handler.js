@@ -29,7 +29,7 @@ function requireApiKey(c) {
   if (!hasAdminCredential()) {
     return json(c, 503, {
       error:
-        'Credencial Firebase Admin ausente. Configure FIREBASE_SERVICE_ACCOUNT_JSON ou GOOGLE_APPLICATION_CREDENTIALS.',
+        'Credencial Firebase Admin ausente. Configure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY.',
     })
   }
   return null
@@ -290,6 +290,24 @@ export async function confirmVerificationHandler(c) {
     return json(c, 200, payload)
   } catch (err) {
     return json(c, 401, { error: adminAuthErrorMessage(err) })
+  }
+}
+
+export async function completeOnboardingHandler(c) {
+  const blocked = requireApiKey(c)
+  if (blocked) return blocked
+
+  const auth = await requireBearerUser(c)
+  if (auth.error) return auth.error
+
+  try {
+    const tenant = await updateTenant(auth.decoded.uid, {
+      onboardingCompletedAt: new Date().toISOString(),
+    })
+    if (!tenant) return json(c, 404, { error: 'Conta não encontrada' })
+    return json(c, 200, tenant)
+  } catch (err) {
+    return json(c, 500, { error: adminAuthErrorMessage(err, 'Erro ao concluir onboarding.') })
   }
 }
 

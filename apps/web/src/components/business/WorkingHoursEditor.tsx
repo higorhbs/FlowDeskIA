@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Pencil, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { TemplateMessageField } from "@/components/business/TemplateMessageField";
 
 const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -36,16 +37,16 @@ export function defaultWorkingHours(): WorkingHoursValue {
 // ── Toggle ────────────────────────────────────────────────────────────────────
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <button
+    <Button
       type="button"
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
+      variant="ghost"
       className={cn(
-        "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent",
+        "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent p-0 min-w-0",
         "transition-colors duration-200 ease-in-out",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2",
-        checked ? "bg-brand-600" : "bg-gray-200"
+        checked ? "bg-brand-600 hover:bg-brand-600" : "bg-gray-200 hover:bg-gray-200"
       )}
     >
       <span
@@ -54,7 +55,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
           checked ? "translate-x-5" : "translate-x-0"
         )}
       />
-    </button>
+    </Button>
   );
 }
 
@@ -153,7 +154,7 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
         >
           <div style={{ height: SPACER }} />
           {Array.from({ length: 24 }, (_, h) => (
-            <button key={h} type="button" style={{ height: ITEM_H }}
+            <Button key={h} type="button" variant="ghost" style={{ height: ITEM_H }}
               onClick={() => {
                 if (hDragged.current) return;
                 const { currentMinute } = getCurrentParts();
@@ -161,10 +162,10 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
                 hourRef.current?.scrollTo({ top: h * ITEM_H, behavior: "smooth" });
               }}
               className={cn(
-                "relative z-10 w-full flex items-center justify-center font-mono font-semibold transition-all rounded-lg",
+                "relative z-10 w-full h-auto flex items-center justify-center font-mono font-semibold transition-all rounded-lg p-0 min-w-0",
                 h === hh ? "text-brand-700 text-xs" : "text-[11px] text-gray-400 hover:text-gray-700",
               )}
-            >{pad(h)}</button>
+            >{pad(h)}</Button>
           ))}
           <div style={{ height: SPACER }} />
         </div>
@@ -188,7 +189,7 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
         >
           <div style={{ height: SPACER }} />
           {Array.from({ length: 60 }, (_, m) => (
-            <button key={m} type="button" style={{ height: ITEM_H }}
+            <Button key={m} type="button" variant="ghost" style={{ height: ITEM_H }}
               onClick={() => {
                 if (mDragged.current) return;
                 const { currentHour } = getCurrentParts();
@@ -196,10 +197,10 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
                 minRef.current?.scrollTo({ top: m * ITEM_H, behavior: "smooth" });
               }}
               className={cn(
-                "relative z-10 w-full flex items-center justify-center font-mono font-semibold transition-all rounded-lg",
+                "relative z-10 w-full h-auto flex items-center justify-center font-mono font-semibold transition-all rounded-lg p-0 min-w-0",
                 m === mm ? "text-brand-700 text-xs" : "text-[11px] text-gray-400 hover:text-gray-700",
               )}
-            >{pad(m)}</button>
+            >{pad(m)}</Button>
           ))}
           <div style={{ height: SPACER }} />
         </div>
@@ -298,21 +299,22 @@ export function WorkingHoursEditor({
         {DAY_KEYS.map((day) => {
           const open = value[day] !== null && value[day] !== undefined;
           return (
-            <button
+            <Button
               key={day}
               type="button"
+              variant="ghost"
               onClick={() => {
                 const nowOpen = !open;
                 setDay(day, nowOpen ? ["09:00", "18:00"] : null);
                 setEditingDay(nowOpen ? day : (editingDay === day ? null : editingDay));
               }}
               className={cn(
-                "w-10 h-10 rounded-xl text-xs font-bold transition-all",
-                open ? "bg-brand-600 text-white shadow-sm" : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                "w-10 h-10 rounded-xl text-xs font-bold p-0 min-w-0",
+                open ? "bg-brand-600 text-white shadow-sm hover:bg-brand-600" : "bg-gray-100 text-gray-400 hover:bg-gray-200"
               )}
             >
               {DAYS[day].short}
-            </button>
+            </Button>
           );
         })}
         <span className="text-xs text-gray-400 ml-1">
@@ -368,25 +370,27 @@ export function WorkingHoursEditor({
 
                     <div className="flex items-center gap-3 ml-auto flex-shrink-0">
                       {DAYS[day].weekday && (
-                        <button
+                        <Button
                           type="button"
+                          variant="link"
                           onClick={() => applyToWeekdays(slot as [string, string])}
-                          className="text-[11px] text-gray-400 hover:text-brand-600 transition-colors whitespace-nowrap hidden lg:block"
+                          className="text-[11px] text-gray-400 hover:text-brand-600 whitespace-nowrap hidden lg:inline-flex h-auto p-0"
                         >
                           Aplicar a dias úteis
-                        </button>
+                        </Button>
                       )}
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
                         onClick={() => {
                           setEditingDay(null);
                           onCommit?.();
                         }}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-800 transition-colors"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-800 h-auto px-0"
                       >
                         <Check className="w-3.5 h-3.5" />
                         Salvar
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -395,14 +399,15 @@ export function WorkingHoursEditor({
                     <span className="text-sm font-mono font-semibold text-gray-700">{slot[0]}</span>
                     <ArrowRight className="w-3 h-3 text-gray-300 flex-shrink-0" />
                     <span className="text-sm font-mono font-semibold text-gray-700">{slot[1]}</span>
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
                       onClick={() => setEditingDay(day)}
-                      className="ml-auto inline-flex items-center gap-1 text-xs text-gray-400 hover:text-brand-600 transition-colors flex-shrink-0"
+                      className="ml-auto inline-flex items-center gap-1 text-xs text-gray-400 hover:text-brand-600 flex-shrink-0 h-auto px-0"
                     >
                       <Pencil className="w-3 h-3" />
                       <span className="hidden sm:inline">Editar</span>
-                    </button>
+                    </Button>
                   </div>
                 )
               ) : (
@@ -420,14 +425,16 @@ export function WorkingHoursEditor({
           { label: "Todos os dias 09h–18h", action: () => { applyToAll(["09:00", "18:00"]); setEditingDay(null); } },
           { label: "Restaurar padrão", action: () => { onChange(defaultWorkingHours()); setEditingDay(null); } },
         ].map(({ label, action }) => (
-          <button
+          <Button
             key={label}
             type="button"
+            variant="outline"
+            size="xs"
             onClick={action}
-            className="text-xs text-gray-500 hover:text-brand-600 border border-gray-200 rounded-lg px-3 py-1.5 transition-colors hover:border-brand-300 hover:bg-brand-50"
+            className="text-xs text-gray-500 hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50 h-auto"
           >
             {label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -459,14 +466,15 @@ export function WorkingHoursEditor({
                 value={lunchBreak[1]}
                 onChange={(t) => onLunchBreakChange([lunchBreak[0], t])}
               />
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 onClick={() => onCommit?.()}
-                className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-800 transition-colors"
+                className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-800 h-auto px-0"
               >
                 <Check className="w-3.5 h-3.5" />
                 Aplicar horário
-              </button>
+              </Button>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-gray-700">Mensagem no horário de almoço</label>
@@ -507,14 +515,16 @@ export function WorkingHoursEditor({
             className="input"
             disabled={specialClosed}
           />
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={addSpecialDay}
-            className="text-xs border border-brand-200 bg-brand-50 text-brand-700 rounded-lg px-3 py-2 hover:bg-brand-100"
+            className="text-xs border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100 h-auto"
             disabled={!specialDate}
           >
             Adicionar
-          </button>
+          </Button>
         </div>
         <div className="flex flex-wrap gap-2">
           <div className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5">
@@ -525,24 +535,28 @@ export function WorkingHoursEditor({
               onChange={(e) => setTodayCloseAt(e.target.value)}
               className="input h-8 w-[110px] py-1"
             />
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="xs"
               onClick={() => closeTodayAt(todayCloseAt)}
-              className="text-xs border border-amber-300 bg-white text-amber-800 rounded-md px-2 py-1 hover:bg-amber-100"
+              className="text-xs border-amber-300 bg-white text-amber-800 hover:bg-amber-100 h-auto"
             >
               Aplicar
-            </button>
+            </Button>
           </div>
-          <button
+          <Button
             type="button"
+            variant="destructive"
+            size="xs"
             onClick={() => {
               onSpecialHoursChange({ ...specialHours, [dateKeyFromOffset(0)]: null });
               onCommit?.();
             }}
-            className="text-xs border border-red-200 bg-red-50 text-red-700 rounded-lg px-3 py-1.5 hover:bg-red-100"
+            className="text-xs h-auto"
           >
             Fechar hoje o dia todo
-          </button>
+          </Button>
         </div>
         <label className="inline-flex items-center gap-2 text-xs text-gray-600">
           <input
@@ -566,18 +580,20 @@ export function WorkingHoursEditor({
                     {slot ? `${slot[0]} → ${slot[1]}` : "Fechado"}
                   </span>
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="xs"
                   onClick={() => {
                     const next = { ...specialHours };
                     delete next[day];
                     onSpecialHoursChange(next);
                     onCommit?.();
                   }}
-                  className="text-xs text-red-600 hover:text-red-700"
+                  className="text-xs text-red-600 hover:text-red-700 h-auto px-0"
                 >
                   Remover
-                </button>
+                </Button>
               </div>
             ))}
           </div>

@@ -12,8 +12,7 @@
     "prepare:hosting": "node scripts/prepare-hosting.mjs",
     "build:hosting": "pnpm run prepare:hosting && FIREBASE_STATIC=1 pnpm --filter @flowdesk/web build",
     "stripe:sync-prices": "node scripts/stripe-sync-prices.mjs",
-    "setup:billing-env": "node scripts/setup-billing-env.mjs",
-    "setup:github-deploy": "node scripts/setup-github-deploy-secrets.mjs"
+    "setup:billing-env": "node scripts/setup-billing-env.mjs"
   },
   "devDependencies": {
     "turbo": "^2.3.0",

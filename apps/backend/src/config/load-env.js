@@ -27,20 +27,9 @@ function loadEnvFile(filePath, override = false) {
   }
 }
 
-function resolveCredentialPaths() {
-  const credKeys = ['GOOGLE_APPLICATION_CREDENTIALS', 'FIREBASE_SERVICE_ACCOUNT_PATH']
-  for (const key of credKeys) {
-    const raw = process.env[key]?.trim()
-    if (!raw || raw.startsWith('/')) continue
-    const resolved = resolve(backendRoot, raw)
-    if (existsSync(resolved)) process.env[key] = resolved
-  }
-}
-
 export function loadBackendEnv() {
   const localEnv = resolve(backendRoot, '.env')
   if (existsSync(localEnv)) loadEnvFile(localEnv, true)
-  resolveCredentialPaths()
   applyWaPathDefaults()
 }
 

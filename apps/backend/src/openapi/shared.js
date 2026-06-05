@@ -6,22 +6,6 @@ export const businessIdPath = {
   description: 'ID do negócio (Firestore)',
 }
 
-export const statusIdPath = {
-  name: 'statusId',
-  in: 'path',
-  required: true,
-  schema: { type: 'string' },
-  description: 'ID do agendamento de story',
-}
-
-export const seriesIdPath = {
-  name: 'seriesId',
-  in: 'path',
-  required: true,
-  schema: { type: 'string' },
-  description: 'ID da série de agendamentos',
-}
-
 export const forceQuery = {
   name: 'force',
   in: 'query',
@@ -66,41 +50,3 @@ export const multipartFile = {
   format: 'binary',
 }
 
-export const scheduleRepostBody = {
-  type: 'object',
-  properties: {
-    publishNow: {
-      type: 'boolean',
-      description: 'Se true, ignora calendário e publica em ~5s',
-    },
-    scheduledDays: {
-      type: 'array',
-      items: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
-      description: 'Datas no formato YYYY-MM-DD (obrigatório se publishNow for false)',
-    },
-    hour: { type: 'integer', minimum: 0, maximum: 23 },
-    minute: { type: 'integer', minimum: 0, maximum: 59 },
-  },
-}
-
-export const scheduledStatusSchema = {
-  type: 'object',
-  properties: {
-    id: { type: 'string' },
-    businessId: { type: 'string' },
-    mediaUrl: { type: 'string' },
-    mediaType: { type: 'string', enum: ['image', 'video'] },
-    caption: { type: 'string' },
-    scheduledAt: { type: 'string', format: 'date-time' },
-    status: {
-      type: 'string',
-      enum: ['scheduled', 'publishing', 'published', 'failed', 'cancelled'],
-    },
-    error: { type: 'string' },
-    publishedAt: { type: 'string', format: 'date-time' },
-    seriesId: { type: 'string' },
-    sourceStatusId: { type: 'string' },
-    createdAt: { type: 'string', format: 'date-time' },
-    updatedAt: { type: 'string', format: 'date-time' },
-  },
-}

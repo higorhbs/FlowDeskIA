@@ -67,7 +67,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
 
-  --font-sans: var(--font-sans), Inter, system-ui, sans-serif;
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
 
   --animate-shimmer: shimmer 2s linear infinite;
 
@@ -214,8 +214,8 @@
   }
 
   .theme {
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans);
+    --font-heading: var(--font-geist-sans);
+    --font-sans: var(--font-geist-sans), system-ui, sans-serif;
   }
 
   html {

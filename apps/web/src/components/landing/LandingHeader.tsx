@@ -74,14 +74,15 @@ export function LandingHeader({ adMode = false }: { adMode?: boolean }) {
                 {item.label}
               </Link>
             ) : (
-              <button
+              <Button
                 key={item.label}
                 type="button"
+                variant="ghost"
                 onClick={() => runNav(item)}
-                className="rounded-full px-5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-background hover:text-primary"
+                className="h-auto rounded-full px-5 py-2 text-sm font-medium text-muted-foreground hover:bg-background hover:text-primary"
               >
                 {item.label}
-              </button>
+              </Button>
             )
           )}
         </nav>
@@ -110,15 +111,17 @@ export function LandingHeader({ adMode = false }: { adMode?: boolean }) {
           >
             {adMode ? "Teste grátis" : "Testar"}
           </Button>
-          <button
+          <Button
             type="button"
-            className="flex size-10 items-center justify-center rounded-full border border-primary/15 text-primary md:hidden"
+            variant="outline"
+            size="icon"
+            className="rounded-full border-primary/15 text-primary md:hidden"
             aria-expanded={menuOpen}
             aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}
             onClick={() => setMenuOpen((v) => !v)}
           >
             {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -130,14 +133,15 @@ export function LandingHeader({ adMode = false }: { adMode?: boolean }) {
       >
         <nav className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-3" aria-label="Menu mobile">
           {NAV.map((item) => (
-            <button
+            <Button
               key={item.label}
               type="button"
+              variant="ghost"
               onClick={() => runNav(item)}
-              className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-brand-50 hover:text-brand-700"
+              className="h-auto w-full justify-start rounded-lg px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-brand-50 hover:text-brand-700"
             >
               {item.label}
-            </button>
+            </Button>
           ))}
           <div className="mt-2 grid grid-cols-2 gap-2 border-t border-gray-200/80 pt-3">
             <Button type="button" variant="outline" className="w-full" onClick={() => { setMenuOpen(false); openAuth("login"); }}>

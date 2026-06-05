@@ -5,18 +5,16 @@ import type {
 } from '@flowdesk/whatsapp-client'
 import {
   createWaAuthFileStore,
+  enqueueWhatsappInboundJob,
   hasWhatsAppAuth,
   listBusinessIdsWithWhatsAppAuth,
   setBusinessConnected,
 } from '@flowdesk/firebase'
 import { saveChatMedia } from './chat-media.js'
 import { processMessage } from './services/bot.js'
-import { probeRedis } from './redis-health.js'
-import { getMessageQueue } from './workers/message-worker.js'
 import { waManager } from './wa-manager.js'
 
 const lifecycleAttached = new WeakSet<WhatsAppClient>()
-let loggedRedisDirectMode = false
 
 export async function hasStoredSession(businessId: string): Promise<boolean> {
   return hasWhatsAppAuth(businessId)
@@ -112,13 +110,10 @@ async function enqueueInbound(
   msg: WhatsAppMessage,
   media?: { mediaUrl?: string; mediaType?: WhatsAppMessage['mediaType'] }
 ) {
-  const queue = await getMessageQueue()
-  if (!queue) throw new Error('Redis indisponível')
   const jobId = msg.messageId ? `${businessId}_${msg.messageId}` : undefined
-  await queue.add(
-    'inbound',
+  await enqueueWhatsappInboundJob(
+    businessId,
     {
-      businessId,
       customerPhone: msg.from,
       customerName: msg.pushName,
       messageBody: msg.body,
@@ -126,13 +121,7 @@ async function enqueueInbound(
       mediaUrl: media?.mediaUrl,
       mediaType: media?.mediaType,
     },
-    {
-      jobId,
-      removeOnComplete: true,
-      removeOnFail: 50,
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 1500 },
-    }
+    jobId
   )
 }
 
@@ -152,19 +141,11 @@ export function attachWhatsAppMessageHandler(businessId: string, client: WhatsAp
       } catch (err) {
         console.error(`[whatsapp] inbound media save failed business=${businessId}:`, err)
       }
-      const redisOk = await probeRedis()
-      if (redisOk) {
-        try {
-          await enqueueInbound(businessId, msg, media)
-          return
-        } catch (err) {
-          console.error(`[whatsapp] queue failed business=${businessId}, direct fallback:`, err)
-        }
-      } else if (!loggedRedisDirectMode) {
-        loggedRedisDirectMode = true
-        console.warn(
-          '[whatsapp] Redis indisponível — bot responde direto (sem fila). Configure REDIS_URL.'
-        )
+      try {
+        await enqueueInbound(businessId, msg, media)
+        return
+      } catch (err) {
+        console.error(`[whatsapp] Firestore queue failed business=${businessId}, direct fallback:`, err)
       }
       try {
         await deliverBotReplies(businessId, client, msg, media)

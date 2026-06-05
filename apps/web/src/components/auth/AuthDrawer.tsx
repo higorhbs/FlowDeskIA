@@ -159,13 +159,9 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
       </form>
       <p className="text-center text-sm text-gray-500 mt-6">
         Não tem conta?{" "}
-        <button
-          type="button"
-          onClick={onSwitch}
-          className="text-brand-600 font-medium hover:underline"
-        >
+        <Button type="button" variant="link" onClick={onSwitch} className="text-brand-600 font-medium h-auto p-0">
           Criar grátis
-        </button>
+        </Button>
       </p>
     </div>
   );
@@ -261,13 +257,9 @@ function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
       </form>
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Já tem conta?{" "}
-        <button
-          type="button"
-          onClick={onSwitch}
-          className="font-medium text-primary hover:underline"
-        >
+        <Button type="button" variant="link" onClick={onSwitch} className="font-medium h-auto p-0">
           Entrar
-        </button>
+        </Button>
       </p>
 
       <AuthLegalNotice />
@@ -367,36 +359,43 @@ export function AuthDrawer({
             </div>
             <span className="font-bold text-gray-900">{APP_DISPLAY_NAME}</span>
           </div>
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="text-gray-400 hover:text-gray-600"
             aria-label="Fechar"
           >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
         <div className="flex border-b border-gray-100">
-          <button
+          <Button
+            type="button"
+            variant="ghost"
             onClick={() => onModeChange("login")}
-            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+            className={`flex-1 py-3 h-auto rounded-none text-sm font-medium ${
               mode === "login"
                 ? "text-brand-600 border-b-2 border-brand-600"
                 : "text-gray-400 hover:text-gray-600"
             }`}
           >
             Entrar
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
             onClick={() => onModeChange("register")}
-            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+            className={`flex-1 py-3 h-auto rounded-none text-sm font-medium ${
               mode === "register"
                 ? "text-brand-600 border-b-2 border-brand-600"
                 : "text-gray-400 hover:text-gray-600"
             }`}
           >
             Criar conta
-          </button>
+          </Button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">

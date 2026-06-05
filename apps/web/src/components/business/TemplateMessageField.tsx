@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export const SETTINGS_TEMPLATE_VARS = [
   {
@@ -53,23 +54,24 @@ export function TemplateVariableBar({
   return (
     <div className="flex flex-wrap gap-2">
       {variables.map((v) => (
-        <button
+        <Button
           key={v.token}
           type="button"
+          variant="outline"
           draggable
           onDragStart={(e) => {
             e.dataTransfer.setData("text/plain", v.token);
             e.dataTransfer.effectAllowed = "copy";
           }}
           onClick={() => onPick(v.token)}
-          className="inline-flex flex-col items-start rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 text-left hover:bg-brand-100 min-w-[7.5rem]"
+          className="inline-flex h-auto flex-col items-start rounded-lg border-brand-200 bg-brand-50 px-2.5 py-1.5 text-left hover:bg-brand-100 min-w-[7.5rem]"
           title={v.label}
         >
           <span className="text-xs font-semibold font-mono text-brand-800">{v.token}</span>
           {v.shortHint && (
             <span className="text-[10px] text-brand-700/90 leading-tight mt-0.5">{v.shortHint}</span>
           )}
-        </button>
+        </Button>
       ))}
     </div>
   );

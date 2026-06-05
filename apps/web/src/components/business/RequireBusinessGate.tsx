@@ -29,24 +29,15 @@ function isDashboardPath(path: string) {
 export function RequireBusinessGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
   const router = useAppRouter();
-  const { loading, active, lgpdOk, onboardingDone, hasBusiness } = useRequiresBusinessSetup();
+  const { loading, active, hasBusiness } = useRequiresBusinessSetup();
   const onCreatePage = isCreateBusinessPath(pathname);
   const onAllowedPage = isAllowedWithoutBusinessPath(pathname);
   const onDashboardPage = isDashboardPath(pathname);
   const mustRedirect = !loading && active && !onCreatePage && !onAllowedPage && !onDashboardPage;
-  const mustFinishPrerequisites =
-    !loading &&
-    onCreatePage &&
-    !hasBusiness &&
-    (!lgpdOk || !onboardingDone);
   const shouldLeaveCreatePage =
     !loading &&
     onCreatePage &&
     hasBusiness;
-
-  useEffect(() => {
-    if (mustFinishPrerequisites) router.replace("/dashboard");
-  }, [mustFinishPrerequisites, router]);
 
   useEffect(() => {
     if (!shouldLeaveCreatePage) return;
@@ -58,7 +49,7 @@ export function RequireBusinessGate({ children }: { children: React.ReactNode })
     router.replace(CREATE_BUSINESS_PATH);
   }, [mustRedirect, router]);
 
-  if (loading && (active || mustFinishPrerequisites) && !onCreatePage) {
+  if (loading && active && !onCreatePage) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
@@ -66,15 +57,7 @@ export function RequireBusinessGate({ children }: { children: React.ReactNode })
     );
   }
 
-  if (mustRedirect || mustFinishPrerequisites || shouldLeaveCreatePage) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
-      </div>
-    );
-  }
-
-  if (onCreatePage && loading) {
+  if (mustRedirect || shouldLeaveCreatePage) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Loader2 className="w-8 h-8 animate-spin text-brand-600" />

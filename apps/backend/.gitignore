@@ -24,7 +24,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# whatsapp runtime data
+# local runtime (wa sessions, media cache)
 data/
 
 # misc

@@ -162,14 +162,15 @@ export default function CatalogPage() {
               </p>
             </div>
           </div>
-          <button
+          <Button
             onClick={openNew}
             disabled={limitReached}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-brand-700 font-medium text-sm hover:bg-white/90 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+            variant="secondary"
+            className="h-auto px-4 py-2.5 rounded-xl bg-white text-brand-700 font-medium text-sm hover:bg-white/90 shadow-sm flex-shrink-0"
           >
             <Plus className="w-4 h-4" />
             Adicionar item
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -202,13 +203,15 @@ export default function CatalogPage() {
                   </p>
                 </div>
               </div>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon-sm"
                 onClick={() => setShowForm(false)}
-                className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
+                className="rounded-xl bg-white/20 hover:bg-white/30 text-white"
               >
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
 
             <form
@@ -237,14 +240,15 @@ export default function CatalogPage() {
               </div>
 
               {/* Availability toggle */}
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 onClick={() => setValue("available", !watchAvailable)}
                 className={cn(
-                  "w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all",
+                  "w-full h-auto justify-between px-4 py-3 rounded-xl border-2 transition-all",
                   watchAvailable
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                    : "border-gray-200 bg-gray-50 text-gray-500"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-50"
+                    : "border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-50"
                 )}
               >
                 <span className="flex items-center gap-2 text-sm font-medium">
@@ -261,27 +265,28 @@ export default function CatalogPage() {
                   )} />
                 </div>
                 <input type="checkbox" className="sr-only" {...register("available")} />
-              </button>
+              </Button>
 
               <div className="flex gap-3 pt-1">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => setShowForm(false)}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="flex-1 h-auto px-4 py-2.5 rounded-xl"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={isSubmitting || saveMutation.isPending}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium transition-colors disabled:opacity-60"
+                  className="flex-1 h-auto px-4 py-2.5 rounded-xl"
                 >
                   {saveMutation.isPending
                     ? <Loader2 className="w-4 h-4 animate-spin" />
                     : <Check className="w-4 h-4" />
                   }
                   {editing ? "Salvar alterações" : "Adicionar"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -294,13 +299,14 @@ export default function CatalogPage() {
           <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm text-red-800">{(error as Error)?.message ?? `Erro ao carregar ${v.catalogNav.toLowerCase()}`}</p>
-            <button
+            <Button
               type="button"
+              variant="link"
               onClick={() => refetch()}
-              className="mt-2 text-xs font-medium text-red-700 underline hover:no-underline"
+              className="mt-2 h-auto p-0 text-xs font-medium text-red-700"
             >
               Tentar de novo
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -317,13 +323,13 @@ export default function CatalogPage() {
           </div>
           <h3 className="text-base font-semibold text-gray-800 mb-1">{v.catalogEmptyTitle}</h3>
           <p className="text-sm text-gray-400 max-w-xs mb-6">{v.catalogEmptyHint}</p>
-          <button
+          <Button
             onClick={openNew}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium transition-colors"
+            className="h-auto px-5 py-2.5 rounded-xl"
           >
             <Plus className="w-4 h-4" />
             Adicionar primeiro item
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -391,23 +397,27 @@ export default function CatalogPage() {
                     </div>
 
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon-sm"
                         onClick={() => openEdit(item)}
-                        className="w-8 h-8 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 flex items-center justify-center transition-colors"
+                        className="text-gray-400 hover:text-brand-600 hover:bg-brand-50"
                         title="Editar"
                       >
                         <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon-sm"
                         onClick={() => { if (confirm("Remover este item?")) deleteMutation.mutate(item.id); }}
                         disabled={deleteMutation.isPending}
-                        className="w-8 h-8 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors"
+                        className="text-gray-400 hover:text-red-600 hover:bg-red-50"
                         title="Remover"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -416,16 +426,17 @@ export default function CatalogPage() {
           })}
 
           {/* Add card */}
-          <button
+          <Button
             onClick={openNew}
             disabled={limitReached}
-            className="rounded-2xl border-2 border-dashed border-gray-200 bg-transparent hover:border-brand-400 hover:bg-brand-50/40 transition-all flex flex-col items-center justify-center gap-2 py-10 text-gray-400 hover:text-brand-600 disabled:opacity-40 disabled:cursor-not-allowed group"
+            variant="ghost"
+            className="h-auto w-full rounded-2xl border-2 border-dashed border-gray-200 bg-transparent hover:border-brand-400 hover:bg-brand-50/40 flex-col gap-2 py-10 text-gray-400 hover:text-brand-600 group"
           >
             <div className="w-10 h-10 rounded-xl bg-gray-100 group-hover:bg-brand-100 flex items-center justify-center transition-colors">
               <Plus className="w-5 h-5" />
             </div>
             <span className="text-sm font-medium">Novo item</span>
-          </button>
+          </Button>
         </div>
       )}
     </div>

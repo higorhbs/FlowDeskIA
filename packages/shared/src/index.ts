@@ -285,19 +285,16 @@ export const PLAN_LIMITS = {
     messagesPerMonth: 500,
     catalogItems: 3,
     appointmentsPerMonth: 30,
-    scheduledStoriesPerMonth: 2,
   },
   PRO: {
     messagesPerMonth: 5000,
     catalogItems: 100,
     appointmentsPerMonth: 500,
-    scheduledStoriesPerMonth: 10,
   },
   UNLIMITED: {
     messagesPerMonth: Infinity,
     catalogItems: Infinity,
     appointmentsPerMonth: Infinity,
-    scheduledStoriesPerMonth: Infinity,
   },
 } as const;
 
@@ -310,74 +307,13 @@ export function formatPlanLimit(value: number): string {
 
 export function planMarketingFeatures(plan: PlanTier): string[] {
   const l = PLAN_LIMITS[plan];
-  const stories =
-    l.scheduledStoriesPerMonth === Infinity
-      ? "Stories ilimitados"
-      : `${formatPlanLimit(l.scheduledStoriesPerMonth)} publicações de stories/mês`;
   return [
     l.messagesPerMonth === Infinity
       ? "Mensagens ilimitadas"
       : `${formatPlanLimit(l.messagesPerMonth)} mensagens/mês`,
     `${formatPlanLimit(l.catalogItems)} itens no catálogo`,
     `${formatPlanLimit(l.appointmentsPerMonth)} agendamentos/mês`,
-    stories,
   ];
-}
-
-export type ScheduledStoryQuotaRow = {
-  scheduledAt: string;
-  status: string;
-};
-
-export function monthKey(ref = new Date()): string {
-  const y = ref.getFullYear();
-  const m = String(ref.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
-}
-
-export function countReservedStoriesInMonth(
-  rows: ScheduledStoryQuotaRow[],
-  ref = new Date()
-): number {
-  const y = ref.getFullYear();
-  const m = ref.getMonth();
-  return rows.filter((row) => {
-    if (row.status !== "scheduled") return false;
-    const d = new Date(row.scheduledAt);
-    return d.getFullYear() === y && d.getMonth() === m;
-  }).length;
-}
-
-export function storiesQuotaUsed(
-  publishedCount: number,
-  rows: ScheduledStoryQuotaRow[],
-  ref = new Date()
-): number {
-  return publishedCount + countReservedStoriesInMonth(rows, ref);
-}
-
-export function countScheduledStoriesInMonth(
-  rows: ScheduledStoryQuotaRow[],
-  ref = new Date()
-): number {
-  return storiesQuotaUsed(0, rows, ref);
-}
-
-export function assertScheduledStoriesQuota(
-  plan: PlanTier,
-  currentMonthCount: number,
-  adding: number
-): void {
-  const limit = PLAN_LIMITS[plan].scheduledStoriesPerMonth;
-  if (!Number.isFinite(limit)) return;
-  if (currentMonthCount + adding > limit) {
-    const left = Math.max(0, limit - currentMonthCount);
-    throw new Error(
-      left === 0
-        ? `Seu plano permite ${limit} publicações de stories por mês e você já atingiu o limite.`
-        : `Seu plano permite ${limit} publicações de stories por mês. Você pode agendar mais ${left} neste mês.`
-    );
-  }
 }
 
 export const PLAN_PRICES = {

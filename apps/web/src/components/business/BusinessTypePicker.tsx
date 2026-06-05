@@ -13,6 +13,7 @@ import { BUSINESS_TYPE_LABELS, BUSINESS_TYPE_ORDER, type BusinessType } from "@f
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 const BUSINESS_TYPE_META: Record<
   BusinessType,
@@ -58,16 +59,17 @@ export function BusinessTypePicker({
           const selected = value === id;
           const cardLabel = id === "OTHER" && selected && typeLabel.trim() ? typeLabel.trim() : label;
           return (
-            <button
+            <Button
               key={id}
               type="button"
+              variant="outline"
               onClick={() => {
                 onChange(id);
                 if (id !== "OTHER") onTypeLabelChange?.("");
               }}
               className={cn(
-                "relative flex flex-col items-center gap-3 py-5 px-3 rounded-xl border-2 text-center transition-all",
-                "hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2",
+                "relative h-auto flex flex-col items-center gap-3 py-5 px-3 rounded-xl border-2 text-center transition-all",
+                "hover:shadow-sm",
                 selected
                   ? "border-brand-500 bg-brand-50/80 shadow-sm"
                   : "border-gray-200 bg-white hover:border-gray-300"
@@ -95,7 +97,7 @@ export function BusinessTypePicker({
               >
                 {cardLabel}
               </span>
-            </button>
+            </Button>
           );
         })}
       </div>

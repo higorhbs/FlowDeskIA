@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { authErrorMessage, loginWithGoogle } from "@/lib/firebase-auth";
 import { setToken } from "@/lib/auth";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export function GoogleSignInButton() {
   const router = useRouter();
@@ -35,11 +36,12 @@ export function GoogleSignInButton() {
 
   return (
     <div>
-      <button
+      <Button
         type="button"
+        variant="outline"
         onClick={handleGoogle}
         disabled={loading}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        className="w-full h-auto py-2.5 text-gray-700"
       >
         {loading ? (
           <Loader2 className="w-5 h-5 animate-spin text-gray-500" />
@@ -66,7 +68,7 @@ export function GoogleSignInButton() {
             Continuar com Google
           </>
         )}
-      </button>
+      </Button>
     </div>
   );
 }

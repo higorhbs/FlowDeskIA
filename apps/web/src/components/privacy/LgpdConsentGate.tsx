@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
 import { tenantApi } from "@/lib/api";
 import { ShieldCheck, Loader2 } from "lucide-react";
@@ -12,7 +11,7 @@ import { LGPD_POLICY_VERSION } from "@/lib/lgpd-policy";
 
 export function LgpdConsentGate() {
   const { uid, ready } = useAuth();
-  const [dismissed, setDismissed] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: tenant, isLoading } = useQuery({
     queryKey: ["tenant", uid],
@@ -22,17 +21,28 @@ export function LgpdConsentGate() {
 
   const accept = useMutation({
     mutationFn: () => tenantApi.acceptLgpd(LGPD_POLICY_VERSION),
-    onError: () => {
-      setDismissed(false);
-      toast.error("Não foi possível salvar o aceite LGPD. Tente novamente.");
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["tenant", uid], updated);
+    },
+    onError: (err: Error) => {
+      toast.error(err?.message ?? "Não foi possível salvar o aceite LGPD. Tente novamente.");
     },
   });
 
-  if (dismissed || isLoading || !tenant) return null;
+  if (!ready || !uid) return null;
 
   const mustAccept =
-    !tenant.lgpdAcceptedAt || tenant.lgpdPolicyVersion !== LGPD_POLICY_VERSION;
-  if (!mustAccept) return null;
+    !tenant?.lgpdAcceptedAt || tenant.lgpdPolicyVersion !== LGPD_POLICY_VERSION;
+
+  if (!isLoading && !mustAccept) return null;
+
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <Loader2 className="w-8 h-8 animate-spin text-white" aria-label="Carregando" />
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -64,10 +74,7 @@ export function LgpdConsentGate() {
         <Button
           type="button"
           className="h-10 w-full"
-          onClick={() => {
-            setDismissed(true);
-            accept.mutate();
-          }}
+          onClick={() => accept.mutate()}
           disabled={accept.isPending}
         >
           {accept.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
@@ -77,4 +84,3 @@ export function LgpdConsentGate() {
     </div>
   );
 }
-

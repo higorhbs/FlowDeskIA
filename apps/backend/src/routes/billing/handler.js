@@ -49,7 +49,7 @@ async function requireBillingAuth(c) {
   if (!hasAdminCredential()) {
     return {
       error: json(c, 503, {
-        error: 'Credencial Firebase Admin ausente. Configure GOOGLE_APPLICATION_CREDENTIALS.',
+        error: 'Credencial Firebase Admin ausente. Configure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY.',
       }),
     }
   }

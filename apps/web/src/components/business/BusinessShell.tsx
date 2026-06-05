@@ -1,6 +1,5 @@
 "use client";
 
-import { BusinessHeader } from "./BusinessHeader";
 import { BusinessPageTransition } from "./BusinessPageTransition";
 import { BusinessRouteSync } from "./BusinessRouteSync";
 import { BusinessPanelHost } from "./BusinessPanelHost";
@@ -28,7 +27,6 @@ export function BusinessShell({
   return (
     <div className="flex flex-col h-full">
       <BusinessRouteSync />
-      <BusinessHeader businessId={id} />
       {usePanelHost
         ? <div className="flex-1 min-h-0 flex flex-col overflow-y-auto"><BusinessPanelHost /></div>
         : <BusinessPageTransition>{children}</BusinessPageTransition>

@@ -92,7 +92,7 @@ export interface BotResponse {
 }
 
 // Estado simples de conversa por sessão (em memória — para MVP)
-// Em produção: usar Redis com TTL
+// Em produção: mover para Firestore com TTL
 const conversationState = new Map<
   string,
   { step: string; data: Record<string, string> }

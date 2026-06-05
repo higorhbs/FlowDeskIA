@@ -349,10 +349,11 @@ export default function ProfilePage() {
               <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 transition-colors flex-shrink-0" />
             </Link>
 
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => window.dispatchEvent(new Event("flowdesk:open-onboarding"))}
-              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors group text-left"
+              className="w-full h-auto justify-start gap-3 px-4 py-3.5 hover:bg-gray-50 group text-left rounded-none"
             >
               <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
                 <Sparkles className="w-4 h-4 text-amber-500" />
@@ -362,7 +363,7 @@ export default function ProfilePage() {
                 <p className="text-xs text-gray-500">Conheça todos os recursos disponíveis</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 transition-colors flex-shrink-0" />
-            </button>
+            </Button>
           </Card>
         </div>
 
@@ -370,11 +371,12 @@ export default function ProfilePage() {
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Privacidade</p>
           <Card className="divide-y divide-gray-100 p-0 overflow-hidden">
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => exportData.mutate()}
               disabled={exportData.isPending}
-              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors group text-left disabled:opacity-60"
+              className="w-full h-auto justify-start gap-3 px-4 py-3.5 hover:bg-gray-50 group text-left rounded-none disabled:opacity-60"
             >
               <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
                 {exportData.isPending
@@ -386,16 +388,17 @@ export default function ProfilePage() {
                 <p className="text-xs text-gray-500">Receba uma cópia de todas as suas informações</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 transition-colors flex-shrink-0" />
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => {
                 setDeleteConfirm("");
                 setDeleteOpen(true);
               }}
               disabled={deleteAccount.isPending}
-              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors group text-left disabled:opacity-60"
+              className="w-full h-auto justify-start gap-3 px-4 py-3.5 hover:bg-gray-50 group text-left rounded-none disabled:opacity-60"
             >
               <div className="w-9 h-9 rounded-lg bg-rose-50 flex items-center justify-center flex-shrink-0">
                 {deleteAccount.isPending
@@ -407,7 +410,7 @@ export default function ProfilePage() {
                 <p className="text-xs text-gray-500">Apaga negócio, conversas, assinatura e login</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-rose-400 transition-colors flex-shrink-0" />
-            </button>
+            </Button>
           </Card>
         </div>
       </div>

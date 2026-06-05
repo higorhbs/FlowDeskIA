@@ -108,7 +108,7 @@ flowdesk/
 - Node.js 20+
 - pnpm 10+
 - Projeto Firebase (Auth + Firestore + Hosting)
-- Credencial Admin em `.secrets/firebase-adminsdk.json`
+- Service account Firebase (project_id, client_email, private_key) nas variáveis do backend
 
 > Redis e o agente WhatsApp só são necessários para testar conexão/bot localmente (`flowdesk-wa`).
 
@@ -124,7 +124,9 @@ cp apps/web/.env.example apps/web/.env
 Credencial Admin no backend (`apps/backend/.env`):
 
 ```bash
-GOOGLE_APPLICATION_CREDENTIALS=.secrets/firebase-adminsdk.json
+FIREBASE_PROJECT_ID=
+FIREBASE_CLIENT_EMAIL=
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 ```
 
 **Login Google:** rode `pnpm google:oauth-setup` e adicione no Google Cloud → OAuth Client → **Authorized redirect URIs** e **Authorized JavaScript origins** todas as URLs que o script listar. Com domínio customizado (ex.: `https://flowdesk.ia.br`), defina `WEB_ORIGIN` em `apps/backend/.env` antes de rodar o script e inclua `flowdesk.ia.br` em Firebase → Authentication → Settings → **Authorized domains**. Erro `origin_mismatch` = falta a origem JS `https://seu-dominio` no OAuth Client.
@@ -152,9 +154,9 @@ Configure `NEXT_PUBLIC_WA_API_URL` e `NEXT_PUBLIC_API_URL` para a mesma URL do b
 
 | Plano | Preço | Mensagens/mês | Catálogo | Agendamentos/mês | Extras |
 | --- | --- | --- | --- | --- | --- |
-| **Starter** | R$ 69,90 | 500 | 3 itens | 30 | 2 stories/mês · Trial 7 dias |
-| **Pro** | R$ 99 | 5.000 | 100 itens | 500 | 10 stories/mês · PIX Asaas |
-| **Unlimited** | R$ 199 | Ilimitado | Ilimitado | Ilimitado | Stories ilimitados |
+| **Starter** | R$ 69,90 | 500 | 3 itens | 30 | Trial 7 dias |
+| **Pro** | R$ 99 | 5.000 | 100 itens | 500 | PIX Asaas |
+| **Unlimited** | R$ 199 | Ilimitado | Ilimitado | Ilimitado | — |
 
 Sincronizar preços Stripe: `pnpm stripe:sync-prices`
 
@@ -193,13 +195,13 @@ Deixe os Payment Links Stripe vazios em produção — checkout passa pela API p
 
 | Variável | Uso |
 | --- | --- |
-| `FIREBASE_*` / `GOOGLE_APPLICATION_CREDENTIALS` | Admin SDK |
+| `FIREBASE_WEB_API_KEY` | Auth REST (mesma do web) |
+| `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | Admin SDK |
 | `STRIPE_*` | Assinaturas e webhooks |
 | `ASAAS_*` | PIX (global ou por negócio via painel) |
 | `CORS_ORIGIN` | URL(s) do Hosting |
 | `PRIVACY_RETENTION_INTERVAL_HOURS` | Job de retenção LGPD (0 = desligado) |
-| `REDIS_URL` | Filas e sessão (WhatsApp) |
-| `WA_SESSION_PATH` | Persistência Baileys |
+| `FIREBASE_STORAGE_BUCKET` | Mídia de chat (Firebase Storage) |
 | `WA_API_PUBLIC_URL` | URL pública do backend na VM |
 
 ---
@@ -220,7 +222,6 @@ Deixe os Payment Links Stripe vazios em produção — checkout passa pela API p
 | `pnpm prepare:hosting` | Copia packages para `apps/web/vendor` |
 | `pnpm build:hosting` | Build estático (`apps/web/out`) |
 | `pnpm setup:billing-env` | Gera `.env.production` do web |
-| `pnpm setup:github-deploy` | Sincroniza secrets GitHub (env do front) |
 
 ---
 

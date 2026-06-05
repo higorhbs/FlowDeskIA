@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { getSupportMailtoUrl } from "@/lib/legal-config";
+import { Button } from "@/components/ui/button";
 
 export default function GlobalError({
   error,
@@ -23,12 +24,9 @@ export default function GlobalError({
             Ocorreu um erro inesperado. Tente novamente ou entre em contato com o suporte.
           </p>
           <div className="flex items-center gap-3">
-            <button
-              onClick={reset}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-            >
+            <Button size="lg" onClick={reset} className="bg-green-600 hover:bg-green-700">
               Tentar novamente
-            </button>
+            </Button>
             <a
               href={getSupportMailtoUrl("Suporte FlowDesk")}
               target="_blank"

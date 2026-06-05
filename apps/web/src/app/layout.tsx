@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import { Inter, Geist } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Geist } from "next/font/google";
 import { APP_META_DESCRIPTION, APP_PAGE_TITLE } from "@flowdesk/shared";
 import "./globals.css";
 import { GoogleAdsTag } from "@/components/analytics/GoogleAdsTag";
@@ -9,16 +9,13 @@ import { Providers } from "@/components/providers";
 import { ToasterHost } from "@/components/toaster-host";
 import { cn } from "@/lib/utils";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
-
-const inter = Inter({ subsets: ["latin"] });
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
 export const metadata: Metadata = {
   title: APP_PAGE_TITLE,
   description: APP_META_DESCRIPTION,
   applicationName: "FlowDesk",
   manifest: "/site.webmanifest",
-  themeColor: "#16a34a",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -33,6 +30,10 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
     other: [{ rel: "mask-icon", url: "/apple-icon.svg", color: "#16a34a" }],
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#16a34a",
 };
 
 export default function RootLayout({
@@ -51,7 +52,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="FlowDesk" />
         <GoogleAdsTag />
       </head>
-      <body className={inter.className} suppressHydrationWarning>
+      <body className={cn(geist.className)} suppressHydrationWarning>
         <script src="/theme-init.js" defer />
         <Providers>
           <MobileExperienceGate>

@@ -20,12 +20,6 @@ export interface BusinessSchedule {
   updatedAt: string;
 }
 
-export interface TenantMonthlyUsage {
-  month: string;
-  storiesPublished: number;
-  updatedAt: string;
-}
-
 export type BusinessCreateInput = {
   name: string;
   type: BusinessType;
@@ -201,32 +195,6 @@ export interface BusinessAsaasIntegration {
   apiKey: string;
   sandbox: boolean;
   webhookToken?: string;
-  updatedAt: string;
-}
-
-export type ScheduledStatusState =
-  | "scheduled"
-  | "publishing"
-  | "published"
-  | "failed"
-  | "cancelled";
-
-export type ScheduledStatusMediaType = "image" | "video";
-
-export interface ScheduledStatus {
-  id: string;
-  businessId: string;
-  mediaUrl: string;
-  mediaStoragePath?: string;
-  mediaType: ScheduledStatusMediaType;
-  caption?: string;
-  scheduledAt: string;
-  status: ScheduledStatusState;
-  error?: string;
-  publishedAt?: string;
-  seriesId?: string;
-  sourceStatusId?: string;
-  createdAt: string;
   updatedAt: string;
 }
 

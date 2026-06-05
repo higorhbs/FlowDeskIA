@@ -115,7 +115,7 @@ Env: `FIREBASE_WEB_API_KEY`, credencial Admin, `WEB_ORIGIN`, `CORS_ORIGIN`, `STR
 
 ### Chat WhatsApp
 
-Requer `ENABLE_WORKERS=true` e `WA_SESSION_PATH`.
+Requer `ENABLE_WORKERS=true` e credenciais Firebase (Storage, Firestore para sessão Baileys e fila inbound).
 
 | Método | Path | Descrição |
 | ------ | ---- | --------- |
@@ -124,16 +124,6 @@ Requer `ENABLE_WORKERS=true` e `WA_SESSION_PATH`.
 | `DELETE` | `/chat/whatsapp/connection/:businessId` | Desconectar |
 | `POST` | `/chat/whatsapp/messages/:businessId` | Enviar texto (`to`, `text`, `conversationId?`) |
 | `POST` | `/chat/whatsapp/messages/:businessId/media` | Enviar mídia (multipart) |
-
-### Stories WhatsApp (`/stories/whatsapp/:businessId`)
-
-| Método | Path | Body / notas |
-| ------ | ---- | ------------ |
-| `GET` | `/stories/whatsapp/:businessId` | Lista agendamentos |
-| `POST` | `/stories/whatsapp/:businessId` | multipart: `file`, `scheduledDays` (JSON), `hour`, `minute`, `caption?` (upload + agendamento) |
-| `POST` | `/stories/whatsapp/:businessId/:statusId/repost` | `scheduledDays[]`, `hour`, `minute` |
-| `DELETE` | `/stories/whatsapp/:businessId/:statusId` | Cancela pendente |
-| `DELETE` | `/stories/whatsapp/:businessId/series/:seriesId` | Cancela série |
 
 ### Billing (Stripe)
 
@@ -183,4 +173,4 @@ pnpm build
 node src/index.js
 ```
 
-Workers exigem `REDIS_URL` e `ENABLE_WORKERS=true`. Firestore rules/índices e Hosting são geridos no [Firebase Console](https://console.firebase.google.com).
+Workers exigem `ENABLE_WORKERS=true` e índices Firestore em `whatsappJobs`. Firestore rules/índices e Hosting são geridos no [Firebase Console](https://console.firebase.google.com).

@@ -13,6 +13,7 @@ import {
   QrCode, Banknote, Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { IaIcon } from "@/lib/ia-brand";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 
@@ -20,11 +21,6 @@ interface ChatMsg {
   from: "customer" | "ia";
   text: string;
   time: string;
-}
-
-interface StoryCard {
-  caption: string;
-  timeLabel: string;
 }
 
 interface StepDef {
@@ -35,7 +31,6 @@ interface StepDef {
   accentColor: string;
   features: { icon: React.ElementType; text: string }[];
   chat: { businessName: string; messages: ChatMsg[] };
-  storyCard?: StoryCard;
 }
 
 const DEMO_BUSINESS = "Horizonte Serviços";
@@ -108,39 +103,6 @@ const STEPS: StepDef[] = [
           time: "14:30",
         },
       ],
-    },
-  },
-  {
-    badge: "Stories",
-    title: "Publique no Status do WhatsApp na hora certa",
-    subtitle: "Agende imagens e vídeos para o Status do WhatsApp com antecedência. Seu conteúdo é publicado automaticamente no horário definido — sem precisar estar no celular.",
-    color: "from-pink-500 to-rose-600",
-    accentColor: "bg-pink-600",
-    features: [
-      { icon: CalendarClock, text: "Agende stories para qualquer data e horário" },
-      { icon: TrendingUp, text: "Promoções e novidades chegam direto no status" },
-      { icon: Star, text: "Clientes veem o story e agendam pelo WhatsApp" },
-    ],
-    chat: {
-      businessName: DEMO_BUSINESS,
-      messages: [
-        { from: "customer", text: "Oi! Vi o story de vocês com a promoção, ainda tem vaga hoje?", time: "10:14" },
-        {
-          from: "ia",
-          text: "Oi! 👋 Sim, a promoção está ativa hoje!\n\n*20% OFF* em qualquer serviço 🎉\n\nHorários disponíveis:\n• 11:00 — 📋 Serviço Básico\n• 14:30 — ✨ Pacote Completo\n• 17:00 — ⭐ Serviço Padrão\n\nQual prefere?",
-          time: "10:14",
-        },
-        { from: "customer", text: "14:30 perfeito!", time: "10:15" },
-        {
-          from: "ia",
-          text: "✅ *Agendado com sucesso!*\n\nHoje às 14:30\n✨ Pacote Completo\n_De R$ 80 por R$ 64_\n\nAproveite a promoção! 🎉",
-          time: "10:15",
-        },
-      ],
-    },
-    storyCard: {
-      caption: "🎉 PROMOÇÃO HOJE!\n20% OFF em qualquer serviço\n\nAgende agora pelo WhatsApp 👇",
-      timeLabel: "10:00",
     },
   },
   {
@@ -323,56 +285,6 @@ function WaChat({
   );
 }
 
-function WaStoryCard({
-  businessName,
-  caption,
-  timeLabel,
-  className,
-}: StoryCard & { businessName: string; className?: string }) {
-  return (
-    <div
-      className={`relative flex flex-col overflow-hidden rounded-2xl shadow-lg ${className ?? ""}`}
-      style={{ background: "linear-gradient(160deg, #0f0c29, #302b63, #24243e)" }}
-    >
-      {/* Progress bars */}
-      <div className="absolute top-2.5 left-3 right-3 flex gap-1 z-10">
-        {[true, false, false].map((active, i) => (
-          <div key={i} className="flex-1 h-0.5 rounded-full bg-white/20 overflow-hidden">
-            {active && <div className="h-full w-3/5 bg-white rounded-full" />}
-          </div>
-        ))}
-      </div>
-
-      {/* Business header */}
-      <div className="absolute top-5 left-3 right-3 flex items-center gap-2 z-10">
-        <div className="w-6 h-6 rounded-full bg-[#128C7E] flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
-          {businessName.trim()[0]}
-        </div>
-        <span className="text-white text-xs font-medium">{businessName}</span>
-        <span className="text-white/50 text-[10px] ml-auto">{timeLabel}</span>
-      </div>
-
-      <div className="flex flex-1 flex-col items-center justify-center px-5 pt-14 pb-2 text-center">
-        <p className="text-sm font-bold leading-snug whitespace-pre-line text-white sm:text-base">
-          {caption}
-        </p>
-      </div>
-
-      {/* Reply bar */}
-      <div className="flex items-center gap-2 px-3 pb-3">
-        <div className="flex-1 bg-white/10 border border-white/20 rounded-full px-3 py-1.5 text-white/40 text-xs">
-          Responder...
-        </div>
-        <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-white/60">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-          </svg>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function lsKey(uid: string) {
   return `flowdesk_onboarding_done_${uid}`;
 }
@@ -449,14 +361,17 @@ export function OnboardingTour({ variant = "dashboard" }: OnboardingTourProps) {
   const stepDots = (
     <div className="flex items-center justify-center gap-2 md:justify-start">
       {STEPS.map((_, i) => (
-        <button
+        <Button
           key={i}
           type="button"
+          variant="ghost"
+          size="icon-xs"
           onClick={() => setStep(i)}
           aria-label={`Etapa ${i + 1}`}
-          className={`rounded-full transition-all duration-300 ${
-            i === step ? "w-6 h-2 bg-brand-600" : "w-2 h-2 bg-gray-200 hover:bg-gray-300"
-          }`}
+          className={cn(
+            "rounded-full p-0 transition-all duration-300",
+            i === step ? "w-6 h-2 bg-brand-600 hover:bg-brand-600" : "w-2 h-2 bg-gray-200 hover:bg-gray-300"
+          )}
         />
       ))}
     </div>
@@ -523,44 +438,31 @@ export function OnboardingTour({ variant = "dashboard" }: OnboardingTourProps) {
           </div>
 
           <div className="flex flex-shrink-0 flex-col justify-center bg-gradient-to-br from-brand-50 via-white to-emerald-50 px-3 py-2 md:min-h-0 md:flex-1 md:gap-3 md:border-l md:p-5">
-            {current.storyCard && (
-              <WaStoryCard
+            <div className={isMobile ? "" : "min-h-0 flex-1"}>
+              <WaChat
                 businessName={current.chat.businessName}
-                caption={current.storyCard.caption}
-                timeLabel={current.storyCard.timeLabel}
+                messages={current.chat.messages}
+                compact={isMobile}
                 className={
                   isMobile
-                    ? "mx-auto block aspect-[9/16] w-full max-w-[220px] max-h-[min(38dvh,280px)]"
-                    : "hidden max-h-[140px] flex-shrink-0 md:block md:max-h-none"
+                    ? "mx-auto w-full max-w-sm"
+                    : "h-full min-h-[280px] w-full"
                 }
               />
-            )}
-            {(!current.storyCard || !isMobile) && (
-              <div className={isMobile ? "" : "min-h-0 flex-1"}>
-                <WaChat
-                  businessName={current.chat.businessName}
-                  messages={current.chat.messages}
-                  compact={isMobile}
-                  className={
-                    isMobile
-                      ? "mx-auto w-full max-w-sm"
-                      : "h-full min-h-[280px] w-full"
-                  }
-                />
-              </div>
-            )}
+            </div>
           </div>
         </div>
 
         <div className="relative z-10 flex flex-shrink-0 flex-col gap-2 border-t border-gray-100 bg-gray-50 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-between md:px-8 md:py-4">
-          <button
+          <Button
             type="button"
+            variant="link"
             onClick={dismiss}
-            className="order-2 text-center text-sm text-gray-400 transition-colors hover:text-gray-600 sm:order-1 sm:text-left"
+            className="order-2 h-auto p-0 text-center text-sm text-gray-400 hover:text-gray-600 sm:order-1 sm:text-left"
             disabled={complete.isPending}
           >
             Pular tour
-          </button>
+          </Button>
 
           <div className="order-1 flex items-center gap-2 sm:order-2">
             <Button

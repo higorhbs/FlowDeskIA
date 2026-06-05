@@ -19,6 +19,7 @@ import {
   Sparkles, Hash, MessageCircleQuestion, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import type { BotMenuItemConfig } from "@flowdesk/firebase/client";
 import { buildBotMenuEntries, getBusinessVocabulary, renderTemplate, DEFAULT_THANKS_MSG } from "@flowdesk/shared";
 import { IaIcon } from "@/lib/ia-brand";
@@ -139,26 +140,26 @@ function EmojiPickerBalloon({
     >
       <div className="flex items-center border-b border-gray-100 bg-gray-50 px-1.5 pt-1.5 gap-0.5">
         {EMOJI_CATS.map((c, ci) => (
-          <button key={ci} type="button" onClick={() => setCat(ci)} title={c.label}
+          <Button key={ci} type="button" variant="ghost" onClick={() => setCat(ci)} title={c.label}
             className={cn(
-              "flex-1 flex items-center justify-center py-1.5 text-[18px] rounded-t-lg transition-colors",
+              "flex-1 flex items-center justify-center py-1.5 text-[18px] rounded-t-lg h-auto min-w-0",
               cat === ci ? "bg-white border-b-2 border-brand-500 shadow-sm" : "hover:bg-white/70 text-gray-400"
             )}
-          >{c.icon}</button>
+          >{c.icon}</Button>
         ))}
-        <button type="button" onClick={() => { onClear(); onClose(); }} title="Sem emoji"
-          className="w-8 flex items-center justify-center py-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-t-lg transition-colors"
-        ><X className="w-3.5 h-3.5" /></button>
+        <Button type="button" variant="ghost" size="icon-xs" onClick={() => { onClear(); onClose(); }} title="Sem emoji"
+          className="text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-t-lg"
+        ><X className="w-3.5 h-3.5" /></Button>
       </div>
       <p className="px-3 pt-2 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
         {EMOJI_CATS[cat]!.label}
       </p>
       <div className="grid grid-cols-9 gap-0 px-1.5 pb-2 max-h-[176px] overflow-y-auto">
         {EMOJI_CATS[cat]!.emojis.map((emoji) => (
-          <button key={emoji} type="button"
+          <Button key={emoji} type="button" variant="ghost" size="icon-xs"
             onClick={() => { onSelect(emoji); onClose(); }}
-            className="w-8 h-8 flex items-center justify-center text-[18px] rounded-lg hover:bg-gray-100 active:scale-90 transition-all"
-          >{emoji}</button>
+            className="text-[18px] rounded-lg hover:bg-gray-100 active:scale-90"
+          >{emoji}</Button>
         ))}
       </div>
     </div>,
@@ -194,22 +195,25 @@ function ToggleRow({
       </div>
       <div className="flex items-center gap-2">
         {onPreview && (
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="xs"
             onClick={onPreview}
-            className="text-xs text-brand-700 hover:text-brand-900 border border-brand-200 bg-brand-50 px-2 py-1 rounded-lg inline-flex items-center gap-1"
+            className="text-xs text-brand-700 hover:text-brand-900 border-brand-200 bg-brand-50 h-auto"
           >
             <Eye className="w-3.5 h-3.5" />
             Prévia
-          </button>
+          </Button>
         )}
-        <button
+        <Button
           type="button"
+          variant="ghost"
           disabled={disabled}
           onClick={() => !disabled && onChange(!checked)}
           className={cn(
-            "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 mt-0.5",
-            checked ? "bg-brand-600" : "bg-gray-200",
+            "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent p-0 min-w-0 mt-0.5",
+            checked ? "bg-brand-600 hover:bg-brand-600" : "bg-gray-200 hover:bg-gray-200",
             disabled && "cursor-not-allowed"
           )}
         >
@@ -219,7 +223,7 @@ function ToggleRow({
               checked ? "translate-x-5" : "translate-x-0"
             )}
           />
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -245,20 +249,22 @@ function TemplateVariableBar({
   return (
     <div className="flex flex-wrap gap-2">
       {IA_TEMPLATE_VARS.map((v) => (
-        <button
+        <Button
           key={v.token}
           type="button"
+          variant="outline"
+          size="xs"
           draggable
           onDragStart={(e) => {
             e.dataTransfer.setData("text/plain", v.token);
             e.dataTransfer.effectAllowed = "copy";
           }}
           onClick={() => onPick(v.token)}
-          className="inline-flex items-center rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100"
+          className="inline-flex items-center border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100 h-auto"
           title={`${v.label} (${v.token})`}
         >
           {v.token}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -501,10 +507,10 @@ function BotMenuEditor({
                   </p>
                 </div>
               </div>
-              <button type="button" onClick={closeModal}
-                className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors">
+              <Button type="button" variant="ghost" size="icon-sm" onClick={closeModal}
+                className="rounded-xl bg-white/20 hover:bg-white/30 text-white">
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
 
             <div className="px-6 py-5 space-y-5">
@@ -515,22 +521,23 @@ function BotMenuEditor({
                   <span className="ml-1.5 text-xs font-normal text-gray-400">— o que o cliente vê na lista de opções</span>
                 </label>
                 <div className="flex items-center gap-2">
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
                     title="Escolher emoji"
                     onClick={(e) => {
                       const el = e.currentTarget;
                       setPickerAnchor(prev => prev ? null : { el });
                     }}
                     className={cn(
-                      "w-11 h-11 flex items-center justify-center rounded-xl border-2 bg-white flex-shrink-0 transition-all hover:scale-105",
+                      "w-11 h-11 flex items-center justify-center rounded-xl border-2 bg-white flex-shrink-0 hover:scale-105 h-auto p-0",
                       modal.emoji
                         ? "text-[22px] border-gray-200 hover:border-brand-300"
                         : "text-gray-400 border-dashed border-gray-300 hover:border-brand-400 hover:text-brand-500"
                     )}
                   >
                     {modal.emoji || <Plus className="w-4 h-4" />}
-                  </button>
+                  </Button>
                   <input
                     type="text"
                     autoFocus
@@ -575,16 +582,16 @@ function BotMenuEditor({
               </div>
 
               <div className="flex gap-3 pt-1">
-                <button type="button" className="btn-secondary flex-1" onClick={closeModal}>Cancelar</button>
-                <button
+                <Button type="button" variant="outline" className="flex-1" onClick={closeModal}>Cancelar</Button>
+                <Button
                   type="button"
-                  className="btn-primary flex-1"
+                  className="flex-1"
                   disabled={!modal.label.trim() || !modal.response.trim()}
                   onClick={commitModal}
                 >
                   <Check className="w-4 h-4" />
                   {modal.index === null ? "Adicionar" : "Salvar alterações"}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -672,10 +679,11 @@ function BotMenuEditor({
                       ) : (
                         <div className="w-8 flex-shrink-0" />
                       )}
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
                         onClick={() => openEdit(i)}
-                        className="flex-1 min-w-0 text-left"
+                        className="flex-1 min-w-0 h-auto justify-start text-left rounded-none px-0 hover:bg-transparent"
                       >
                         <p className="text-sm font-medium text-gray-900 group-hover:text-brand-700 transition-colors truncate">
                           {item.label}
@@ -683,51 +691,51 @@ function BotMenuEditor({
                         <p className="text-xs text-gray-400 mt-0.5 truncate">
                           {item.response || <span className="text-amber-500 italic">Sem resposta</span>}
                         </p>
-                      </button>
+                      </Button>
                       <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button type="button" onClick={() => openEdit(i)}
-                          className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+                        <Button type="button" variant="ghost" size="icon-xs" onClick={() => openEdit(i)}
+                          className="text-gray-400 hover:text-brand-600 hover:bg-brand-50"
                           title="Editar">
                           <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                        </Button>
                         <div className="flex rounded-lg border border-gray-200 overflow-hidden divide-x divide-gray-200">
-                          <button type="button" onClick={() => move(i, -1)} disabled={i === 0}
-                            className="w-7 h-7 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors">
+                          <Button type="button" variant="ghost" size="icon-xs" onClick={() => move(i, -1)} disabled={i === 0}
+                            className="text-gray-400 hover:bg-gray-50 rounded-none">
                             <ChevronUp className="w-3.5 h-3.5" />
-                          </button>
-                          <button type="button" onClick={() => move(i, 1)} disabled={i === items.length - 1}
-                            className="w-7 h-7 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors">
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon-xs" onClick={() => move(i, 1)} disabled={i === items.length - 1}
+                            className="text-gray-400 hover:bg-gray-50 rounded-none">
                             <ChevronDown className="w-3.5 h-3.5" />
-                          </button>
+                          </Button>
                         </div>
-                        <button type="button" onClick={() => toggle(i)}
+                        <Button type="button" variant="ghost" onClick={() => toggle(i)}
                           className={cn(
-                            "relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
-                            item.enabled ? "bg-brand-600" : "bg-gray-200"
+                            "relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent p-0 min-w-0",
+                            item.enabled ? "bg-brand-600 hover:bg-brand-600" : "bg-gray-200 hover:bg-gray-200"
                           )}>
                           <span className={cn(
                             "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200",
                             item.enabled ? "translate-x-4" : "translate-x-0"
                           )} />
-                        </button>
-                        <button type="button" onClick={() => removeItem(i)}
-                          className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeItem(i)}
+                          className="text-gray-300 hover:text-red-500 hover:bg-red-50">
                           <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              <button type="button" onClick={openCreate}
-                className="w-full flex items-center justify-center gap-2 py-3 mb-4 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50/50 transition-all group"
+              <Button type="button" variant="ghost" onClick={openCreate}
+                className="w-full h-auto flex items-center justify-center gap-2 py-3 mb-4 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50/50 group"
               >
                 <div className="w-6 h-6 rounded-full bg-gray-100 group-hover:bg-brand-100 flex items-center justify-center transition-colors">
                   <Plus className="w-3.5 h-3.5" />
                 </div>
                 Adicionar opção
-              </button>
+              </Button>
             </>
           )}
 
@@ -745,20 +753,23 @@ function BotMenuEditor({
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="xs"
                   onClick={() => setPreviewFocus("thanks")}
-                  className="text-xs text-brand-700 hover:text-brand-900 border border-brand-200 bg-brand-50 px-2 py-1 rounded-lg inline-flex items-center gap-1"
+                  className="text-xs text-brand-700 hover:text-brand-900 border-brand-200 bg-brand-50 h-auto"
                 >
                   <Eye className="w-3.5 h-3.5" />
                   Prévia
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={() => setThanksEnabled((v) => !v)}
                   className={cn(
-                    "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 mt-0.5",
-                    thanksEnabled ? "bg-brand-600" : "bg-gray-200"
+                    "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent p-0 min-w-0 mt-0.5",
+                    thanksEnabled ? "bg-brand-600 hover:bg-brand-600" : "bg-gray-200 hover:bg-gray-200"
                   )}
                   title="Ativar/desativar resposta de agradecimento"
                 >
@@ -768,7 +779,7 @@ function BotMenuEditor({
                       thanksEnabled ? "translate-x-5" : "translate-x-0"
                     )}
                   />
-                </button>
+                </Button>
               </div>
             </div>
             {thanksEnabled ? (
@@ -818,20 +829,23 @@ function BotMenuEditor({
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="xs"
                   onClick={() => setPreviewFocus("attendant")}
-                  className="text-xs text-brand-700 hover:text-brand-900 border border-brand-200 bg-brand-50 px-2 py-1 rounded-lg inline-flex items-center gap-1"
+                  className="text-xs text-brand-700 hover:text-brand-900 border-brand-200 bg-brand-50 h-auto"
                 >
                   <Eye className="w-3.5 h-3.5" />
                   Prévia
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={() => setAttendantEnabled((v) => !v)}
                   className={cn(
-                    "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 mt-0.5",
-                    attendantEnabled ? "bg-brand-600" : "bg-gray-200"
+                    "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent p-0 min-w-0 mt-0.5",
+                    attendantEnabled ? "bg-brand-600 hover:bg-brand-600" : "bg-gray-200 hover:bg-gray-200"
                   )}
                   title="Ativar/desativar nome de quem atende"
                 >
@@ -841,7 +855,7 @@ function BotMenuEditor({
                       attendantEnabled ? "translate-x-5" : "translate-x-0"
                     )}
                   />
-                </button>
+                </Button>
               </div>
             </div>
             {attendantEnabled ? (
@@ -860,36 +874,40 @@ function BotMenuEditor({
                         placeholder={`Nome do atendente ${index + 1}`}
                         disabled={!autoReplyEnabled}
                       />
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon-sm"
                         onClick={() =>
                           setAttendantNames((prev) => {
                             if (prev.length <= 1) return [""];
                             return prev.filter((_, i) => i !== index);
                           })
                         }
-                        className="h-10 w-10 rounded-lg border border-gray-200 text-gray-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
+                        className="h-10 w-10 border border-gray-200 text-gray-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
                         disabled={!autoReplyEnabled}
                         title="Apagar atendente"
                       >
                         <Trash2 className="w-4 h-4 mx-auto" />
-                      </button>
+                      </Button>
                     </div>
                   ))}
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="xs"
                   onClick={() =>
                     setAttendantNames((prev) =>
                       prev.length >= 20 ? prev : [...prev, ""]
                     )
                   }
-                  className="mt-2 text-xs text-brand-700 hover:text-brand-900 border border-brand-200 bg-brand-50 px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1"
+                  className="mt-2 text-xs text-brand-700 hover:text-brand-900 border-brand-200 bg-brand-50 h-auto"
                   disabled={!autoReplyEnabled || attendantNames.length >= 20}
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Adicionar atendente
-                </button>
+                </Button>
                 <p className="text-xs text-gray-500 mt-2">
                   Lista de atendentes para escolher no atendimento manual.
                 </p>
@@ -897,13 +915,15 @@ function BotMenuEditor({
                   Envio manual em Conversas:{" "}
                   <strong>{manualAttendantPrefixEnabled ? "ativado" : "desativado"}</strong>.
                 </p>
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="xs"
                   onClick={() => setManualAttendantPrefixEnabled((v) => !v)}
-                  className="mt-2 text-xs text-brand-700 hover:text-brand-900 border border-brand-200 bg-brand-50 px-2.5 py-1.5 rounded-lg"
+                  className="mt-2 text-xs text-brand-700 hover:text-brand-900 border-brand-200 bg-brand-50 h-auto"
                 >
                   {manualAttendantPrefixEnabled ? "Desativar no envio manual" : "Ativar no envio manual"}
-                </button>
+                </Button>
               </>
             ) : (
               <p className="text-xs text-gray-500 mt-2">Nome de quem atende desativado.</p>
@@ -911,11 +931,11 @@ function BotMenuEditor({
           </div>
         </div>
 
-        <button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}
-          className="btn-primary shadow-sm">
+        <Button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}
+          className="shadow-sm">
           {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Salvar configuração
-        </button>
+        </Button>
       </div>
 
       {/* Preview */}
@@ -1206,10 +1226,10 @@ function FAQsEditor({ businessId, businessType }: { businessId: string; business
             A IA responde 24h por palavras-chave — tolera erros de digitação e texto sem acento
           </p>
         </div>
-        <button className="btn-primary ml-4 flex-shrink-0" onClick={openCreate}>
+        <Button className="ml-4 flex-shrink-0" onClick={openCreate}>
           <Plus className="w-4 h-4" />
           Nova pergunta
-        </button>
+        </Button>
       </div>
 
       {/* Modal */}
@@ -1232,10 +1252,10 @@ function FAQsEditor({ businessId, businessType }: { businessId: string; business
                     </p>
                   </div>
                 </div>
-                <button type="button" onClick={closeForm}
-                  className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors">
+                <Button type="button" variant="ghost" size="icon-sm" onClick={closeForm}
+                  className="rounded-xl bg-white/20 hover:bg-white/30 text-white">
                   <X className="w-4 h-4" />
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -1283,11 +1303,11 @@ function FAQsEditor({ businessId, businessType }: { businessId: string; business
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button type="button" className="btn-secondary flex-1" onClick={closeForm}>Cancelar</button>
-                <button type="submit" className="btn-primary flex-1" disabled={isSubmitting || saveMutation.isPending}>
+                <Button type="button" variant="outline" className="flex-1" onClick={closeForm}>Cancelar</Button>
+                <Button type="submit" className="flex-1" disabled={isSubmitting || saveMutation.isPending}>
                   {(isSubmitting || saveMutation.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
                   {editingId ? "Salvar alterações" : "Adicionar pergunta"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -1324,8 +1344,10 @@ function FAQsEditor({ businessId, businessType }: { businessId: string; business
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
               {suggestions.map((s) => (
-                <button
+                <Button
                   key={s.question}
+                  type="button"
+                  variant="outline"
                   onClick={() => {
                     setEditingId(null);
                     setValue("question", s.question);
@@ -1334,7 +1356,7 @@ function FAQsEditor({ businessId, businessType }: { businessId: string; business
                     setShowForm(true);
                   }}
                   className={cn(
-                    "text-left rounded-2xl border-2 p-4 transition-all group",
+                    "h-auto w-full text-left rounded-2xl border-2 p-4 transition-all group",
                     s.color
                   )}
                 >
@@ -1353,7 +1375,7 @@ function FAQsEditor({ businessId, businessType }: { businessId: string; business
                     <Plus className="w-3 h-3" />
                     Usar esta sugestão
                   </div>
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -1409,23 +1431,27 @@ function FAQsEditor({ businessId, businessType }: { businessId: string; business
 
                   {/* Actions */}
                   <div className="flex flex-col items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon-sm"
                       onClick={() => openEdit(faq)}
-                      className="w-8 h-8 rounded-xl text-gray-400 hover:text-brand-600 hover:bg-brand-50 flex items-center justify-center transition-colors"
+                      className="rounded-xl text-gray-400 hover:text-brand-600 hover:bg-brand-50"
                       title="Editar"
                     >
                       <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon-sm"
                       onClick={() => { if (confirm("Remover esta pergunta?")) deleteMutation.mutate(faq.id); }}
                       disabled={deleteMutation.isPending}
-                      className="w-8 h-8 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors"
+                      className="rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50"
                       title="Excluir"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -1433,15 +1459,17 @@ function FAQsEditor({ businessId, businessType }: { businessId: string; business
           ))}
 
           {/* Add more */}
-          <button
+          <Button
+            type="button"
+            variant="outline"
             onClick={openCreate}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50/50 transition-all group"
+            className="h-auto w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50/50 group"
           >
             <div className="w-6 h-6 rounded-full bg-gray-100 group-hover:bg-brand-100 flex items-center justify-center transition-colors">
               <Plus className="w-3.5 h-3.5" />
             </div>
             Adicionar mais uma pergunta
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -1557,20 +1585,21 @@ export default function BotPage() {
       {iaTabs.length > 0 && (
         <div className="flex flex-wrap gap-1 p-1.5 bg-gray-100 rounded-2xl w-fit mb-8 shadow-inner">
           {iaTabs.map(({ id, label, icon: Icon }) => (
-            <button
+            <Button
               key={id}
               type="button"
+              variant="ghost"
               onClick={() => setTab(id)}
               className={cn(
-                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
+                "h-auto flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
                 tab === id
-                  ? "bg-white text-gray-900 shadow-sm"
+                  ? "bg-white text-gray-900 shadow-sm hover:bg-white"
                   : "text-gray-500 hover:text-gray-700"
               )}
             >
               <Icon className={cn("w-4 h-4", tab === id ? "text-brand-600" : "text-gray-400")} />
               {label}
-            </button>
+            </Button>
           ))}
         </div>
       )}

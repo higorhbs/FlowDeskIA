@@ -472,27 +472,26 @@ export default function SettingsPage() {
           </Field>
         </SectionCard>
 
-        <button type="submit" className="sr-only" />
+        <Button type="submit" className="sr-only" />
       </form>
 
       {/* ── Floating save button (always visible while scrolling) ─────── */}
       {/* bottom-24 on mobile to clear the MobileNav (~64px) + safe area   */}
       <div className="fixed bottom-24 right-4 sm:right-6 lg:bottom-8 z-50">
-        <button
+        <Button
           type="button"
           onClick={handleSubmit((d) => saveMutation.mutate(d))}
           disabled={saveMutation.isPending || !hasChanges}
           className={cn(
-            "flex items-center gap-2.5 rounded-full px-5 py-3 text-sm font-semibold",
+            "h-auto flex items-center gap-2.5 rounded-full px-5 py-3 text-sm font-semibold",
             "shadow-xl transition-all duration-200 ease-in-out",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-500",
             saveMutation.isPending
-              ? "bg-brand-600 text-white cursor-wait shadow-brand-500/30"
+              ? "bg-brand-600 text-white cursor-wait shadow-brand-500/30 hover:bg-brand-600"
               : hasChanges
               ? "bg-brand-600 hover:bg-brand-700 active:scale-95 text-white shadow-brand-500/30 hover:shadow-brand-500/40"
               : saveMutation.isSuccess
-              ? "bg-emerald-500 text-white shadow-emerald-500/30 cursor-default"
-              : "bg-white text-gray-400 border border-gray-200 shadow-gray-200/50 cursor-not-allowed"
+              ? "bg-emerald-500 text-white shadow-emerald-500/30 cursor-default hover:bg-emerald-500"
+              : "bg-white text-gray-400 border border-gray-200 shadow-gray-200/50 cursor-not-allowed hover:bg-white"
           )}
         >
           {saveMutation.isPending ? (
@@ -512,7 +511,7 @@ export default function SettingsPage() {
           {hasChanges && !saveMutation.isPending && (
             <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0 animate-pulse" />
           )}
-        </button>
+        </Button>
       </div>
     </div>
   );

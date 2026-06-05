@@ -5,3 +5,4 @@ export * from "./schedule.js";
 export * from "./media-storage.js";
 export * from "./wa-auth-files.js";
 export * from "./wa-auth-store.js";
+export * from "./whatsapp-jobs.js";

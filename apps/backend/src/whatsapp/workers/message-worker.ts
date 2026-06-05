@@ -1,123 +1,74 @@
-import { Worker, Queue, type ConnectionOptions } from "bullmq";
-import { processMessage, BotContext } from "../services/bot.js";
-import { requireEnv } from "../env.js";
-import { probeRedis } from "../redis-health.js";
+import {
+  claimWhatsappInboundJob,
+  completeWhatsappJob,
+  failWhatsappJob,
+  type WhatsappJob,
+} from "@flowdesk/firebase";
+import { processMessage } from "../services/bot.js";
 import { resolveWhatsAppClient } from "../wa-lifecycle.js";
 
-export interface MessageJob {
-  businessId: string;
-  customerPhone: string;
-  customerName?: string;
-  messageBody: string;
-  replyJid: string;
-  mediaUrl?: string;
-  mediaType?: "image" | "video" | "audio";
-}
+const WORKER_ID = `wa-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
+const POLL_MS = 800;
+const CONCURRENCY = 5;
 
-export interface ReminderJob {
-  appointmentId: string;
-  businessId: string;
-  customerPhone: string;
-  replyJid?: string;
-  message: string;
-}
+let running = 0;
+let pollTimer: ReturnType<typeof setInterval> | null = null;
 
-let messageQueue: Queue | null = null;
-let reminderQueue: Queue | null = null;
-let connection: ConnectionOptions | null = null;
+async function processInboundJob(job: WhatsappJob): Promise<void> {
+  const { businessId, payload } = job;
+  const dest = payload.replyJid?.trim() || payload.customerPhone;
 
-export function getRedisConnection(): ConnectionOptions {
-  if (!connection) {
-    connection = {
-      url: requireEnv("REDIS_URL"),
-      maxRetriesPerRequest: 1,
-      connectTimeout: 3_000,
-      enableOfflineQueue: false,
-      retryStrategy: () => null,
-    };
-  }
-  return connection;
-}
-
-export async function getMessageQueue(): Promise<Queue | null> {
-  if (!(await probeRedis())) return null;
-  if (!messageQueue) {
-    messageQueue = new Queue("messages", { connection: getRedisConnection() });
-  }
-  return messageQueue;
-}
-
-export function getReminderQueue(): Queue {
-  if (!reminderQueue) {
-    reminderQueue = new Queue("reminders", { connection: getRedisConnection() });
-  }
-  return reminderQueue;
-}
-
-export function startMessageWorker() {
-  const worker = new Worker<MessageJob>(
-    "messages",
-    async (job) => {
-      const { businessId, customerPhone, customerName, messageBody, replyJid, mediaUrl, mediaType } =
-        job.data;
-      const dest = replyJid?.trim() || customerPhone;
-
-      const ctx: BotContext = {
-        businessId,
-        customerPhone,
-        customerName,
-        messageBody,
-        replyJid,
-        mediaUrl,
-        mediaType,
-      };
-      const responses = await processMessage(ctx);
-
-      const client = await resolveWhatsAppClient(businessId, {
-        waitMs: 8_000,
-      });
-      if (!client) {
-        console.warn(`[worker] WhatsApp not connected for business ${businessId}`);
-        throw new Error("WhatsApp desconectado");
-      }
-
-      for (const resp of responses) {
-        if (resp.imageUrl) {
-          await client.sendImage(dest, resp.imageUrl, resp.text);
-        } else if (resp.text) {
-          await client.sendText(dest, resp.text);
-        }
-        await new Promise((r) => setTimeout(r, 800));
-      }
-      console.log(`[worker] replied business=${businessId} to=${dest} count=${responses.length}`);
-    },
-    {
-      connection: getRedisConnection(),
-      concurrency: 5,
-    }
-  );
-
-  worker.on("failed", (job, err) => {
-    console.error(`[worker] Job ${job?.id} failed:`, err.message);
+  const responses = await processMessage({
+    businessId,
+    customerPhone: payload.customerPhone,
+    customerName: payload.customerName,
+    messageBody: payload.messageBody,
+    replyJid: payload.replyJid,
+    mediaUrl: payload.mediaUrl,
+    mediaType: payload.mediaType,
   });
 
-  return worker;
+  const client = await resolveWhatsAppClient(businessId, { waitMs: 8_000 });
+  if (!client) throw new Error("WhatsApp desconectado");
+
+  for (const resp of responses) {
+    if (resp.imageUrl) {
+      await client.sendImage(dest, resp.imageUrl, resp.text);
+    } else if (resp.text) {
+      await client.sendText(dest, resp.text);
+    }
+    await new Promise((r) => setTimeout(r, 800));
+  }
+  console.log(`[worker] replied business=${businessId} to=${dest} count=${responses.length}`);
 }
 
-export function startReminderWorker() {
-  const worker = new Worker<ReminderJob>(
-    "reminders",
-    async (job) => {
-      const { businessId, customerPhone, replyJid, message } = job.data;
-      const client = await resolveWhatsAppClient(businessId, {
-        waitMs: 5_000,
-      });
-      if (!client) return;
-      const dest = replyJid?.trim() || customerPhone;
-      await client.sendText(dest, message);
-    },
-    { connection: getRedisConnection() }
-  );
+async function runClaimedJob(job: WhatsappJob): Promise<void> {
+  running++;
+  try {
+    await processInboundJob(job);
+    await completeWhatsappJob(job.id);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[worker] job ${job.id} failed:`, message);
+    await failWhatsappJob(job.id, message);
+  } finally {
+    running--;
+  }
+}
 
-  return worker;
+async function pollJobs(): Promise<void> {
+  while (running < CONCURRENCY) {
+    const job = await claimWhatsappInboundJob(WORKER_ID);
+    if (!job) break;
+    void runClaimedJob(job);
+  }
+}
+
+export function startMessageWorker(): void {
+  if (pollTimer) return;
+  pollTimer = setInterval(() => {
+    void pollJobs();
+  }, POLL_MS);
+  void pollJobs();
+  console.log("[whatsapp] Firestore job worker started");
 }

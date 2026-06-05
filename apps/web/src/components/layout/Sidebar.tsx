@@ -12,12 +12,10 @@ import {
   LogOut,
   CreditCard,
   WifiOff,
-  ChevronLeft,
   ChevronRight,
   BookOpen,
   Banknote,
   Loader2,
-  CircleDot,
   LifeBuoy,
 } from "lucide-react";
 import { cn, getBusinessTypeLabel } from "@/lib/utils";
@@ -39,6 +37,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 
 import { getSupportMailtoUrl } from "@/lib/legal-config";
+import { Button } from "@/components/ui/button";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -53,6 +52,7 @@ export function Sidebar() {
   const queryClient = useQueryClient();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [disconnectConfirm, setDisconnectConfirm] = useState(false);
 
   const { data: business } = useQuery({
     queryKey: ["business", businessId],
@@ -84,30 +84,30 @@ export function Sidebar() {
         );
         void queryClient.invalidateQueries({ queryKey: ["businesses"] });
       });
+      setDisconnectConfirm(false);
       toast.success("WhatsApp desconectado");
     },
     onError: (err: Error) => toast.error(err.message ?? "Erro ao desconectar"),
   });
 
-  const baseLinks = [
-    { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { href: "/businesses", icon: Store, label: "Meu negócio" },
-  ];
+  const baseLinks = [{ href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" }];
 
-  const businessLinks = businessId
-    ? [
-        { href: panelHref(businessId, "conversations"), icon: MessageSquare, label: "Conversas", vocab: false },
-        { href: panelHref(businessId, "faqs"), icon: IaIcon, label: "IA", vocab: false },
-        { href: panelHref(businessId, "appointments"), icon: Calendar, label: v.bookingsNav, vocab: true },
-        { href: panelHref(businessId, "catalog"), icon: BookOpen, label: v.catalogNav, vocab: true },
-        { href: panelHref(businessId, "status"), icon: CircleDot, label: "Stories", vocab: false },
-        ...(pixEnabled
-          ? [{ href: panelHref(businessId, "payments"), icon: Banknote, label: "Pagamentos", vocab: false as const }]
-          : []),
-        { href: panelHref(businessId, "whatsapp"), icon: MessageSquare, label: "WhatsApp", vocab: false },
-        { href: panelHref(businessId, "settings"), icon: Settings, label: "Configurações", vocab: false },
-      ]
-    : [];
+  const businessLinks = [
+    { href: "/businesses", icon: Store, label: "Meu negócio", vocab: false as const },
+    ...(businessId
+      ? [
+          { href: panelHref(businessId, "conversations"), icon: MessageSquare, label: "Conversas", vocab: false as const },
+          { href: panelHref(businessId, "faqs"), icon: IaIcon, label: "IA", vocab: false as const },
+          { href: panelHref(businessId, "appointments"), icon: Calendar, label: v.bookingsNav, vocab: true as const },
+          { href: panelHref(businessId, "catalog"), icon: BookOpen, label: v.catalogNav, vocab: true as const },
+          ...(pixEnabled
+            ? [{ href: panelHref(businessId, "payments"), icon: Banknote, label: "Pagamentos", vocab: false as const }]
+            : []),
+          { href: panelHref(businessId, "whatsapp"), icon: MessageSquare, label: "WhatsApp", vocab: false as const },
+          { href: panelHref(businessId, "settings"), icon: Settings, label: "Configurações", vocab: false as const },
+        ]
+      : []),
+  ];
 
   async function confirmLogout() {
     setLogoutLoading(true);
@@ -143,14 +143,6 @@ export function Sidebar() {
       {/* Business context card */}
       {businessId && (
         <div className="mx-3 mt-3 mb-1 rounded-xl bg-brand-50 border border-brand-100 p-3">
-          <Link
-            href="/businesses"
-            className="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-800 font-medium mb-2 transition-colors"
-          >
-            <ChevronLeft className="w-3 h-3" />
-            Meu negócio
-          </Link>
-
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-lg bg-brand-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
               {businessInitials}
@@ -168,41 +160,75 @@ export function Sidebar() {
           </div>
 
           {business && (
-            <div className="mt-2.5">
+            <div className="mt-3 pt-2.5 border-t border-brand-100">
               {business.isConnected ? (
-                <div className="flex items-center justify-between gap-1">
-                  <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-50 border border-green-200">
-                    <span className="relative flex w-1.5 h-1.5">
+                <div className="rounded-lg bg-white/80 border border-green-200/80 overflow-hidden">
+                  <div className="flex items-center gap-2 px-2.5 py-2">
+                    <span className="relative flex w-2 h-2 shrink-0">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-green-500" />
+                      <span className="relative inline-flex rounded-full w-2 h-2 bg-green-500" />
                     </span>
-                    <span className="text-xs font-medium text-green-700">WhatsApp conectado</span>
-                  </div>
-                  <button
-                    onClick={() => disconnectMutation.mutate()}
-                    disabled={disconnectMutation.isPending}
-                    className="shrink-0 text-[10px] text-red-400 hover:text-red-600 font-medium transition-colors flex items-center gap-0.5"
-                    title="Desconectar WhatsApp"
-                  >
-                    {disconnectMutation.isPending ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <WifiOff className="w-3 h-3" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-green-800 leading-none">WhatsApp online</p>
+                      <p className="text-[10px] text-green-600/80 mt-0.5">Recebendo mensagens</p>
+                    </div>
+                    {!disconnectConfirm && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => setDisconnectConfirm(true)}
+                        className="shrink-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                        title="Desconectar WhatsApp"
+                        aria-label="Desconectar WhatsApp"
+                      >
+                        <WifiOff className="w-3.5 h-3.5" />
+                      </Button>
                     )}
-                    Desconectar
-                  </button>
+                  </div>
+                  {disconnectConfirm && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-2 bg-red-50/80 border-t border-red-100">
+                      <p className="text-[10px] text-red-700 flex-1 font-medium">Desconectar WhatsApp?</p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => setDisconnectConfirm(false)}
+                        disabled={disconnectMutation.isPending}
+                        className="text-gray-600 hover:bg-white"
+                      >
+                        Não
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructiveSolid"
+                        size="xs"
+                        onClick={() => disconnectMutation.mutate()}
+                        disabled={disconnectMutation.isPending}
+                        className="min-w-8"
+                      >
+                        {disconnectMutation.isPending ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          "Sim"
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <Link
-                  href={`/businesses/${businessId}/whatsapp`}
-                  className="group flex w-full items-center gap-2 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 hover:bg-amber-100 hover:border-amber-300 transition-all"
+                  href={panelHref(businessId, "whatsapp")}
+                  className="group flex w-full items-center gap-2.5 px-2.5 py-2 rounded-lg bg-white/80 border border-amber-200 hover:border-amber-300 hover:bg-amber-50/90 transition-all"
                 >
-                  <WifiOff className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                  <span className="text-xs font-medium text-amber-800 flex-1">Desconectado</span>
-                  <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 group-hover:translate-x-0.5 transition-transform">
-                    Conectar
-                    <ChevronRight className="w-3 h-3" />
-                  </span>
+                  <div className="w-7 h-7 rounded-md bg-amber-100 flex items-center justify-center shrink-0 group-hover:bg-amber-200 transition-colors">
+                    <WifiOff className="w-3.5 h-3.5 text-amber-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-amber-900 leading-none">WhatsApp offline</p>
+                    <p className="text-[10px] text-amber-700/80 mt-0.5">Toque para conectar</p>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-amber-500 shrink-0 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               )}
             </div>
@@ -212,13 +238,12 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-3 overflow-y-auto">
-        {businessLinks.length > 0 ? (
-          <>
-            <p className="px-3 mb-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-              Painel do negócio
-            </p>
-            <div className="space-y-0.5 mb-4">
-              {businessLinks.map(({ href, icon: Icon, label, vocab }) => {
+        <>
+          <p className="px-3 mb-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+            Painel do negócio
+          </p>
+          <div className="space-y-0.5 mb-4">
+            {businessLinks.map(({ href, icon: Icon, label, vocab }) => {
                 const isConversations = label === "Conversas";
                 const text = vocab ? (
                   <VocabLabel ready={v.vocabReady}>{label}</VocabLabel>
@@ -245,14 +270,13 @@ export function Sidebar() {
                     }
                   />
                 );
-              })}
-            </div>
-            <div className="h-px bg-gray-100 mx-2 mb-3" />
-            <p className="px-3 mb-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-              Geral
-            </p>
-          </>
-        ) : null}
+            })}
+          </div>
+          <div className="h-px bg-gray-100 mx-2 mb-3" />
+          <p className="px-3 mb-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+            Geral
+          </p>
+        </>
 
         <div className="space-y-0.5">
           {baseLinks.map(({ href, icon: Icon, label }) => (
@@ -298,14 +322,15 @@ export function Sidebar() {
           </Link>
         )}
         <SidebarProfile />
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onClick={() => setLogoutOpen(true)}
-          className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-colors"
+          className="w-full justify-start gap-3 px-3 py-2 h-auto text-gray-600 hover:bg-gray-50 hover:text-red-600"
         >
           <LogOut className="w-4 h-4" />
           Sair
-        </button>
+        </Button>
       </div>
       <LogoutConfirmDialog
         open={logoutOpen}

@@ -271,10 +271,11 @@ export function AsaasSetupGuide({ className }: { className?: string }) {
   return (
     <div className={cn("rounded-xl border border-gray-200 bg-white overflow-hidden", className)}>
       {/* Header */}
-      <button
+      <Button
         type="button"
+        variant="ghost"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-gray-50 transition-colors"
+        className="w-full h-auto justify-between px-5 py-3.5 text-left hover:bg-gray-50 rounded-none"
       >
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
@@ -286,7 +287,7 @@ export function AsaasSetupGuide({ className }: { className?: string }) {
           </div>
         </div>
         {open ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
-      </button>
+      </Button>
 
       {open && (
         <div className="border-t border-gray-100">
@@ -294,11 +295,12 @@ export function AsaasSetupGuide({ className }: { className?: string }) {
           <div className="px-5 pt-4 pb-2">
             <div className="flex items-center gap-1">
               {STEPS.map((s, i) => (
-                <button
+                <Button
                   key={i}
                   type="button"
+                  variant="ghost"
                   onClick={() => setActive(i)}
-                  className="flex-1 group relative"
+                  className="flex-1 h-auto p-0 group relative rounded-none hover:bg-transparent"
                   title={s.title}
                 >
                   <div
@@ -323,7 +325,7 @@ export function AsaasSetupGuide({ className }: { className?: string }) {
                   >
                     {i < active ? <Check className="w-2.5 h-2.5" /> : i + 1}
                   </div>
-                </button>
+                </Button>
               ))}
             </div>
             <p className="text-[10px] text-gray-400 text-right mt-1">

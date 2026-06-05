@@ -9,7 +9,7 @@ import { PLAN_LABELS, PLAN_STATUS_LABELS, cn, formatCurrency } from "@/lib/utils
 import { PLAN_LIMITS, PLAN_PRICES, planMarketingFeatures, formatPlanLimit, effectivePlanStatus, isStarterTrialActive, isActivePaidPlan, starterTrialDaysLeft, isSubscriptionCancelScheduled, APP_DISPLAY_NAME } from "@flowdesk/shared";
 import type { Plan } from "@flowdesk/firebase/client";
 import { toast } from "sonner";
-import { Check, Crown, Loader2, Sparkles, Zap, ArrowRight, CalendarDays, BookOpen, ExternalLink, CalendarX2, CircleDot, Star, X } from "lucide-react";
+import { Check, Crown, Loader2, Sparkles, Zap, ArrowRight, CalendarDays, BookOpen, ExternalLink, CalendarX2, Star, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
@@ -175,13 +175,6 @@ export default function PlanPage() {
             {[
               { icon: BookOpen, label: "Catálogo", value: `até ${formatPlanLimit(limits.catalogItems)}` },
               { icon: CalendarDays, label: "Agendamentos", value: `${formatPlanLimit(limits.appointmentsPerMonth)}/mês` },
-              {
-                icon: CircleDot,
-                label: "Stories",
-                value: Number.isFinite(limits.scheduledStoriesPerMonth)
-                  ? `${formatPlanLimit(limits.scheduledStoriesPerMonth)}/mês`
-                  : "Ilimitado",
-              },
             ].map(({ icon: Icon, label, value }) => (
               <div
                 key={label}
@@ -359,27 +352,31 @@ export default function PlanPage() {
           <div className="w-full max-w-md rounded-2xl bg-white border border-gray-200 shadow-xl p-5">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-gray-900">Avalie sua experiência</h3>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => setCancelFeedbackOpen(false)}
                 className="text-gray-400 hover:text-gray-700"
               >
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
             <p className="text-sm text-gray-500 mt-1">Antes de cancelar, sua opinião ajuda a melhorar o sistema.</p>
             <div className="mt-4 flex items-center gap-1">
               {Array.from({ length: 5 }, (_, i) => {
                 const v = i + 1;
                 return (
-                  <button
+                  <Button
                     key={v}
                     type="button"
+                    variant="ghost"
+                    size="icon-sm"
                     onClick={() => setCancelRating(v)}
-                    className="p-1"
+                    className="p-1 h-auto w-auto"
                   >
                     <Star className={cn("w-6 h-6 text-amber-500", v <= cancelRating && "fill-current")} />
-                  </button>
+                  </Button>
                 );
               })}
             </div>

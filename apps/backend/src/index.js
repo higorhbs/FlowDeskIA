@@ -12,27 +12,10 @@ async function startWhatsAppWorkers() {
   installProcessGuards()
 
   const { restoreWhatsAppSessions } = await import('../dist/whatsapp/wa-lifecycle.js')
-  const { probeRedis } = await import('../dist/whatsapp/redis-health.js')
-  const { startMessageWorker, startReminderWorker } = await import(
-    '../dist/whatsapp/workers/message-worker.js'
-  )
-  const { startStatusScheduler } = await import('../dist/whatsapp/workers/status-scheduler.js')
+  const { startMessageWorker } = await import('../dist/whatsapp/workers/message-worker.js')
 
   await restoreWhatsAppSessions({ timeoutMs: 60_000 })
-
-  const redisOk = await probeRedis()
-  if (redisOk) {
-    startMessageWorker()
-    startReminderWorker()
-    console.log('[whatsapp] BullMQ workers started (Redis ok)')
-  } else {
-    console.warn(
-      '[whatsapp] Redis offline — inbound sem fila; mensagens processadas no handler Baileys.'
-    )
-    console.warn('[whatsapp] Para fila: suba Redis local (REDIS_URL)')
-  }
-
-  startStatusScheduler()
+  startMessageWorker()
 }
 
 void startWhatsAppWorkers()
