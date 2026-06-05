@@ -6,9 +6,10 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const web = join(root, "apps/web");
+const appDir = join(web, "src/app");
 const publicDir = join(web, "public");
-const iconSvg = join(web, "src/app/icon.svg");
-const appleSvg = join(web, "src/app/apple-icon.svg");
+const iconSvg = join(appDir, "icon.svg");
+const appleSvg = join(appDir, "apple-icon.svg");
 const require = createRequire(join(web, "package.json"));
 
 async function main() {
@@ -29,13 +30,19 @@ async function main() {
     [32, "favicon-32x32.png"],
     [48, "icon-48x48.png"],
     [192, "icon-192.png"],
+    [512, "icon-512.png"],
   ];
 
   for (const [size, name] of sizes) {
     await sharp(small).resize(size, size).png().toFile(join(publicDir, name));
   }
 
-  await sharp(apple).resize(180, 180).png().toFile(join(publicDir, "apple-touch-icon.png"));
+  const applePng = await sharp(apple).resize(180, 180).png().toBuffer();
+  writeFileSync(join(publicDir, "apple-touch-icon.png"), applePng);
+  writeFileSync(join(appDir, "apple-icon.png"), applePng);
+
+  writeFileSync(join(publicDir, "icon.svg"), small);
+  writeFileSync(join(publicDir, "apple-icon.svg"), apple);
 
   const pngToIco = require("png-to-ico");
   const ico = await pngToIco([
@@ -43,8 +50,9 @@ async function main() {
     join(publicDir, "favicon-32x32.png"),
   ]);
   writeFileSync(join(publicDir, "favicon.ico"), ico);
+  writeFileSync(join(appDir, "favicon.ico"), ico);
 
-  console.log("Ícones PNG/ICO gerados em apps/web/public/");
+  console.log("Ícones gerados em apps/web/public/ e apps/web/src/app/");
 }
 
 main().catch((err) => {
