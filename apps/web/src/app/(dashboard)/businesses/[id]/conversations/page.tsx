@@ -300,8 +300,11 @@ export default function ConversationsPage() {
     if (!selected) return;
     queryClient.setQueryData(
       ["conversation-detail", businessId, selected],
-      (old: (Conversation & { messages: Message[] }) | null | undefined) =>
-        old ? { ...old, messages: [...old.messages, message] } : old
+      (old: (Conversation & { messages: Message[] }) | null | undefined) => {
+        if (!old) return old;
+        if (old.messages.some((m) => m.id === message.id)) return old;
+        return { ...old, messages: [...old.messages, message] };
+      }
     );
     void queryClient.invalidateQueries({ queryKey: ["conversation-detail", businessId, selected] });
     void queryClient.invalidateQueries({ queryKey: ["conversations", businessId] });
