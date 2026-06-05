@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn, execSync } from "node:child_process";
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, statSync, watch } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -51,11 +51,50 @@ if (isStale(whatsappDist, join(backendRoot, "src/whatsapp"))) {
   run("pnpm exec tsc -p tsconfig.whatsapp.json", backendRoot);
 }
 
-const server = spawn("node", ["--watch-path=src", "--watch", "src/index.js"], {
+let server;
+let restartTimer;
+
+function startServer() {
+  if (server) server.kill("SIGTERM");
+  server = spawn("node", ["--watch-path=src", "--watch", "src/index.js"], {
+    cwd: backendRoot,
+    stdio: "inherit",
+  });
+  server.on("exit", (code) => {
+    if (code !== null && code !== 0) process.exit(code);
+  });
+}
+
+function scheduleServerRestart(reason) {
+  clearTimeout(restartTimer);
+  restartTimer = setTimeout(() => {
+    console.log(`[backend-dev] restarting server (${reason})`);
+    startServer();
+  }, 400);
+}
+
+spawn("pnpm", ["exec", "tsc", "-p", "tsconfig.whatsapp.json", "--watch", "--preserveWatchOutput"], {
   cwd: backendRoot,
   stdio: "inherit",
 });
 
-server.on("exit", (code) => process.exit(code ?? 0));
-process.on("SIGINT", () => server.kill("SIGINT"));
-process.on("SIGTERM", () => server.kill("SIGTERM"));
+const watchTargets = [
+  join(root, "packages/whatsapp-client/dist"),
+  join(root, "packages/firebase/dist"),
+];
+
+for (const target of watchTargets) {
+  if (!existsSync(target)) continue;
+  watch(target, { recursive: true }, () => scheduleServerRestart(target));
+}
+
+startServer();
+
+process.on("SIGINT", () => {
+  if (server) server.kill("SIGINT");
+  process.exit(0);
+});
+process.on("SIGTERM", () => {
+  if (server) server.kill("SIGTERM");
+  process.exit(0);
+});

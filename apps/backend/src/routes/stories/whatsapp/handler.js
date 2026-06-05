@@ -83,13 +83,15 @@ function parseScheduleFields(fields) {
 
 function parseCreateBody(body) {
   const mediaUrl = typeof body?.mediaUrl === 'string' ? body.mediaUrl.trim() : ''
+  const mediaStoragePath =
+    typeof body?.mediaStoragePath === 'string' ? body.mediaStoragePath.trim() : undefined
   const mediaType = body?.mediaType === 'video' ? 'video' : body?.mediaType === 'image' ? 'image' : null
   const schedule = parseScheduleFields(body)
   if (schedule.error) return schedule
   if (!mediaUrl) return { error: 'mediaUrl é obrigatório.' }
   if (!mediaType) return { error: 'mediaType deve ser image ou video.' }
 
-  return { ...schedule, mediaUrl, mediaType }
+  return { ...schedule, mediaUrl, mediaStoragePath, mediaType }
 }
 
 function parseRepostBody(body) {
@@ -172,6 +174,7 @@ export async function postStoriesHandler(c) {
       parsed = {
         ...schedule,
         mediaUrl: saved.mediaUrl,
+        mediaStoragePath: saved.mediaStoragePath,
         mediaType: saved.mediaType,
       }
     } catch (err) {
@@ -189,7 +192,7 @@ export async function postStoriesHandler(c) {
     const rows = await createScheduledStatus(businessId, ctx.business.tenantId, parsed)
     if (parsed.publishNow && rows.length && isWhatsAppRuntime()) {
       const { enqueueImmediateStatusPublish } = await import(
-        '../../../dist/whatsapp/workers/status-scheduler.js'
+        '../../../../dist/whatsapp/workers/status-scheduler.js'
       )
       for (const row of rows) {
         enqueueImmediateStatusPublish({ businessId, id: row.id })
@@ -223,7 +226,7 @@ export async function postStoryRepostHandler(c) {
     )
     if (parsed.publishNow && rows.length && isWhatsAppRuntime()) {
       const { enqueueImmediateStatusPublish } = await import(
-        '../../../dist/whatsapp/workers/status-scheduler.js'
+        '../../../../dist/whatsapp/workers/status-scheduler.js'
       )
       for (const row of rows) {
         enqueueImmediateStatusPublish({ businessId, id: row.id })

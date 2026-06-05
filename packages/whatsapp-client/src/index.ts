@@ -12,19 +12,18 @@ import makeWASocket, {
   jidNormalizedUser,
   makeCacheableSignalKeyStore,
   proto,
-  useMultiFileAuthState,
   type WAMessage,
   type WASocket,
 } from "@whiskeysockets/baileys";
 
 export type { WAMessage };
+export type { WaAuthFileStore } from "./remote-auth-state.js";
 import NodeCache from "@cacheable/node-cache";
 import { Boom } from "@hapi/boom";
 import pino from "pino";
 import { toDataURL } from "qrcode";
-import path from "path";
-import fs from "fs";
 import EventEmitter from "events";
+import { useRemoteAuthState, type WaAuthFileStore } from "./remote-auth-state.js";
 
 export type WhatsAppMediaType = "image" | "video" | "audio";
 
@@ -141,12 +140,6 @@ function linkedDeviceBrowser(): [string, string, string] {
   return [name, "Chrome", "120.0.0"];
 }
 
-function isStatusAudienceJid(jid: string): boolean {
-  if (!jid) return false;
-  if (isLidUser(jid)) return true;
-  return jid.endsWith("@s.whatsapp.net");
-}
-
 async function prepareStatusImage(buffer: Buffer) {
   const sharp = (await import("sharp")).default;
   const base = sharp(buffer, { failOn: "none" }).rotate();
@@ -184,22 +177,10 @@ function formatPublishStatusError(err: unknown): Error {
   return err instanceof Error ? err : new Error(msg || "Falha ao publicar status");
 }
 
-function normalizeStatusAudienceJid(raw: string, lidToPhone: Map<string, string>): string | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  let jid = trimmed.includes("@") ? jidNormalizedUser(trimmed) || trimmed : toSendJid(trimmed);
-  if (isLidUser(jid)) {
-    const mapped = lidToPhone.get(jid);
-    if (!mapped) return null;
-    jid = mapped;
-  }
-  return jid.endsWith("@s.whatsapp.net") ? jid : null;
-}
-
 export class WhatsAppClient extends EventEmitter {
   private sock: WASocket | null = null;
   private boundSock: WASocket | null = null;
-  private sessionPath: string;
+  private clearAuthStore?: () => Promise<void>;
   private logger = pino({
     level: process.env.WA_LOG_LEVEL?.trim() || "warn",
   });
@@ -216,15 +197,9 @@ export class WhatsAppClient extends EventEmitter {
 
   constructor(
     private businessId: string,
-    sessionsRoot: string
+    private authStore: WaAuthFileStore
   ) {
     super();
-    this.sessionPath = path.join(sessionsRoot, businessId);
-    this.ensureSessionDir();
-  }
-
-  private ensureSessionDir() {
-    fs.mkdirSync(this.sessionPath, { recursive: true });
   }
 
   private stopSocket() {
@@ -404,11 +379,12 @@ export class WhatsAppClient extends EventEmitter {
         this.status = "close";
       }
 
-      this.ensureSessionDir();
-      const { state, saveCreds: persistCreds } = await useMultiFileAuthState(this.sessionPath);
+      const { state, saveCreds: persistCreds, clearAuth } = await useRemoteAuthState(
+        this.authStore
+      );
+      this.clearAuthStore = clearAuth;
       const saveCreds = async () => {
         try {
-          this.ensureSessionDir();
           await persistCreds();
         } catch (err) {
           console.error(`[wa:${this.businessId}] saveCreds failed:`, err);
@@ -428,7 +404,7 @@ export class WhatsAppClient extends EventEmitter {
         browser: linkedDeviceBrowser(),
         auth: {
           creds: state.creds,
-          keys: makeCacheableSignalKeyStore(state.keys, this.logger as any),
+          keys: makeCacheableSignalKeyStore(state.keys as never, this.logger as any),
         },
         printQRInTerminal: false,
         generateHighQualityLinkPreview: false,
@@ -594,108 +570,104 @@ export class WhatsAppClient extends EventEmitter {
     return result?.key.id ?? undefined;
   }
 
-  private buildStatusAudience(seedJids: string[]): string[] {
-    const audience = new Set<string>();
-    const ownRaw = this.sock?.user?.id;
-    if (ownRaw) audience.add(jidNormalizedUser(ownRaw) || ownRaw);
-
-    const ownPhone = this.getOwnJid();
-    if (ownPhone?.endsWith("@s.whatsapp.net")) audience.add(ownPhone);
-
-    for (const raw of seedJids) {
-      const jid = normalizeStatusAudienceJid(raw, this.lidToPhone);
-      if (jid) audience.add(jid);
-    }
-
-    return [...audience].slice(0, 500);
-  }
-
-  private async warmStatusSessions(jids: string[]): Promise<void> {
-    const assertSessions = (
-      this.sock as { assertSessions?: (jids: string[], force: boolean) => Promise<boolean> }
-    ).assertSessions;
-    if (typeof assertSessions !== "function") return;
-
-    const phoneJids = [...new Set(jids.filter((j) => j.endsWith("@s.whatsapp.net")))];
-    if (!phoneJids.length) return;
-
-    for (const jid of phoneJids) {
-      try {
-        await assertSessions([jid], false);
-      } catch (err) {
-        console.warn(`[wa:${this.businessId}] status session warmup skip ${jid}:`, err);
-      }
-    }
-    await new Promise((r) => setTimeout(r, 600));
-    try {
-      await assertSessions(phoneJids, false);
-    } catch (err) {
-      console.warn(`[wa:${this.businessId}] status session warmup batch:`, err);
-    }
-  }
-
-  private waitForStatusPublishAck(key: MsgKey, timeoutMs = 90_000): Promise<void> {
-    const sock = this.sock;
-    if (!sock) throw new Error("Socket not connected");
-
+  private armStatusPublishAck(timeoutMs = 20_000) {
+    const sock = this.sock!;
     const minAck = proto.WebMessageInfo.Status.SERVER_ACK;
     const errorStatus = proto.WebMessageInfo.Status.ERROR;
+    let targetId = "";
+    let settled = false;
+    let resolveAck!: (ok: boolean) => void;
+    let rejectAck!: (err: Error) => void;
 
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        cleanup();
-        reject(new Error("WhatsApp não confirmou a publicação do status a tempo."));
-      }, timeoutMs);
-
-      const onUpdate = (updates: { key: MsgKey; update: Partial<WAMessage> }[]) => {
-        for (const { key: k, update } of updates) {
-          if (k.id !== key.id) continue;
-          if (k.fromMe !== key.fromMe) continue;
-          const remote = k.remoteJid ?? "";
-          if (remote !== key.remoteJid && remote !== "status@broadcast") continue;
-
-          const st = update.status;
-          if (st === errorStatus) {
-            cleanup();
-            reject(new Error("WhatsApp rejeitou a publicação do status."));
-            return;
-          }
-          if (st != null && st !== proto.WebMessageInfo.Status.PENDING && st >= minAck) {
-            cleanup();
-            resolve();
-            return;
-          }
-        }
-      };
-
-      const cleanup = () => {
-        clearTimeout(timer);
-        sock.ev.off("messages.update", onUpdate);
-      };
-
-      sock.ev.on("messages.update", onUpdate);
+    const promise = new Promise<boolean>((resolve, reject) => {
+      resolveAck = resolve;
+      rejectAck = reject;
     });
+
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolveAck(ok);
+    };
+
+    const matches = (k: MsgKey) =>
+      !!targetId && k.id === targetId && k.fromMe !== false && k.remoteJid === "status@broadcast";
+
+    const handleStatus = (st: number | null | undefined) => {
+      if (st === errorStatus) {
+        settled = true;
+        cleanup();
+        rejectAck(new Error("WhatsApp rejeitou a publicação do status."));
+        return;
+      }
+      if (st != null && st !== proto.WebMessageInfo.Status.PENDING && st >= minAck) finish(true);
+    };
+
+    const timer = setTimeout(() => finish(false), timeoutMs);
+
+    const onUpdate = (updates: { key: MsgKey; update: Partial<WAMessage> }[]) => {
+      for (const { key: k, update } of updates) {
+        if (!matches(k)) continue;
+        handleStatus(update.status);
+      }
+    };
+
+    const onUpsert = ({ messages }: { messages: WAMessage[] }) => {
+      for (const msg of messages) {
+        if (!msg.key.fromMe || msg.key.remoteJid !== "status@broadcast") continue;
+        if (targetId && msg.key.id !== targetId) continue;
+        if (!targetId && msg.key.id) targetId = msg.key.id;
+        handleStatus(msg.status);
+        if (msg.message) this.stashSentMessage(msg);
+      }
+    };
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      sock.ev.off("messages.update", onUpdate);
+      sock.ev.off("messages.upsert", onUpsert);
+    };
+
+    sock.ev.on("messages.update", onUpdate);
+    sock.ev.on("messages.upsert", onUpsert);
+
+    return {
+      bindKey: (key: MsgKey) => {
+        targetId = key.id ?? "";
+      },
+      promise,
+      dispose: () => {
+        if (!settled) finish(false);
+      },
+    };
+  }
+
+  private assertReadyToPublish(): void {
+    if (!this.isReadyToSend()) {
+      throw new Error(
+        "WhatsApp desconectou antes de publicar o status. Reconecte no menu WhatsApp e tente de novo."
+      );
+    }
   }
 
   async publishStatus(opts: {
-    mediaUrl: string;
+    mediaUrl?: string;
+    mediaBuffer?: Buffer;
+    mediaMimetype?: string;
     mediaType: "image" | "video";
     caption?: string;
-    statusJidList: string[];
   }): Promise<string | undefined> {
-    if (!this.sock) throw new Error("Socket not connected");
+    this.assertReadyToPublish();
 
-    const statusJidList = this.buildStatusAudience(opts.statusJidList);
-    const recipientCount = statusJidList.filter((j) => j.endsWith("@s.whatsapp.net")).length;
-    if (recipientCount < 1) {
-      throw new Error(
-        "Para publicar status, é preciso de conversas com telefone válido no ZapFlow. Peça ao cliente enviar uma mensagem; depois tente de novo."
-      );
-    }
-
-    await this.warmStatusSessions(statusJidList);
-
-    const { buffer, mimetype } = await this.loadRemoteMedia(opts.mediaUrl, opts.mediaType);
+    const { buffer, mimetype } = opts.mediaBuffer
+      ? {
+          buffer: opts.mediaBuffer,
+          mimetype:
+            opts.mediaMimetype ??
+            (opts.mediaType === "video" ? "video/mp4" : "image/jpeg"),
+        }
+      : await this.loadRemoteMedia(opts.mediaUrl!, opts.mediaType);
 
     let content: Record<string, unknown>;
     if (opts.mediaType === "video") {
@@ -718,27 +690,39 @@ export class WhatsAppClient extends EventEmitter {
     }
 
     await this.ensurePreKeys();
+    this.assertReadyToPublish();
+    const sock = this.sock!;
+    const ack = this.armStatusPublishAck();
+
     let result: WAMessage | undefined;
     try {
-      result = await this.sock.sendMessage("status@broadcast", content as never, {
+      result = await sock.sendMessage("status@broadcast", content as never, {
         broadcast: true,
-        statusJidList,
         mediaUploadTimeoutMs: 180_000,
       });
     } catch (err) {
+      ack.dispose();
       throw formatPublishStatusError(err);
     }
     this.stashSentMessage(result);
 
     if (result?.key?.id) {
       try {
-        await this.waitForStatusPublishAck(result.key);
+        ack.bindKey(result.key);
+        const acked = await ack.promise;
+        if (!acked) {
+          throw new Error("WhatsApp não confirmou a publicação do status a tempo.");
+        }
+        console.log(`[wa:${this.businessId}] status ack msg=${result.key.id}`);
       } catch (err) {
         throw formatPublishStatusError(err);
       }
+    } else {
+      ack.dispose();
+      throw new Error("WhatsApp não retornou ID do status publicado.");
     }
 
-    return result?.key?.id ?? undefined;
+    return result.key.id ?? undefined;
   }
 
   async logout() {
@@ -766,8 +750,13 @@ export class WhatsAppClient extends EventEmitter {
     this.messageStore.clear();
     this.lidToPhone.clear();
     this.replyJidByContact.clear();
-    if (fs.existsSync(this.sessionPath)) {
-      fs.rmSync(this.sessionPath, { recursive: true, force: true });
+    if (this.clearAuthStore) {
+      try {
+        await this.clearAuthStore();
+      } catch {
+        /* ignore */
+      }
+      this.clearAuthStore = undefined;
     }
   }
 
@@ -794,9 +783,9 @@ export class WhatsAppClient extends EventEmitter {
 export class WhatsAppManager {
   private clients = new Map<string, WhatsAppClient>();
 
-  getOrCreate(businessId: string, sessionsRoot: string): WhatsAppClient {
+  getOrCreate(businessId: string, authStore: WaAuthFileStore): WhatsAppClient {
     if (!this.clients.has(businessId)) {
-      const client = new WhatsAppClient(businessId, sessionsRoot);
+      const client = new WhatsAppClient(businessId, authStore);
       this.clients.set(businessId, client);
     }
     return this.clients.get(businessId)!;

@@ -1,11 +1,14 @@
-import fs from 'fs'
-import path from 'path'
 import type {
   WhatsAppClient,
   WhatsAppMessage,
   WAMessage,
 } from '@flowdesk/whatsapp-client'
-import { setBusinessConnected } from '@flowdesk/firebase'
+import {
+  createWaAuthFileStore,
+  hasWhatsAppAuth,
+  listBusinessIdsWithWhatsAppAuth,
+  setBusinessConnected,
+} from '@flowdesk/firebase'
 import { saveChatMedia } from './chat-media.js'
 import { processMessage } from './services/bot.js'
 import { probeRedis } from './redis-health.js'
@@ -15,16 +18,12 @@ import { waManager } from './wa-manager.js'
 const lifecycleAttached = new WeakSet<WhatsAppClient>()
 let loggedRedisDirectMode = false
 
-export function hasStoredSession(sessionsRoot: string, businessId: string): boolean {
-  return fs.existsSync(path.join(sessionsRoot, businessId, 'creds.json'))
+export async function hasStoredSession(businessId: string): Promise<boolean> {
+  return hasWhatsAppAuth(businessId)
 }
 
-export function listStoredSessionBusinessIds(sessionsRoot: string): string[] {
-  if (!fs.existsSync(sessionsRoot)) return []
-  return fs
-    .readdirSync(sessionsRoot, { withFileTypes: true })
-    .filter((d) => d.isDirectory() && hasStoredSession(sessionsRoot, d.name))
-    .map((d) => d.name)
+export async function listStoredSessionBusinessIds(): Promise<string[]> {
+  return listBusinessIdsWithWhatsAppAuth()
 }
 
 export function attachWhatsAppLifecycle(businessId: string, client: WhatsAppClient) {
@@ -176,19 +175,18 @@ export function attachWhatsAppMessageHandler(businessId: string, client: WhatsAp
   })
 }
 
-export function ensureWhatsAppClient(sessionsRoot: string, businessId: string): WhatsAppClient {
-  const client = waManager.getOrCreate(businessId, sessionsRoot)
+export function ensureWhatsAppClient(businessId: string): WhatsAppClient {
+  const client = waManager.getOrCreate(businessId, createWaAuthFileStore(businessId))
   attachWhatsAppLifecycle(businessId, client)
   attachWhatsAppMessageHandler(businessId, client)
   return client
 }
 
 export async function resolveWhatsAppClient(
-  sessionsRoot: string,
   businessId: string,
   opts?: { waitMs?: number }
 ): Promise<WhatsAppClient | null> {
-  const client = ensureWhatsAppClient(sessionsRoot, businessId)
+  const client = ensureWhatsAppClient(businessId)
   const waitMs = opts?.waitMs ?? 0
 
   const tryConnect = async () => {
@@ -218,7 +216,7 @@ export async function resolveWhatsAppClient(
     }
   }
 
-  if (!client.isConnected() && hasStoredSession(sessionsRoot, businessId)) {
+  if (!client.isConnected() && (await hasStoredSession(businessId))) {
     try {
       await client.kickPairing()
     } catch (err) {
@@ -243,36 +241,79 @@ export async function resolveWhatsAppClient(
   return ready ? client : null
 }
 
-export async function teardownWhatsAppSession(businessId: string) {
-  const sessionsRoot = process.env.WA_SESSION_PATH?.trim()
-  if (!sessionsRoot) return
+export async function waitForWhatsAppReady(
+  businessId: string,
+  timeoutMs = 30_000
+): Promise<WhatsAppClient | null> {
+  const client = ensureWhatsAppClient(businessId)
+  if (client.isConnected() || client.isReadyToSend()) return client
 
+  return new Promise((resolve) => {
+    const deadline = Date.now() + timeoutMs
+
+    const done = (value: WhatsAppClient | null) => {
+      cleanup()
+      resolve(value)
+    }
+
+    const onConnected = () => {
+      if (client.isConnected() || client.isReadyToSend()) done(client)
+    }
+
+    const timer = setInterval(() => {
+      if (client.isConnected() || client.isReadyToSend()) {
+        done(client)
+        return
+      }
+      if (Date.now() >= deadline) done(null)
+    }, 400)
+
+    const cleanup = () => {
+      clearInterval(timer)
+      client.off('connected', onConnected)
+    }
+
+    client.on('connected', onConnected)
+  })
+}
+
+export async function teardownWhatsAppSession(businessId: string) {
   const existing = waManager.get(businessId)
   if (existing) {
     try {
       await existing.logout()
     } catch {
-      const sessionDir = path.join(sessionsRoot, businessId)
-      if (fs.existsSync(sessionDir)) fs.rmSync(sessionDir, { recursive: true, force: true })
+      await createWaAuthFileStore(businessId).clear().catch(() => undefined)
     }
     waManager.remove(businessId)
   } else {
-    const sessionDir = path.join(sessionsRoot, businessId)
-    if (fs.existsSync(sessionDir)) fs.rmSync(sessionDir, { recursive: true, force: true })
+    await createWaAuthFileStore(businessId).clear().catch(() => undefined)
   }
 
   await setBusinessConnected(businessId, false)
 }
 
-export async function restoreWhatsAppSessions(sessionsRoot: string): Promise<void> {
-  const ids = listStoredSessionBusinessIds(sessionsRoot)
+export async function restoreWhatsAppSessions(opts?: { timeoutMs?: number }): Promise<void> {
+  const ids = await listStoredSessionBusinessIds()
   if (ids.length === 0) return
+  const timeoutMs = opts?.timeoutMs ?? 60_000
   console.log(`[whatsapp] Restoring ${ids.length} stored session(s)...`)
-  for (const id of ids) {
-    const client = ensureWhatsAppClient(sessionsRoot, id)
-    if (client.isConnected()) continue
-    void client.connect().catch((err) => {
-      console.error(`[whatsapp] restore connect failed for ${id}:`, err)
+  await Promise.all(
+    ids.map(async (id) => {
+      const client = ensureWhatsAppClient(id)
+      if (client.isConnected() || client.isReadyToSend()) return
+      try {
+        await client.connect()
+      } catch (err) {
+        console.error(`[whatsapp] restore connect failed for ${id}:`, err)
+      }
+      const ready = await waitForWhatsAppReady(id, timeoutMs)
+      if (!ready) {
+        const debug = client.getDebugInfo()
+        console.warn(
+          `[whatsapp] restore timeout business=${id} status=${debug.status} socketOpen=${debug.socketOpen}`
+        )
+      }
     })
-  }
+  )
 }

@@ -74,6 +74,12 @@ export function resolveChatMediaUrl(mediaUrl: string | undefined): string | unde
     if (pathname.startsWith("/chat-media/") || pathname.startsWith("/status-media/")) {
       return `${base}${pathname}`;
     }
+    if (
+      u.hostname === "storage.googleapis.com" ||
+      u.hostname === "firebasestorage.googleapis.com"
+    ) {
+      return mediaUrl;
+    }
     return mediaUrl;
   };
   try {

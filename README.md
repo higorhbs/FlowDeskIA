@@ -116,18 +116,18 @@ flowdesk/
 
 ```bash
 pnpm install
-cp .env.example .env
-cp apps/web/.env.example apps/web/.env.local
-# Preencha FIREBASE_* na raiz e NEXT_PUBLIC_* no web
+cp apps/backend/.env.example apps/backend/.env
+cp apps/web/.env.example apps/web/.env
+# Preencha FIREBASE_* no backend e NEXT_PUBLIC_* no web
 ```
 
-Credencial Admin na raiz:
+Credencial Admin no backend (`apps/backend/.env`):
 
 ```bash
 GOOGLE_APPLICATION_CREDENTIALS=.secrets/firebase-adminsdk.json
 ```
 
-**Login Google:** rode `pnpm google:oauth-setup` e adicione no Google Cloud → OAuth Client → **Authorized redirect URIs** e **Authorized JavaScript origins** todas as URLs que o script listar. Com domínio customizado (ex.: `https://flowdesk.ia.br`), defina `WEB_ORIGIN` no `.env` antes de rodar o script e inclua `flowdesk.ia.br` em Firebase → Authentication → Settings → **Authorized domains**. Erro `origin_mismatch` = falta a origem JS `https://seu-dominio` no OAuth Client.
+**Login Google:** rode `pnpm google:oauth-setup` e adicione no Google Cloud → OAuth Client → **Authorized redirect URIs** e **Authorized JavaScript origins** todas as URLs que o script listar. Com domínio customizado (ex.: `https://flowdesk.ia.br`), defina `WEB_ORIGIN` em `apps/backend/.env` antes de rodar o script e inclua `flowdesk.ia.br` em Firebase → Authentication → Settings → **Authorized domains**. Erro `origin_mismatch` = falta a origem JS `https://seu-dominio` no OAuth Client.
 
 ### Desenvolvimento
 
@@ -173,7 +173,7 @@ Firebase (Hosting, Firestore rules, índices, Auth domains) é configurado no **
 ### Front de produção
 
 ```bash
-pnpm setup:billing-env    # gera apps/web/.env.production a partir do .env
+pnpm setup:billing-env    # gera apps/web/.env.production a partir de apps/web/.env
 pnpm build:hosting        # gera apps/web/out
 # Publique o conteúdo de apps/web/out no Firebase Hosting (console)
 ```
@@ -189,7 +189,7 @@ Variáveis essenciais em `apps/web/.env.production`:
 
 Deixe os Payment Links Stripe vazios em produção — checkout passa pela API para ativar o plano.
 
-### API (raiz `.env`)
+### API (`apps/backend/.env`)
 
 | Variável | Uso |
 | --- | --- |
@@ -198,15 +198,9 @@ Deixe os Payment Links Stripe vazios em produção — checkout passa pela API p
 | `ASAAS_*` | PIX (global ou por negócio via painel) |
 | `CORS_ORIGIN` | URL(s) do Hosting |
 | `PRIVACY_RETENTION_INTERVAL_HOURS` | Job de retenção LGPD (0 = desligado) |
-
-### Agente WhatsApp (flowdesk-wa)
-
-| Variável | Uso |
-| --- | --- |
-| `FIREBASE_*` | Leitura/escrita Firestore |
-| `REDIS_URL` | Filas e sessão |
+| `REDIS_URL` | Filas e sessão (WhatsApp) |
 | `WA_SESSION_PATH` | Persistência Baileys |
-| `CORS_ORIGIN` | URL do dashboard |
+| `WA_API_PUBLIC_URL` | URL pública do backend na VM |
 
 ---
 

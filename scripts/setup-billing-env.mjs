@@ -18,17 +18,19 @@ function loadEnv(filePath) {
   return out;
 }
 
-const env = loadEnv(resolve(root, ".env"));
+const webEnv = loadEnv(resolve(root, "apps/web/.env"));
+const backendEnv = loadEnv(resolve(root, "apps/backend/.env"));
+const env = { ...backendEnv, ...webEnv };
 const waUrlDirect =
   env.NEXT_PUBLIC_WA_API_URL?.trim() || env.WA_API_PUBLIC_URL?.trim() || "";
 const apiDomain = (
   waUrlDirect ||
-  env.BILLING_API_DOMAIN ||
-  env.API_DOMAIN
+  env.NEXT_PUBLIC_API_URL?.trim() ||
+  env.API_PUBLIC_URL?.trim()
 )?.trim();
 
 if (!apiDomain) {
-  console.error("\n❌ Defina BILLING_API_DOMAIN ou API_DOMAIN no .env da raiz");
+  console.error("\n❌ Defina NEXT_PUBLIC_API_URL ou WA_API_PUBLIC_URL em apps/web/.env ou apps/backend/.env");
   console.error("   Depois rode: pnpm setup:billing-env\n");
   process.exit(1);
 }
@@ -39,10 +41,6 @@ function resolveWaApiUrl() {
     env.WA_API_PUBLIC_URL?.trim() ||
     "";
   if (direct) return direct.replace(/\/$/, "");
-  const waDomain = env.WA_API_DOMAIN?.trim();
-  if (waDomain) {
-    return waDomain.startsWith("http") ? waDomain.replace(/\/$/, "") : `https://${waDomain}`;
-  }
   return apiDomain.startsWith("http") ? apiDomain.replace(/\/$/, "") : `https://${apiDomain}`;
 }
 
@@ -50,7 +48,7 @@ const waApiUrl = resolveWaApiUrl();
 const apiUrl = waApiUrl;
 if (!waApiUrl) {
   console.warn(
-    "\n⚠️  NEXT_PUBLIC_WA_API_URL / WA_API_PUBLIC_URL / WA_API_DOMAIN ausente no .env da raiz.",
+    "\n⚠️  NEXT_PUBLIC_WA_API_URL / WA_API_PUBLIC_URL ausente em apps/web/.env ou apps/backend/.env.",
   );
   console.warn("   WhatsApp (QR Code) não funcionará até configurar WA_API_PUBLIC_URL e publicar o front.\n");
 }

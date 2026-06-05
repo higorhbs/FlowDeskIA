@@ -73,10 +73,7 @@ export function startMessageWorker() {
       };
       const responses = await processMessage(ctx);
 
-      const sessionsRoot = process.env.WA_SESSION_PATH?.trim();
-      if (!sessionsRoot) throw new Error("WA_SESSION_PATH não configurado");
-
-      const client = await resolveWhatsAppClient(sessionsRoot, businessId, {
+      const client = await resolveWhatsAppClient(businessId, {
         waitMs: 8_000,
       });
       if (!client) {
@@ -108,13 +105,11 @@ export function startMessageWorker() {
 }
 
 export function startReminderWorker() {
-  const sessionsRoot = process.env.WA_SESSION_PATH?.trim();
   const worker = new Worker<ReminderJob>(
     "reminders",
     async (job) => {
       const { businessId, customerPhone, replyJid, message } = job.data;
-      if (!sessionsRoot) return;
-      const client = await resolveWhatsAppClient(sessionsRoot, businessId, {
+      const client = await resolveWhatsAppClient(businessId, {
         waitMs: 5_000,
       });
       if (!client) return;

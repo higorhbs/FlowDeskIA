@@ -10,7 +10,6 @@ import { json, requireBearerUser } from '../../../lib/auth-guard.js'
 import { saveChatMedia } from '../../../whatsapp/chat-media.js'
 import { connectForQr, readWhatsAppStatus } from '../../../whatsapp/wa-connect.js'
 import { isWhatsAppRuntime } from '../../../whatsapp/wa-manager.js'
-import { resolveSessionsRoot } from '../../../config/wa-paths.js'
 import {
   resolveWhatsAppClient,
   teardownWhatsAppSession,
@@ -26,17 +25,8 @@ function requireAdmin(c) {
 function waUnavailable(c) {
   return json(c, 503, {
     status: 'error',
-    message:
-      'WhatsApp exige processo contínuo (ENABLE_WORKERS=true e WA_SESSION_PATH).',
+    message: 'WhatsApp exige processo contínuo (ENABLE_WORKERS=true).',
   })
-}
-
-function sessionsRoot() {
-  try {
-    return resolveSessionsRoot()
-  } catch {
-    return ''
-  }
 }
 
 async function resolveOwnedBusiness(c, businessId) {
@@ -62,21 +52,12 @@ export async function getQrCodeHandler(c) {
     })
   }
 
-  const root = sessionsRoot()
-  if (!root) {
-    return json(c, 200, {
-      connected: false,
-      status: 'misconfigured',
-      message: 'WA_SESSION_PATH não configurado no servidor.',
-    })
-  }
-
   const businessId = c.req.param('businessId')
   const ctx = await resolveOwnedBusiness(c, businessId)
   if (ctx.error) return ctx.error
 
   try {
-    const payload = await readWhatsAppStatus(root, businessId, ctx.business)
+    const payload = await readWhatsAppStatus(businessId, ctx.business)
     return json(c, 200, payload)
   } catch (err) {
     return json(c, 500, {
@@ -90,16 +71,13 @@ export async function postQrCodeHandler(c) {
   if (blocked) return blocked
   if (!isWhatsAppRuntime()) return waUnavailable(c)
 
-  const root = sessionsRoot()
-  if (!root) return json(c, 503, { error: 'WA_SESSION_PATH não configurado.' })
-
   const businessId = c.req.param('businessId')
   const force = c.req.query('force') === '1'
   const ctx = await resolveOwnedBusiness(c, businessId)
   if (ctx.error) return ctx.error
 
   try {
-    const result = await connectForQr(root, businessId, force)
+    const result = await connectForQr(businessId, force)
     if (result.status === 'already_connected') {
       await setBusinessConnected(businessId, true)
     }
@@ -117,9 +95,6 @@ export async function deleteConnectionHandler(c) {
   if (blocked) return blocked
   if (!isWhatsAppRuntime()) return waUnavailable(c)
 
-  const root = sessionsRoot()
-  if (!root) return json(c, 503, { error: 'WA_SESSION_PATH não configurado.' })
-
   const businessId = c.req.param('businessId')
   const ctx = await resolveOwnedBusiness(c, businessId)
   if (ctx.error) return ctx.error
@@ -132,9 +107,6 @@ export async function postMessageHandler(c) {
   const blocked = requireAdmin(c)
   if (blocked) return blocked
   if (!isWhatsAppRuntime()) return waUnavailable(c)
-
-  const root = sessionsRoot()
-  if (!root) return json(c, 503, { error: 'WA_SESSION_PATH não configurado.' })
 
   const businessId = c.req.param('businessId')
   const ctx = await resolveOwnedBusiness(c, businessId)
@@ -150,7 +122,7 @@ export async function postMessageHandler(c) {
     return json(c, 400, { error: 'Destino e mensagem são obrigatórios.' })
   }
 
-  const client = await resolveWhatsAppClient(root, businessId, { waitMs: 12_000 })
+  const client = await resolveWhatsAppClient(businessId, { waitMs: 12_000 })
   if (!client) {
     await setBusinessConnected(businessId, false)
     return json(c, 400, {
@@ -191,9 +163,6 @@ export async function postMessageMediaHandler(c) {
   if (blocked) return blocked
   if (!isWhatsAppRuntime()) return waUnavailable(c)
 
-  const root = sessionsRoot()
-  if (!root) return json(c, 503, { error: 'WA_SESSION_PATH não configurado.' })
-
   const businessId = c.req.param('businessId')
   const ctx = await resolveOwnedBusiness(c, businessId)
   if (ctx.error) return ctx.error
@@ -213,7 +182,7 @@ export async function postMessageMediaHandler(c) {
   const conv = await getConversation(businessId, conversationId)
   if (!conv) return json(c, 404, { error: 'Conversa não encontrada.' })
 
-  const client = await resolveWhatsAppClient(root, businessId, { waitMs: 12_000 })
+  const client = await resolveWhatsAppClient(businessId, { waitMs: 12_000 })
   if (!client) {
     await setBusinessConnected(businessId, false)
     return json(c, 400, {
@@ -222,10 +191,12 @@ export async function postMessageMediaHandler(c) {
   }
 
   let mediaUrl
+  let mediaStoragePath
   let mediaType
   try {
     const saved = await saveChatMedia(businessId, upload.buffer, upload.mimetype)
     mediaUrl = saved.mediaUrl
+    mediaStoragePath = saved.mediaStoragePath
     mediaType = saved.mediaType
   } catch (err) {
     return json(c, 400, {
@@ -244,6 +215,7 @@ export async function postMessageMediaHandler(c) {
     role: 'HUMAN',
     content,
     mediaUrl,
+    mediaStoragePath,
     mediaType,
     waMessageId,
   })

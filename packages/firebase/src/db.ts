@@ -857,6 +857,7 @@ export async function createScheduledStatuses(
   tenantId: string,
   data: {
     mediaUrl: string;
+    mediaStoragePath?: string;
     mediaType: ScheduledStatusMediaType;
     caption?: string;
     scheduledAts: string[];
@@ -886,6 +887,7 @@ export async function createScheduledStatuses(
       id,
       businessId,
       mediaUrl: data.mediaUrl,
+      mediaStoragePath: data.mediaStoragePath,
       mediaType: data.mediaType,
       caption: data.caption?.trim() || undefined,
       scheduledAt: new Date(atIso).toISOString(),
@@ -908,6 +910,7 @@ export async function createScheduledStatus(
   tenantId: string,
   input: {
     mediaUrl: string;
+    mediaStoragePath?: string;
     mediaType: ScheduledStatusMediaType;
     caption?: string;
     scheduledDays: string[];
@@ -919,6 +922,7 @@ export async function createScheduledStatus(
   const scheduledAts = resolveStoryScheduledAts(input);
   return createScheduledStatuses(businessId, tenantId, {
     mediaUrl: input.mediaUrl,
+    mediaStoragePath: input.mediaStoragePath,
     mediaType: input.mediaType,
     caption: input.caption,
     scheduledAts,
@@ -945,6 +949,7 @@ export async function repostScheduledStatus(
 
   return createScheduledStatuses(businessId, tenantId, {
     mediaUrl: source.mediaUrl,
+    mediaStoragePath: source.mediaStoragePath,
     mediaType: source.mediaType,
     caption: source.caption,
     scheduledAts,
@@ -994,22 +999,39 @@ export async function getScheduledStatus(
   return { id: snap.id, businessId, ...snap.data() } as ScheduledStatus;
 }
 
-function isStatusAudienceJid(jid: string): boolean {
-  return !!jid && jid.endsWith("@s.whatsapp.net");
-}
+export async function reclaimStuckPublishingStatuses(maxAgeMs = 5 * 60_000): Promise<number> {
+  const businessSnap = await businesses().select().get();
+  const cutoff = Date.now() - maxAgeMs;
+  const ts = nowIso();
+  let reclaimed = 0;
 
-export async function listStatusAudienceJids(businessId: string, max = 400): Promise<string[]> {
-  const snap = await conversationsCol(businessId).get();
-  const jids = new Set<string>();
-  for (const d of snap.docs) {
-    const c = d.data() as Conversation;
-    const raw = c.customerPhone?.trim() || c.replyJid?.trim() || "";
-    if (!raw) continue;
-    if (raw.endsWith("@lid")) continue;
-    const jid = raw.includes("@") ? raw : phoneToJid(raw);
-    if (jid && isStatusAudienceJid(jid)) jids.add(jid);
+  for (const businessDoc of businessSnap.docs) {
+    const publishingSnap = await scheduledStatusesCol(businessDoc.id)
+      .where("status", "==", "publishing")
+      .limit(20)
+      .get();
+
+    const stale = publishingSnap.docs.filter((d) => {
+      const updated = String(d.data().updatedAt ?? "");
+      if (!updated) return true;
+      return new Date(updated).getTime() <= cutoff;
+    });
+
+    if (!stale.length) continue;
+
+    const batch = getDb().batch();
+    for (const d of stale) {
+      batch.update(d.ref, {
+        status: "scheduled",
+        updatedAt: ts,
+        error: AdminFieldValue.delete(),
+      });
+    }
+    await batch.commit();
+    reclaimed += stale.length;
   }
-  return [...jids].slice(0, max);
+
+  return reclaimed;
 }
 
 // ─── Analytics ─────────────────────────────────────────────────────────────

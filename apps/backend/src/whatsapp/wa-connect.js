@@ -1,10 +1,9 @@
-import fs from 'fs'
-import path from 'path'
 import { setBusinessConnected } from '@flowdesk/firebase'
 import { waManager } from './wa-manager.js'
 import {
   ensureWhatsAppClient,
   hasStoredSession,
+  teardownWhatsAppSession,
 } from './wa-lifecycle.runtime.js'
 
 function waitForQr(client, timeoutMs = 22_000) {
@@ -42,26 +41,14 @@ function waitForQr(client, timeoutMs = 22_000) {
   })
 }
 
-export async function resetWhatsAppSession(sessionsRoot, businessId) {
-  const existing = waManager.get(businessId)
-  if (existing) {
-    try {
-      await existing.logout()
-    } catch {
-      const sessionDir = path.join(sessionsRoot, businessId)
-      if (fs.existsSync(sessionDir)) fs.rmSync(sessionDir, { recursive: true, force: true })
-    }
-    waManager.remove(businessId)
-    return
-  }
-  const sessionDir = path.join(sessionsRoot, businessId)
-  if (fs.existsSync(sessionDir)) fs.rmSync(sessionDir, { recursive: true, force: true })
+export async function resetWhatsAppSession(businessId) {
+  await teardownWhatsAppSession(businessId)
 }
 
-export async function connectForQr(sessionsRoot, businessId, force) {
-  if (force) await resetWhatsAppSession(sessionsRoot, businessId)
+export async function connectForQr(businessId, force) {
+  if (force) await resetWhatsAppSession(businessId)
 
-  const client = ensureWhatsAppClient(sessionsRoot, businessId)
+  const client = ensureWhatsAppClient(businessId)
 
   if (client.isConnected()) {
     await setBusinessConnected(businessId, true)
@@ -87,9 +74,9 @@ export async function connectForQr(sessionsRoot, businessId, force) {
     return { status: 'qr', qr: client.lastQrDataUrl }
   }
 
-  if (!force && hasStoredSession(sessionsRoot, businessId)) {
-    await resetWhatsAppSession(sessionsRoot, businessId)
-    const fresh = ensureWhatsAppClient(sessionsRoot, businessId)
+  if (!force && (await hasStoredSession(businessId))) {
+    await resetWhatsAppSession(businessId)
+    const fresh = ensureWhatsAppClient(businessId)
     try {
       await fresh.kickPairing()
     } catch (err) {
@@ -111,10 +98,10 @@ export async function connectForQr(sessionsRoot, businessId, force) {
   }
 }
 
-export async function readWhatsAppStatus(sessionsRoot, businessId, business) {
+export async function readWhatsAppStatus(businessId, business) {
   let client = waManager.get(businessId)
   if (!client) {
-    client = ensureWhatsAppClient(sessionsRoot, businessId)
+    client = ensureWhatsAppClient(businessId)
   }
 
   const connected = client.isConnected() || client.isReadyToSend()

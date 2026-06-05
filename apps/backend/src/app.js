@@ -10,7 +10,7 @@ export function createApp() {
 
   app.use('*', corsMiddleware)
 
-  registerMediaStatic(app)
+  registerMediaStatic()
   registerRoutes(app)
 
   app.get('/doc', (c) => c.json(getOpenApiDocument()))

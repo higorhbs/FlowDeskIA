@@ -155,6 +155,7 @@ export interface Message {
   role: MessageRole;
   content: string;
   mediaUrl?: string;
+  mediaStoragePath?: string;
   mediaType?: MessageMediaType;
   waMessageId?: string;
   createdAt: string;
@@ -216,6 +217,7 @@ export interface ScheduledStatus {
   id: string;
   businessId: string;
   mediaUrl: string;
+  mediaStoragePath?: string;
   mediaType: ScheduledStatusMediaType;
   caption?: string;
   scheduledAt: string;

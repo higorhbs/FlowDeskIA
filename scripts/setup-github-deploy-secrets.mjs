@@ -31,22 +31,23 @@ function ghSecretSet(name, value) {
   console.log(`✅ ${name}`);
 }
 
-const rootEnv = loadEnv(resolve(root, ".env"));
+const backendEnv = loadEnv(resolve(root, "apps/backend/.env"));
+const webLocalEnv = loadEnv(resolve(root, "apps/web/.env"));
 const webEnv = loadEnv(resolve(root, "apps/web/.env.production"));
 const exampleEnv = loadEnv(resolve(root, "apps/web/.env.example"));
-const merged = { ...exampleEnv, ...rootEnv, ...webEnv };
+const merged = { ...exampleEnv, ...backendEnv, ...webLocalEnv, ...webEnv };
 
 if (!merged.NEXT_PUBLIC_API_URL?.trim()) {
-  const domain = merged.API_DOMAIN?.trim();
-  if (domain) {
-    merged.NEXT_PUBLIC_API_URL = domain.startsWith("http")
-      ? domain.replace(/\/$/, "")
-      : `https://${domain}`;
+  const fallback = merged.WA_API_PUBLIC_URL?.trim() || merged.API_PUBLIC_URL?.trim();
+  if (fallback) {
+    merged.NEXT_PUBLIC_API_URL = fallback.startsWith("http")
+      ? fallback.replace(/\/$/, "")
+      : `https://${fallback}`;
   }
 }
 
 if (!merged.NEXT_PUBLIC_API_URL?.trim()) {
-  console.error("\n❌ Defina NEXT_PUBLIC_API_URL ou API_DOMAIN no .env antes de rodar este script.\n");
+  console.error("\n❌ Defina NEXT_PUBLIC_API_URL em apps/web/.env antes de rodar este script.\n");
   process.exit(1);
 }
 

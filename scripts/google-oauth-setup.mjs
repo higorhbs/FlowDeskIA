@@ -1,7 +1,24 @@
 #!/usr/bin/env node
+import { existsSync, readFileSync } from "fs";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const backendEnvPath = resolve(root, "apps/backend/.env");
+if (existsSync(backendEnvPath)) {
+  for (const line of readFileSync(backendEnvPath, "utf8").split("\n")) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) continue;
+    const eq = t.indexOf("=");
+    if (eq === -1) continue;
+    const key = t.slice(0, eq).trim();
+    if (process.env[key] === undefined) process.env[key] = t.slice(eq + 1).trim();
+  }
+}
+
 const project = process.env.FIREBASE_PROJECT_ID?.trim();
 if (!project) {
-  console.error("Defina FIREBASE_PROJECT_ID no .env");
+  console.error("Defina FIREBASE_PROJECT_ID em apps/backend/.env");
   process.exit(1);
 }
 const clientSuffix = "295076612394-8k6ecbb35gps827lj3um1efvofbj3gj6";

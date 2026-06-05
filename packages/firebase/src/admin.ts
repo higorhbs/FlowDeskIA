@@ -3,6 +3,7 @@ import { resolve } from "path";
 import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { getAuth, type Auth } from "firebase-admin/auth";
+import { getStorage, type Storage } from "firebase-admin/storage";
 
 let app: App;
 
@@ -131,6 +132,34 @@ export function getDb(): Firestore {
 export function getAdminAuth(): Auth {
   initAdmin();
   return getAuth();
+}
+
+function resolveStorageBucketName(): string {
+  const explicit = process.env.FIREBASE_STORAGE_BUCKET?.trim();
+  if (explicit) return explicit;
+  const fromEnv = loadServiceAccountFromEnv()?.projectId;
+  if (fromEnv) return `${fromEnv}.firebasestorage.app`;
+  const saPath = resolveServiceAccountPath();
+  if (saPath) {
+    try {
+      const sa = JSON.parse(readFileSync(saPath, "utf8")) as { project_id?: string };
+      if (sa.project_id) return `${sa.project_id}.firebasestorage.app`;
+    } catch {
+      /* ignore */
+    }
+  }
+  const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
+  if (projectId) return `${projectId}.firebasestorage.app`;
+  throw new Error("FIREBASE_STORAGE_BUCKET não configurado.");
+}
+
+export function getAdminStorage(): Storage {
+  initAdmin();
+  return getStorage();
+}
+
+export function getStorageBucket(): ReturnType<Storage["bucket"]> {
+  return getAdminStorage().bucket(resolveStorageBucketName());
 }
 
 export function newId(): string {

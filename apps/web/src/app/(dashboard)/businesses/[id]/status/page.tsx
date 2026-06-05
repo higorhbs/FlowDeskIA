@@ -386,7 +386,7 @@ export default function StatusSchedulePage() {
           <p className="text-xs text-gray-500">
             {publishNow
               ? "A publicação entra na fila assim que você confirmar. Mantenha o agente WhatsApp online."
-              : `O status será visível para contatos que já conversaram com você no ${APP_DISPLAY_NAME}. Mantenha o agente WhatsApp online no horário agendado.`}
+              : "O status será publicado pela conta WhatsApp conectada. A visibilidade segue a privacidade do seu WhatsApp. Mantenha o agente online no horário agendado."}
           </p>
           <p className="text-xs text-gray-500 leading-relaxed rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
             Para conferir a arte: use &quot;Abrir prévia da arte&quot; no histórico após publicar,

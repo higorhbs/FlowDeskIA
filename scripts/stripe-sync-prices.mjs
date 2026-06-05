@@ -57,11 +57,11 @@ async function renameProduct(stripe, productRef, plan) {
 }
 
 const root = resolve(import.meta.dirname, "..");
-const envPath = resolve(root, ".env");
+const envPath = resolve(root, "apps/backend/.env");
 const fileEnv = loadEnv(envPath);
 const key = (process.env.STRIPE_SECRET_KEY || fileEnv.STRIPE_SECRET_KEY || "").trim();
 if (!key) {
-  console.error("STRIPE_SECRET_KEY ausente em .env");
+  console.error("STRIPE_SECRET_KEY ausente em apps/backend/.env");
   process.exit(1);
 }
 

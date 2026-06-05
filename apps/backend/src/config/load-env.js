@@ -5,7 +5,6 @@ import { applyWaPathDefaults } from './wa-paths.js'
 
 const configDir = dirname(fileURLToPath(import.meta.url))
 const backendRoot = resolve(configDir, '../..')
-const monorepoRoot = resolve(configDir, '../../..')
 
 function loadEnvFile(filePath, override = false) {
   const content = readFileSync(filePath, 'utf8')
@@ -39,9 +38,7 @@ function resolveCredentialPaths() {
 }
 
 export function loadBackendEnv() {
-  const rootEnv = resolve(monorepoRoot, '.env')
   const localEnv = resolve(backendRoot, '.env')
-  if (existsSync(rootEnv)) loadEnvFile(rootEnv, false)
   if (existsSync(localEnv)) loadEnvFile(localEnv, true)
   resolveCredentialPaths()
   applyWaPathDefaults()

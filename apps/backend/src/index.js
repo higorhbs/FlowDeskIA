@@ -2,15 +2,12 @@ import { serve } from '@hono/node-server'
 import { createApp } from './app.js'
 import { env } from './config/env.js'
 import { installProcessGuards } from './process-guards.js'
-import { resolveSessionsRoot } from './config/wa-paths.js'
 import { isWhatsAppRuntime } from './whatsapp/wa-manager.js'
 
 const app = createApp()
 
 async function startWhatsAppWorkers() {
   if (!isWhatsAppRuntime()) return
-
-  const sessionsRoot = resolveSessionsRoot()
 
   installProcessGuards()
 
@@ -21,7 +18,7 @@ async function startWhatsAppWorkers() {
   )
   const { startStatusScheduler } = await import('../dist/whatsapp/workers/status-scheduler.js')
 
-  void restoreWhatsAppSessions(sessionsRoot)
+  await restoreWhatsAppSessions({ timeoutMs: 60_000 })
 
   const redisOk = await probeRedis()
   if (redisOk) {
