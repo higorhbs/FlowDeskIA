@@ -166,6 +166,20 @@ Requer `ENABLE_WORKERS=true` e credenciais Firebase (Storage, Firestore para ses
 | `POST` | `/internal/notifications/payment` | Legado — webhook Asaas chama in-process |
 | `POST` | `/internal/notifications/booking` | Confirmação de agendamento via WA |
 
+### Stories WhatsApp (Bearer + negócio do tenant)
+
+| Método | Path | Uso |
+| ------ | ---- | --- |
+| `GET` | `/stories/whatsapp/:businessId` | Lista agendamentos (`scheduledStatuses`) |
+| `POST` | `/stories/whatsapp/:businessId` | Upload multipart + agendamento / `publishNow` |
+| `POST` | `/stories/whatsapp/:businessId/:statusId/repost` | Reagenda mídia existente |
+| `DELETE` | `/stories/whatsapp/:businessId/:statusId` | Cancela pendente |
+| `DELETE` | `/stories/whatsapp/:businessId/series/:seriesId` | Cancela série pendente |
+
+Cota mensal por plano (só publicações com sucesso): Starter 5, Pro 10, Unlimited ∞. Contador em `tenants/{id}/usage/{YYYY-MM}.storiesPublished`.
+
+Worker `status-scheduler` publica via Baileys quando `ENABLE_WORKERS=true`. Índice Firestore collection group: ver [`firestore.indexes.json`](../../firestore.indexes.json) na raiz do monorepo (`scheduledStatuses`: `status` + `scheduledAt`).
+
 ### Deploy
 
 ```bash
@@ -173,4 +187,4 @@ pnpm build
 node src/index.js
 ```
 
-Workers exigem `ENABLE_WORKERS=true` e índices Firestore em `whatsappJobs`. Firestore rules/índices e Hosting são geridos no [Firebase Console](https://console.firebase.google.com).
+Workers exigem `ENABLE_WORKERS=true` e índices Firestore em `whatsappJobs` e `scheduledStatuses` (collection group). Firestore rules/índices e Hosting são geridos no [Firebase Console](https://console.firebase.google.com) ou via `firestore.indexes.json` na raiz.

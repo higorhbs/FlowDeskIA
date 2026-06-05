@@ -285,16 +285,19 @@ export const PLAN_LIMITS = {
     messagesPerMonth: 500,
     catalogItems: 3,
     appointmentsPerMonth: 30,
+    scheduledStoriesPerMonth: 5,
   },
   PRO: {
     messagesPerMonth: 5000,
     catalogItems: 100,
     appointmentsPerMonth: 500,
+    scheduledStoriesPerMonth: 10,
   },
   UNLIMITED: {
     messagesPerMonth: Infinity,
     catalogItems: Infinity,
     appointmentsPerMonth: Infinity,
+    scheduledStoriesPerMonth: Infinity,
   },
 } as const;
 
@@ -307,13 +310,38 @@ export function formatPlanLimit(value: number): string {
 
 export function planMarketingFeatures(plan: PlanTier): string[] {
   const l = PLAN_LIMITS[plan];
+  const stories =
+    l.scheduledStoriesPerMonth === Infinity
+      ? "Stories ilimitados"
+      : `${formatPlanLimit(l.scheduledStoriesPerMonth)} publicações de stories/mês`;
   return [
     l.messagesPerMonth === Infinity
       ? "Mensagens ilimitadas"
       : `${formatPlanLimit(l.messagesPerMonth)} mensagens/mês`,
     `${formatPlanLimit(l.catalogItems)} itens no catálogo`,
     `${formatPlanLimit(l.appointmentsPerMonth)} agendamentos/mês`,
+    stories,
   ];
+}
+
+export function monthKey(ref = new Date()): string {
+  const y = ref.getFullYear();
+  const m = String(ref.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+export function getStoriesPublishedLimit(plan: PlanTier): number {
+  return PLAN_LIMITS[plan].scheduledStoriesPerMonth;
+}
+
+export function assertStoriesPublishQuota(plan: PlanTier, publishedCount: number): void {
+  const limit = PLAN_LIMITS[plan].scheduledStoriesPerMonth;
+  if (!Number.isFinite(limit)) return;
+  if (publishedCount >= limit) {
+    throw new Error(
+      `Seu plano permite ${limit} publicações de stories por mês e você já atingiu o limite.`
+    );
+  }
 }
 
 export const PLAN_PRICES = {

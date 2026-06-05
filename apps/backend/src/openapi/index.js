@@ -8,6 +8,7 @@ import { internalNotificationsPaths } from '../routes/internal/notifications/ope
 import { billingPaths } from '../routes/billing/openapi.js'
 import { privacyPaths } from '../routes/privacy/openapi.js'
 import { asaasPaths } from '../routes/asaas/openapi.js'
+import { storiesWhatsappPaths } from '../routes/stories/whatsapp/openapi.js'
 import { webhooksPaths } from '../routes/webhooks/openapi.js'
 
 const pathModules = [
@@ -20,6 +21,7 @@ const pathModules = [
   billingPaths,
   privacyPaths,
   asaasPaths,
+  storiesWhatsappPaths,
   internalNotificationsPaths,
 ]
 

@@ -70,6 +70,7 @@ export function getClientDb(): Firestore {
 export {
   ensureClientTenant,
   getClientTenant,
+  getClientTenantStoriesPublished,
   updateClientTenantProfile,
   completeClientOnboarding,
   acceptClientLgpd,
@@ -77,6 +78,7 @@ export {
 } from "./client-tenant.js";
 export * from "./client-data.js";
 export * from "./client-ops.js";
+export * from "./schedule-status-dates.js";
 export type {
   Plan,
   PlanStatus,
@@ -84,4 +86,7 @@ export type {
   BotMenuItemConfig,
   ConversationStatus,
   AppointmentStatus,
+  ScheduledStatus,
+  ScheduledStatusState,
+  ScheduledStatusMediaType,
 } from "./types.js";

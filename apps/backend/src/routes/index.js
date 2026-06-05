@@ -8,6 +8,7 @@ import { register as registerWebhooks } from './webhooks/index.js'
 import { register as registerBilling } from './billing/index.js'
 import { register as registerPrivacy } from './privacy/index.js'
 import { register as registerAsaas } from './asaas/index.js'
+import { register as registerStoriesWhatsapp } from './stories/whatsapp/index.js'
 
 const routeModules = [
   registerHealth,
@@ -19,6 +20,7 @@ const routeModules = [
   registerBilling,
   registerPrivacy,
   registerAsaas,
+  registerStoriesWhatsapp,
   registerInternalNotifications,
 ]
 

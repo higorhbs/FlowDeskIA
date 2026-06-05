@@ -20,6 +20,14 @@ import {
   backendSendWhatsAppMedia,
   backendSendWhatsAppMessage,
 } from "./backend-chat-whatsapp";
+import {
+  backendCancelStory,
+  backendCancelStorySeries,
+  backendCreateStories,
+  backendListStories,
+  backendRepostStory,
+  type ScheduledStatus,
+} from "./backend-stories-whatsapp";
 import { getBackendBaseUrl } from "./backend-url";
 import type { CreateBusinessInput } from "./backend-business";
 import { setToken } from "./auth";
@@ -341,6 +349,31 @@ export const whatsappApi = {
   sendMedia: (businessId: string, conversationId: string, file: File, caption?: string) =>
     backendSendWhatsAppMedia(businessId, conversationId, file, caption),
 };
+
+export const scheduledStatusApi = {
+  list: (businessId: string) => backendListStories(businessId),
+  create: (
+    businessId: string,
+    data: {
+      file: File;
+      caption?: string;
+      scheduledDays: string[];
+      hour: number;
+      minute: number;
+      publishNow?: boolean;
+    }
+  ) => backendCreateStories(businessId, data),
+  repost: (
+    businessId: string,
+    statusId: string,
+    data: { scheduledDays: string[]; hour: number; minute: number; publishNow?: boolean }
+  ) => backendRepostStory(businessId, statusId, data),
+  cancel: (businessId: string, statusId: string) => backendCancelStory(businessId, statusId),
+  cancelSeries: (businessId: string, seriesId: string) =>
+    backendCancelStorySeries(businessId, seriesId),
+};
+
+export type { ScheduledStatus };
 
 export const appointmentApi = {
   list: (businessId: string, params?: { from?: string; to?: string; status?: string }) =>

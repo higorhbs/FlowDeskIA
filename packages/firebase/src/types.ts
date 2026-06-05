@@ -198,6 +198,32 @@ export interface BusinessAsaasIntegration {
   updatedAt: string;
 }
 
+export type ScheduledStatusState =
+  | "scheduled"
+  | "publishing"
+  | "published"
+  | "failed"
+  | "cancelled";
+
+export type ScheduledStatusMediaType = "image" | "video";
+
+export interface ScheduledStatus {
+  id: string;
+  businessId: string;
+  mediaUrl: string;
+  mediaStoragePath?: string;
+  mediaType: ScheduledStatusMediaType;
+  caption?: string;
+  scheduledAt: string;
+  status: ScheduledStatusState;
+  error?: string;
+  publishedAt?: string;
+  seriesId?: string;
+  sourceStatusId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface BusinessWithRelations extends Business {
   catalog: CatalogItem[];
   faqs: FAQ[];

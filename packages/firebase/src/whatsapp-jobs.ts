@@ -84,6 +84,18 @@ async function releaseStaleJobs(): Promise<void> {
   await batch.commit();
 }
 
+function cleanInboundPayload(payload: WhatsappInboundPayload): WhatsappInboundPayload {
+  const out: WhatsappInboundPayload = {
+    customerPhone: payload.customerPhone,
+    messageBody: payload.messageBody,
+    replyJid: payload.replyJid,
+  };
+  if (payload.customerName) out.customerName = payload.customerName;
+  if (payload.mediaUrl) out.mediaUrl = payload.mediaUrl;
+  if (payload.mediaType) out.mediaType = payload.mediaType;
+  return out;
+}
+
 export async function enqueueWhatsappInboundJob(
   businessId: string,
   payload: WhatsappInboundPayload,
@@ -92,6 +104,7 @@ export async function enqueueWhatsappInboundJob(
   const id = jobId?.trim() || newId();
   const ref = jobsCol().doc(id);
   const now = nowIso();
+  const cleaned = cleanInboundPayload(payload);
 
   try {
     await ref.create({
@@ -103,7 +116,7 @@ export async function enqueueWhatsappInboundJob(
       nextRunAt: now,
       createdAt: now,
       updatedAt: now,
-      payload,
+      payload: cleaned,
     });
   } catch (err) {
     if (isAlreadyExists(err)) return id;

@@ -21,6 +21,7 @@ export type { WaAuthFileStore } from "./remote-auth-state.js";
 import NodeCache from "@cacheable/node-cache";
 import { Boom } from "@hapi/boom";
 import pino from "pino";
+import sharp from "sharp";
 import { toDataURL } from "qrcode";
 import EventEmitter from "events";
 import { useRemoteAuthState, type WaAuthFileStore } from "./remote-auth-state.js";
@@ -278,6 +279,9 @@ export class WhatsAppClient extends EventEmitter {
       for (const msg of messages) {
         if (msg.key.fromMe && msg.message && msg.key.id) {
           this.messageStore.set(messageStoreKey(msg.key), msg.message);
+          if (isJidStatusBroadcast(msg.key.remoteJid ?? "")) {
+            console.log(`[wa:${this.businessId}] status_upsert id=${msg.key.id}`);
+          }
           continue;
         }
         this.tryEmitInbound(msg);
@@ -531,6 +535,122 @@ export class WhatsAppClient extends EventEmitter {
     const result = await this.sock.sendMessage(jid, content);
     this.stashSentMessage(result);
     return result?.key.id ?? undefined;
+  }
+
+  private async loadStatusMedia(
+    mediaUrl: string,
+    mediaType: "image" | "video"
+  ): Promise<{ buffer: Buffer; mimetype: string }> {
+    const res = await fetch(mediaUrl, { redirect: "follow" });
+    if (!res.ok) {
+      throw new Error(`Mídia inacessível para o WhatsApp (${res.status}). Confira a URL pública.`);
+    }
+    let buffer = Buffer.from(await res.arrayBuffer());
+    if (!buffer.length) throw new Error("Arquivo de mídia vazio.");
+    const headerType = res.headers.get("content-type")?.split(";")[0]?.trim();
+    if (mediaType === "video") {
+      return { buffer, mimetype: headerType || "video/mp4" };
+    }
+    let mimetype = headerType?.startsWith("image/") ? headerType : "image/jpeg";
+    if (!headerType?.startsWith("image/")) {
+      if (mediaUrl.includes(".png")) mimetype = "image/png";
+      else if (mediaUrl.includes(".webp")) mimetype = "image/webp";
+    }
+    if (mimetype === "image/webp") {
+      buffer = Buffer.from(await sharp(buffer).jpeg({ quality: 90 }).toBuffer());
+      mimetype = "image/jpeg";
+    }
+    const meta = await sharp(buffer).metadata();
+    if ((meta.width ?? 0) > 1080 || mimetype === "image/png") {
+      buffer = Buffer.from(
+        await sharp(buffer)
+          .resize({ width: 1080, withoutEnlargement: true })
+          .jpeg({ quality: 88 })
+          .toBuffer()
+      );
+      mimetype = "image/jpeg";
+    }
+    return { buffer, mimetype };
+  }
+
+  private async normalizeStatusBuffer(
+    buffer: Buffer,
+    mimetype: string | undefined,
+    mediaType: "image" | "video",
+    mediaUrl?: string
+  ): Promise<{ buffer: Buffer; mimetype: string }> {
+    if (mediaType === "video") {
+      return { buffer, mimetype: mimetype?.includes("mp4") ? mimetype : "video/mp4" };
+    }
+    let out = buffer;
+    let mt = mimetype?.startsWith("image/") ? mimetype : "image/jpeg";
+    if (!mimetype?.startsWith("image/")) {
+      if (mediaUrl?.includes(".png")) mt = "image/png";
+      else if (mediaUrl?.includes(".webp")) mt = "image/webp";
+    }
+    if (mt === "image/webp") {
+      out = Buffer.from(await sharp(out).jpeg({ quality: 90 }).toBuffer());
+      mt = "image/jpeg";
+    }
+    const meta = await sharp(out).metadata();
+    if ((meta.width ?? 0) > 1080 || mt === "image/png") {
+      out = Buffer.from(
+        await sharp(out)
+          .resize({ width: 1080, withoutEnlargement: true })
+          .jpeg({ quality: 88 })
+          .toBuffer()
+      );
+      mt = "image/jpeg";
+    }
+    return { buffer: out, mimetype: mt };
+  }
+
+  async publishStatus(opts: {
+    mediaUrl?: string;
+    mediaBuffer?: Buffer;
+    mediaMimetype?: string;
+    mediaType: "image" | "video";
+    caption?: string;
+    statusJidList: string[];
+  }): Promise<string | undefined> {
+    if (!this.sock) throw new Error("Socket not connected");
+
+    const own = this.getOwnJid();
+    const audience = new Set<string>();
+    if (own) audience.add(own);
+    for (const j of opts.statusJidList) {
+      const jid = j.includes("@") ? jidNormalizedUser(j) || j : toSendJid(j);
+      if (jid.endsWith("@s.whatsapp.net")) audience.add(jid);
+    }
+    const statusJidList = [...audience].slice(0, 500);
+    if (!statusJidList.length) {
+      throw new Error("Nenhum contato na audiência do status.");
+    }
+
+    const { buffer, mimetype } = opts.mediaBuffer
+      ? await this.normalizeStatusBuffer(
+          opts.mediaBuffer,
+          opts.mediaMimetype,
+          opts.mediaType,
+          opts.mediaUrl
+        )
+      : await this.loadStatusMedia(opts.mediaUrl!, opts.mediaType);
+
+    const content =
+      opts.mediaType === "video"
+        ? { video: buffer, mimetype, caption: opts.caption }
+        : { image: buffer, mimetype, caption: opts.caption };
+
+    await this.ensurePreKeys();
+    const result = await this.sock.sendMessage("status@broadcast", content, {
+      broadcast: true,
+      statusJidList,
+      mediaUploadTimeoutMs: 180_000,
+    });
+    this.stashSentMessage(result);
+
+    await new Promise((r) => setTimeout(r, 8_000));
+    return result?.key?.id ?? undefined;
   }
 
   async logout() {

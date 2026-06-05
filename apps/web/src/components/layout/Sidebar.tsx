@@ -17,6 +17,7 @@ import {
   Banknote,
   Loader2,
   LifeBuoy,
+  CircleDot,
 } from "lucide-react";
 import { cn, getBusinessTypeLabel } from "@/lib/utils";
 import { APP_DISPLAY_NAME } from "@flowdesk/shared";
@@ -100,6 +101,7 @@ export function Sidebar() {
           { href: panelHref(businessId, "faqs"), icon: IaIcon, label: "IA", vocab: false as const },
           { href: panelHref(businessId, "appointments"), icon: Calendar, label: v.bookingsNav, vocab: true as const },
           { href: panelHref(businessId, "catalog"), icon: BookOpen, label: v.catalogNav, vocab: true as const },
+          { href: panelHref(businessId, "status"), icon: CircleDot, label: "Stories", vocab: false as const },
           ...(pixEnabled
             ? [{ href: panelHref(businessId, "payments"), icon: Banknote, label: "Pagamentos", vocab: false as const }]
             : []),
