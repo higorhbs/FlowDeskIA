@@ -5,8 +5,7 @@ import { Loader2, Smartphone, WifiOff } from "lucide-react";
 import { useBusinessId } from "@/lib/use-business-id";
 import { useSyncWhatsAppBusiness } from "@/lib/use-sync-wa-business";
 import { useAppRouter } from "@/lib/app-navigation";
-import { canUseBusinessPanelSpa, getBusinessPanelSegment, panelHref } from "@/lib/business-nav";
-import { useEffectivePathname } from "@/lib/use-effective-pathname";
+import { canUseBusinessPanelSpa, panelHref } from "@/lib/business-nav";
 import { navigateBusinessPanel } from "@/lib/use-business-panel-nav";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,11 +13,8 @@ import { Card } from "@/components/ui/card";
 export function RequireWhatsAppConnection({ children }: { children: React.ReactNode }) {
   const businessId = useBusinessId();
   const router = useAppRouter();
-  const pathname = useEffectivePathname();
-  const onWhatsAppPanel = getBusinessPanelSegment(pathname) === "whatsapp";
-  const { isInitialLoading, isFetched, connected, data: waStatus } = useSyncWhatsAppBusiness(businessId);
+  const { isInitialLoading, isFetched, connectedStable } = useSyncWhatsAppBusiness(businessId);
   const whatsappPath = panelHref(businessId, "whatsapp");
-  const waMisconfigured = waStatus?.status === "misconfigured";
 
   const goWhatsApp = useCallback(() => {
     if (
@@ -33,9 +29,9 @@ export function RequireWhatsAppConnection({ children }: { children: React.ReactN
   }, [whatsappPath, router]);
 
   useEffect(() => {
-    if (!businessId || !isFetched || connected || onWhatsAppPanel || waMisconfigured) return;
+    if (!businessId || !isFetched || connectedStable) return;
     goWhatsApp();
-  }, [businessId, isFetched, connected, onWhatsAppPanel, waMisconfigured, goWhatsApp]);
+  }, [businessId, isFetched, connectedStable, goWhatsApp]);
 
   if (!businessId || isInitialLoading) {
     return (
@@ -45,7 +41,7 @@ export function RequireWhatsAppConnection({ children }: { children: React.ReactN
     );
   }
 
-  if (!connected) {
+  if (!connectedStable) {
     return (
       <div className="flex flex-1 items-center justify-center min-h-[320px] p-6">
         <Card className="max-w-md w-full p-8 text-center">

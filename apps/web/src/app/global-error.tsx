@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-
-const SUPPORT_EMAIL_URL =
-  "https://mail.google.com/mail/?view=cm&fs=1&to=1devhigor@gmail.com&su=Suporte%20FlowDesk";
+import { getSupportMailtoUrl } from "@/lib/legal-config";
 
 export default function GlobalError({
   error,
@@ -32,7 +30,7 @@ export default function GlobalError({
               Tentar novamente
             </button>
             <a
-              href={SUPPORT_EMAIL_URL}
+              href={getSupportMailtoUrl("Suporte FlowDesk")}
               target="_blank"
               rel="noreferrer"
               className="px-6 py-3 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors font-medium border border-emerald-200"

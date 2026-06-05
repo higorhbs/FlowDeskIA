@@ -50,12 +50,8 @@ if (!merged.NEXT_PUBLIC_API_URL?.trim()) {
   process.exit(1);
 }
 
-if (!merged.NEXT_PUBLIC_BACKEND_URL?.trim()) {
-  merged.NEXT_PUBLIC_BACKEND_URL =
-    merged.WA_API_PUBLIC_URL?.trim() ||
-    merged.NEXT_PUBLIC_WA_API_URL?.trim() ||
-    merged.BACKEND_PUBLIC_URL?.trim() ||
-    "";
+if (!merged.NEXT_PUBLIC_WA_API_URL?.trim()) {
+  merged.NEXT_PUBLIC_WA_API_URL = merged.WA_API_PUBLIC_URL?.trim() || merged.NEXT_PUBLIC_API_URL;
 }
 
 try {
@@ -69,7 +65,7 @@ console.log("\nConfigurando secrets do deploy automático...\n");
 
 const webKeys = [
   "NEXT_PUBLIC_API_URL",
-  "NEXT_PUBLIC_BACKEND_URL",
+  "NEXT_PUBLIC_WA_API_URL",
   "NEXT_PUBLIC_FIREBASE_API_KEY",
   "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
   "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
@@ -82,19 +78,20 @@ const webKeys = [
   "NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO",
   "NEXT_PUBLIC_STRIPE_PAYMENT_LINK_UNLIMITED",
   "NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL",
+  "NEXT_PUBLIC_LEGAL_ENTITY_TYPE",
+  "NEXT_PUBLIC_LEGAL_ENTITY_NAME",
+  "NEXT_PUBLIC_LEGAL_ENTITY_DOCUMENT",
+  "NEXT_PUBLIC_LEGAL_WEBSITE",
+  "NEXT_PUBLIC_PRIVACY_EMAIL",
+  "NEXT_PUBLIC_SUPPORT_EMAIL",
 ];
 
 for (const key of webKeys) ghSecretSet(key, merged[key] ?? "");
 
 console.log(`
-Próximo passo (só uma vez):
-  firebase login
-  firebase init hosting:github
+Secrets NEXT_PUBLIC_* gravados. Publique o front manualmente:
+  pnpm setup:billing-env && pnpm build:hosting
+  → upload apps/web/out no Firebase Hosting (console)
 
-Escolha o repo higorhbs/FlowDesk, branch main, projeto zapflow-higor-2026.
-Isso cria o secret FIREBASE_SERVICE_ACCOUNT_ZAPFLOW_HIGOR_2026.
-
-Se os workflows já existirem, cancele a sobrescrita — eles já estão no repo.
-
-Depois: git push origin main → deploy automático.
+Firestore rules, índices e Storage rules: Firebase Console.
 `);

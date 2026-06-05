@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { Check, MessageSquare, Server, QrCode, Smartphone, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 export type WhatsAppRunnerPhase =
   | "idle"
@@ -54,6 +55,15 @@ export function resolveWhatsAppRunnerPhase(opts: {
   if (opts.hasQr) return "scan";
   if (opts.waitingQr || opts.reconnecting) return "qr";
   return "idle";
+}
+
+export function useDebouncedRunnerPhase(
+  phase: WhatsAppRunnerPhase,
+  delayMs = 400,
+): WhatsAppRunnerPhase {
+  const fast = phase === "connected" || phase === "idle";
+  const debounced = useDebouncedValue(phase, delayMs);
+  return fast ? phase : debounced;
 }
 
 type Props = {

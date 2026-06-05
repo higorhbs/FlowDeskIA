@@ -1,5 +1,5 @@
 const MIN_LEAD_MS = 60_000;
-export const IMMEDIATE_LEAD_MS = 5_000;
+export const IMMEDIATE_LEAD_MS = 0;
 export const MAX_SCHEDULE_DAYS = 62;
 
 function pad(n: number) {

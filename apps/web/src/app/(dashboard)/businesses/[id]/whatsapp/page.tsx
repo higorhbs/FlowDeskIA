@@ -12,6 +12,7 @@ import {
 import {
   WhatsAppConnectionRunner,
   resolveWhatsAppRunnerPhase,
+  useDebouncedRunnerPhase,
 } from "@/components/whatsapp/WhatsAppConnectionRunner";
 import { toast } from "sonner";
 import { Smartphone, Wifi, WifiOff, QrCode, RefreshCw, Loader2, AlertTriangle } from "lucide-react";
@@ -51,13 +52,13 @@ export default function WhatsAppPage() {
     isError: statusError,
     failureReason: statusFailure,
     connected: isConnected,
+    connectedStable,
     refetch: refetchStatus,
   } = useSyncWhatsAppBusiness(id);
 
   const displayQr = qrCode || (!isConnected ? status?.qr : null) || null;
   const hasQr = Boolean(displayQr);
   const waUnavailable = status?.status === "unavailable";
-  const waMisconfigured = status?.status === "misconfigured";
   const waitingQr =
     !isConnected &&
     !hasQr &&
@@ -84,7 +85,6 @@ export default function WhatsAppPage() {
 
       if (data.status === "connecting" || data.status === "pending") {
         patchWhatsAppStatus(queryClient, id, { connected: false, status: "connecting" });
-        void queryClient.invalidateQueries({ queryKey: ["wa-status", id] });
         return;
       }
 
@@ -106,7 +106,6 @@ export default function WhatsAppPage() {
       if (err.code === "ECONNABORTED") {
         connectStarted.current = true;
         patchWhatsAppStatus(queryClient, id, { connected: false, status: "connecting" });
-        void queryClient.invalidateQueries({ queryKey: ["wa-status", id] });
         return;
       }
       connectStarted.current = false;
@@ -129,7 +128,7 @@ export default function WhatsAppPage() {
     }
   }, [status?.qr, isConnected]);
 
-  const runnerPhase = useMemo(
+  const runnerPhaseRaw = useMemo(
     () =>
       resolveWhatsAppRunnerPhase({
         connected: isConnected,
@@ -139,6 +138,7 @@ export default function WhatsAppPage() {
       }),
     [isConnected, isConnectPending, waitingQr, hasQr],
   );
+  const runnerPhase = useDebouncedRunnerPhase(runnerPhaseRaw);
 
   const showRunner =
     !isConnected && (isConnectPending || waitingQr || hasQr);
@@ -154,17 +154,17 @@ export default function WhatsAppPage() {
   }, [isConnected, status?.qr]);
 
   useEffect(() => {
-    if (isConnected && !wasConnected.current) {
+    if (connectedStable && !wasConnected.current) {
       wasConnected.current = true;
       setQrCode(null);
       toast.success("WhatsApp conectado!");
     }
-    if (!isConnected) wasConnected.current = false;
-  }, [isConnected]);
+    if (!connectedStable) wasConnected.current = false;
+  }, [connectedStable]);
 
   useEffect(() => {
     if (skipAutoConnect.current) return;
-    if (isInitialLoading || waUnavailable || waMisconfigured || statusError || isConnected || hasQr) return;
+    if (isInitialLoading || waUnavailable || isConnected || hasQr) return;
     if (connectStarted.current || isConnectPending) return;
     const t = setTimeout(() => {
       if (connectStarted.current) return;
@@ -173,16 +173,7 @@ export default function WhatsAppPage() {
       startConnect(false);
     }, 400);
     return () => clearTimeout(t);
-  }, [
-    isInitialLoading,
-    waUnavailable,
-    waMisconfigured,
-    statusError,
-    isConnected,
-    hasQr,
-    isConnectPending,
-    startConnect,
-  ]);
+  }, [isInitialLoading, waUnavailable, isConnected, hasQr, isConnectPending, startConnect]);
 
   const disconnectMutation = useMutation({
     mutationFn: () => whatsappApi.disconnect(id),
@@ -192,7 +183,6 @@ export default function WhatsAppPage() {
       silentConnect.current = false;
       setQrCode(null);
       void markWhatsAppConnected(queryClient, id, false, lastSyncedConnected);
-      void queryClient.invalidateQueries({ queryKey: ["wa-status", id] });
       toast.success("WhatsApp desconectado");
     },
     onError: (err: Error) => toast.error(err.message ?? "Erro ao desconectar"),
@@ -210,24 +200,14 @@ export default function WhatsAppPage() {
     <div className="p-4 md:p-6 max-w-xl mx-auto">
 
       {/* Unavailable banner */}
-      {(waUnavailable || waMisconfigured) && (
+      {waUnavailable && (
         <div className="flex gap-3 mb-4 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50 text-sm text-amber-900">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium">
-              {waMisconfigured ? "WhatsApp mal configurado no servidor" : "WhatsApp indisponível neste ambiente"}
-            </p>
+            <p className="font-medium">WhatsApp indisponível neste ambiente</p>
             <p className="mt-0.5 text-amber-800 text-xs">
-              {waMisconfigured ? (
-                <>
-                  Defina <code>WA_SESSION_PATH</code> em <code>apps/backend/.env</code> e reinicie{" "}
-                  <strong>pnpm dev:backend</strong>.
-                </>
-              ) : (
-                <>
-                  Rode <strong>pnpm dev:backend</strong> com <code>ENABLE_WORKERS=true</code> e Redis.
-                </>
-              )}
+              Rode <strong>pnpm dev</strong> e acesse <strong>http://localhost:3000</strong> (API
+              porta 3001 com <code>ENABLE_WORKERS=true</code>).
             </p>
           </div>
         </div>
@@ -310,7 +290,7 @@ export default function WhatsAppPage() {
               variant="destructiveSolid"
               className="w-full"
               onClick={() => disconnectMutation.mutate()}
-              disabled={disconnectMutation.isPending || waUnavailable || waMisconfigured}
+              disabled={disconnectMutation.isPending || waUnavailable}
             >
               {disconnectMutation.isPending
                 ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -326,7 +306,7 @@ export default function WhatsAppPage() {
                 connectStarted.current = true;
                 connectMutation.mutate(!!displayQr);
               }}
-              disabled={connectMutation.isPending || waUnavailable || waMisconfigured}
+              disabled={connectMutation.isPending || waUnavailable}
             >
               {connectMutation.isPending
                 ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -340,7 +320,7 @@ export default function WhatsAppPage() {
       </Card>
 
       {/* Como funciona — only when idle */}
-      {!isConnected && !hasQr && !waUnavailable && !waMisconfigured && !isConnectPending && !waitingQr && (
+      {!isConnected && !hasQr && !waUnavailable && !isConnectPending && !waitingQr && (
         <Card className="mt-4 px-6 border-brand-100 bg-brand-50">
           <h3 className="text-sm font-semibold text-brand-900 mb-2 flex items-center gap-2">
             <Smartphone className="w-3.5 h-3.5" />

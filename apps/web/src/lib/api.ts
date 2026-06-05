@@ -91,9 +91,13 @@ function resolveApiBaseUrl() {
   const url = process.env.NEXT_PUBLIC_API_URL?.trim();
   const onLocal = isLocalDevHost();
   if (url && !(url.includes("localhost") && !onLocal)) return url.replace(/\/$/, "");
-  if (onLocal) return url || "http://localhost:3001";
-  if (typeof window === "undefined") return url || "http://127.0.0.1:3001";
-  throw new Error("NEXT_PUBLIC_API_URL não configurada para produção.");
+  try {
+    return getBackendBaseUrl();
+  } catch {
+    if (onLocal) return url || "http://localhost:3001";
+    if (typeof window === "undefined") return url || "http://127.0.0.1:3001";
+    throw new Error("URL do backend não configurada para produção.");
+  }
 }
 
 let apiBaseUrl: string | undefined;
@@ -103,7 +107,14 @@ function getApiBaseUrl() {
 }
 
 function hasPublicApi() {
-  return Boolean(process.env.NEXT_PUBLIC_API_URL?.trim()) || isLocalDevHost();
+  if (isLocalDevHost()) return true;
+  if (process.env.NEXT_PUBLIC_API_URL?.trim()) return true;
+  try {
+    getBackendBaseUrl();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function getStripePaymentLink(plan: "STARTER" | "PRO" | "UNLIMITED") {
@@ -155,7 +166,7 @@ api.interceptors.response.use(
 
     if (status === 404 && typeof config?.url === "string" && config.url.includes("/privacy/")) {
       err.message =
-        "Função de privacidade indisponível no servidor. Atualize apps/api e faça deploy.";
+        "Função de privacidade indisponível no servidor. Atualize o backend e faça deploy.";
       return Promise.reject(err);
     }
 

@@ -187,6 +187,14 @@ export async function postStoriesHandler(c) {
 
   try {
     const rows = await createScheduledStatus(businessId, ctx.business.tenantId, parsed)
+    if (parsed.publishNow && rows.length && isWhatsAppRuntime()) {
+      const { enqueueImmediateStatusPublish } = await import(
+        '../../../dist/whatsapp/workers/status-scheduler.js'
+      )
+      for (const row of rows) {
+        enqueueImmediateStatusPublish({ businessId, id: row.id })
+      }
+    }
     return json(c, 200, rows)
   } catch (err) {
     return handleStoryError(c, err)
@@ -213,6 +221,14 @@ export async function postStoryRepostHandler(c) {
       statusId,
       parsed
     )
+    if (parsed.publishNow && rows.length && isWhatsAppRuntime()) {
+      const { enqueueImmediateStatusPublish } = await import(
+        '../../../dist/whatsapp/workers/status-scheduler.js'
+      )
+      for (const row of rows) {
+        enqueueImmediateStatusPublish({ businessId, id: row.id })
+      }
+    }
     return json(c, 200, rows)
   } catch (err) {
     return handleStoryError(c, err)

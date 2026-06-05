@@ -4,8 +4,14 @@ import { authFetch } from "./backend-auth";
 export type CreateBusinessInput = {
   name: string;
   type: BusinessType;
-  whatsapp: string;
+  phone?: string;
+  whatsapp?: string;
   description?: string;
+  typeLabel?: string;
+  address?: string;
+  greetingMsg?: string;
+  awayMsg?: string;
+  workingHours?: Record<string, [string, string] | null>;
 };
 
 export async function backendListBusinesses(): Promise<Business[]> {

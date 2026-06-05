@@ -77,7 +77,10 @@ export function StatusRecurrenceControls({
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={() => onModeChange("none")}
+          onClick={() => {
+            onModeChange("none");
+            onApplyGeneratedDays([startDayKey]);
+          }}
           className={cn(
             "px-2.5 py-1.5 rounded-lg border text-xs font-medium",
             mode === "none"

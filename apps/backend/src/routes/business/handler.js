@@ -38,6 +38,14 @@ function parseCreateBody(body) {
   )
   const description =
     typeof body?.description === 'string' ? body.description.trim() : undefined
+  const typeLabel =
+    typeof body?.typeLabel === 'string' ? body.typeLabel.trim() : undefined
+  const address = typeof body?.address === 'string' ? body.address.trim() : undefined
+  const greetingMsg =
+    typeof body?.greetingMsg === 'string' ? body.greetingMsg.trim() : undefined
+  const awayMsg = typeof body?.awayMsg === 'string' ? body.awayMsg.trim() : undefined
+  const workingHours =
+    body?.workingHours && typeof body.workingHours === 'object' ? body.workingHours : undefined
 
   if (name.length < 2) return { error: 'Informe o nome do negócio (mín. 2 caracteres).' }
   if (!BUSINESS_TYPES.has(type)) {
@@ -56,6 +64,11 @@ function parseCreateBody(body) {
       type,
       phone,
       ...(description ? { description } : {}),
+      ...(typeLabel ? { typeLabel } : {}),
+      ...(address ? { address } : {}),
+      ...(greetingMsg ? { greetingMsg } : {}),
+      ...(awayMsg ? { awayMsg } : {}),
+      ...(workingHours ? { workingHours } : {}),
     },
   }
 }

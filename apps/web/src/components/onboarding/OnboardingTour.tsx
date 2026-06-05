@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IaIcon } from "@/lib/ia-brand";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 interface ChatMsg {
   from: "customer" | "ia";
@@ -221,47 +222,83 @@ function parseWaText(text: string) {
   });
 }
 
-function WaChat({ businessName, messages }: { businessName: string; messages: ChatMsg[] }) {
+function trimMessageForMobile(text: string) {
+  let t = text.replace(/`000201[^`]+`/g, "`PIX copia e cola`");
+  const lines = t.split("\n").filter(Boolean);
+  if (lines.length > 3) return `${lines.slice(0, 3).join("\n")}\n…`;
+  if (t.length > 120) return `${t.slice(0, 117)}…`;
+  return t;
+}
+
+function mobilePreviewMessages(messages: ChatMsg[]) {
+  if (messages.length <= 2) return messages;
+  const pixStep = messages.some((m) => /PIX|Cobrança/i.test(m.text));
+  if (pixStep && messages.length > 2) return messages.slice(0, 2);
+  return messages.slice(-2);
+}
+
+function WaChat({
+  businessName,
+  messages,
+  className,
+  compact = false,
+}: {
+  businessName: string;
+  messages: ChatMsg[];
+  className?: string;
+  compact?: boolean;
+}) {
+  const visible = compact ? mobilePreviewMessages(messages) : messages;
+
   return (
-    <div className="flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-white/10 h-full">
-      {/* Header */}
-      <div className="bg-[#075E54] px-4 py-3 flex items-center gap-3 flex-shrink-0">
-        <div className="w-9 h-9 rounded-full bg-[#128C7E] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+    <div
+      className={`flex flex-col overflow-hidden rounded-2xl border border-gray-200/80 shadow-lg ${className ?? ""}`}
+    >
+      <div
+        className={`flex flex-shrink-0 items-center gap-2 bg-[#075E54] px-3 ${compact ? "py-2" : "px-4 py-3 gap-3"}`}
+      >
+        <div
+          className={`flex shrink-0 items-center justify-center rounded-full bg-[#128C7E] font-bold text-white ${compact ? "h-8 w-8 text-xs" : "h-9 w-9 text-sm"}`}
+        >
           {businessName.trim()[0]}
         </div>
         <div className="min-w-0">
-          <p className="text-white text-sm font-semibold leading-tight truncate">{businessName}</p>
-          <p className="text-[#A8D5CF] text-[11px] leading-none flex items-center gap-1 mt-0.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#4FC3F7] inline-block" />
-            online agora
+          <p className={`truncate font-semibold leading-tight text-white ${compact ? "text-xs" : "text-sm"}`}>
+            {businessName}
+          </p>
+          <p className="mt-0.5 flex items-center gap-1 text-[10px] leading-none text-[#A8D5CF]">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#4FC3F7]" />
+            online
           </p>
         </div>
       </div>
 
-      {/* Chat area */}
       <div
-        className="flex-1 overflow-y-auto px-3 py-3 space-y-2"
+        className={`space-y-1.5 overflow-hidden px-2 py-2 ${compact ? "" : "min-h-0 flex-1 overflow-y-auto overscroll-contain sm:space-y-2 sm:px-3 sm:py-3"}`}
         style={{
           background: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect width='40' height='40' fill='%23ece5dd'/%3E%3C/svg%3E\")",
           backgroundColor: "#ECE5DD",
         }}
       >
-        {messages.map((msg, i) => {
+        {visible.map((msg, i) => {
           const isIa = msg.from === "ia";
+          const body = compact ? trimMessageForMobile(msg.text) : msg.text;
           return (
             <div key={i} className={`flex ${isIa ? "justify-end" : "justify-start"}`}>
               <div
-                className={`max-w-[85%] rounded-2xl px-3 py-2 shadow-sm text-[12.5px] leading-relaxed relative ${
+                className={`max-w-[92%] rounded-2xl px-2 py-1 shadow-sm leading-snug relative ${
+                  compact ? "text-[10px]" : "px-2.5 py-1.5 text-[11px] sm:text-[12.5px] leading-relaxed"
+                } ${
                   isIa
                     ? "bg-[#DCF8C6] text-gray-800 rounded-tr-sm"
                     : "bg-white text-gray-800 rounded-tl-sm"
                 }`}
               >
-                <div>{parseWaText(msg.text)}</div>
-                <div className="flex items-center justify-end gap-1 mt-1">
-                  <span className="text-[10px] text-gray-400">{msg.time}</span>
-                  {isIa && (
-                    <svg viewBox="0 0 16 11" className="w-4 h-3 fill-[#53BDEB]">
+                <div className={compact ? "line-clamp-4" : undefined}>{parseWaText(body)}</div>
+                <div className="mt-0.5 flex items-center justify-end gap-1">
+                  <span className="text-[9px] text-gray-400 sm:text-[10px]">{msg.time}</span>
+                  {isIa && !compact && (
+                    <svg viewBox="0 0 16 11" className="h-3 w-4 fill-[#53BDEB]">
                       <path d="M11.071.653a.75.75 0 0 0-1.142 0L5.857 5.726 4.07 3.939a.75.75 0 1 0-1.06 1.06L5.326 7.31a.75.75 0 0 0 1.06 0l4.685-4.957M15.07.653a.75.75 0 0 0-1.142 0L9.857 5.726l-.571-.571" />
                     </svg>
                   )}
@@ -272,8 +309,7 @@ function WaChat({ businessName, messages }: { businessName: string; messages: Ch
         })}
       </div>
 
-      {/* Input bar */}
-      <div className="bg-[#F0F2F5] px-3 py-2 flex items-center gap-2 flex-shrink-0">
+      <div className={`hidden flex-shrink-0 items-center gap-2 bg-[#F0F2F5] px-3 py-2 md:flex ${compact ? "!hidden" : ""}`}>
         <div className="flex-1 bg-white rounded-full px-4 py-2 text-xs text-gray-400">
           Mensagem
         </div>
@@ -287,10 +323,15 @@ function WaChat({ businessName, messages }: { businessName: string; messages: Ch
   );
 }
 
-function WaStoryCard({ businessName, caption, timeLabel }: StoryCard & { businessName: string }) {
+function WaStoryCard({
+  businessName,
+  caption,
+  timeLabel,
+  className,
+}: StoryCard & { businessName: string; className?: string }) {
   return (
     <div
-      className="relative rounded-2xl overflow-hidden shadow-lg flex-shrink-0"
+      className={`relative flex flex-col overflow-hidden rounded-2xl shadow-lg ${className ?? ""}`}
       style={{ background: "linear-gradient(160deg, #0f0c29, #302b63, #24243e)" }}
     >
       {/* Progress bars */}
@@ -311,9 +352,10 @@ function WaStoryCard({ businessName, caption, timeLabel }: StoryCard & { busines
         <span className="text-white/50 text-[10px] ml-auto">{timeLabel}</span>
       </div>
 
-      {/* Story content */}
-      <div className="flex flex-col items-center justify-center px-5 pt-12 pb-4 text-center gap-1">
-        <p className="text-white font-bold text-sm leading-snug whitespace-pre-line">{caption}</p>
+      <div className="flex flex-1 flex-col items-center justify-center px-5 pt-14 pb-2 text-center">
+        <p className="text-sm font-bold leading-snug whitespace-pre-line text-white sm:text-base">
+          {caption}
+        </p>
       </div>
 
       {/* Reply bar */}
@@ -347,6 +389,7 @@ export function OnboardingTour({ variant = "dashboard" }: OnboardingTourProps) {
   const [dismissed, setDismissed] = useState(false);
   const [forceOpen, setForceOpen] = useState(false);
   const [hydrated, setHydrated] = useState(isPublic);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (isPublic) {
@@ -403,120 +446,156 @@ export function OnboardingTour({ variant = "dashboard" }: OnboardingTourProps) {
 
   if (!visible) return null;
 
-  const Icon = current.features[0].icon;
+  const stepDots = (
+    <div className="flex items-center justify-center gap-2 md:justify-start">
+      {STEPS.map((_, i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={() => setStep(i)}
+          aria-label={`Etapa ${i + 1}`}
+          className={`rounded-full transition-all duration-300 ${
+            i === step ? "w-6 h-2 bg-brand-600" : "w-2 h-2 bg-gray-200 hover:bg-gray-300"
+          }`}
+        />
+      ))}
+    </div>
+  );
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl rounded-3xl bg-white shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/60 backdrop-blur-sm md:items-center md:p-4">
+      <div className="flex h-[100dvh] max-h-[100dvh] w-full max-w-4xl flex-col overflow-hidden bg-white shadow-2xl md:h-auto md:max-h-[90vh] md:rounded-3xl md:border md:border-gray-100">
 
-        {/* Progress bar */}
-        <div className="h-1 bg-gray-100 flex-shrink-0">
+        <div className="h-1 flex-shrink-0 bg-gray-100">
           <div
             className="h-full bg-brand-600 transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>
 
-        {/* Body */}
-        <div className="flex flex-col md:flex-row flex-1 min-h-0">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain md:overflow-hidden md:flex-row">
 
-          {/* Left: info */}
-          <div className="md:w-[42%] flex flex-col justify-between p-6 md:p-8 flex-shrink-0">
+          <div className="flex flex-shrink-0 flex-col border-b border-gray-100 px-4 py-3 md:hidden">
+            <div className="mb-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-700 ring-1 ring-brand-200/60">
+              <Zap className="h-3 w-3" />
+              {current.badge}
+            </div>
+            <h2 className="text-lg font-bold leading-snug text-gray-900">{current.title}</h2>
+            <p className="mt-1.5 text-xs leading-relaxed text-gray-600">{current.subtitle}</p>
+            <ul className="mt-3 space-y-2">
+              {current.features.map(({ icon: FIcon, text }, i) => (
+                <li
+                  key={i}
+                  className="flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-brand-500 to-brand-700 px-3 py-2.5 shadow-md ring-1 ring-brand-800/15"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20">
+                    <FIcon className="h-4 w-4 text-white" />
+                  </div>
+                  <span className="text-[11px] font-semibold leading-snug text-white">
+                    {text}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-3">{stepDots}</div>
+          </div>
+
+          <div className="hidden w-[42%] flex-shrink-0 flex-col justify-between p-6 md:flex md:p-8">
             <div>
-              {/* Badge */}
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-50 text-brand-700 text-xs font-semibold mb-5">
-                <Zap className="w-3 h-3" />
+              <div className="mb-5 inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+                <Zap className="h-3 w-3" />
                 {current.badge}
               </div>
-
-              {/* Title */}
-              <h2 className="text-2xl font-bold text-gray-900 leading-snug mb-3">
-                {current.title}
-              </h2>
-              <p className="text-gray-500 text-sm leading-relaxed mb-6">
-                {current.subtitle}
-              </p>
-
-              {/* Features */}
+              <h2 className="mb-3 text-2xl font-bold leading-snug text-gray-900">{current.title}</h2>
+              <p className="mb-6 text-sm leading-relaxed text-gray-500">{current.subtitle}</p>
               <ul className="space-y-3">
                 {current.features.map(({ icon: FIcon, text }, i) => (
                   <li key={i} className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
-                      <FIcon className="w-3.5 h-3.5 text-brand-600" />
+                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-brand-50">
+                      <FIcon className="h-3.5 w-3.5 text-brand-600" />
                     </div>
                     <span className="text-sm text-gray-700">{text}</span>
                   </li>
                 ))}
               </ul>
             </div>
-
-            {/* Dot indicators */}
-            <div className="flex items-center gap-2 mt-6">
-              {STEPS.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setStep(i)}
-                  className={`rounded-full transition-all duration-300 ${
-                    i === step ? "w-6 h-2 bg-brand-600" : "w-2 h-2 bg-gray-200 hover:bg-gray-300"
-                  }`}
-                />
-              ))}
-            </div>
+            <div className="mt-6">{stepDots}</div>
           </div>
 
-          {/* Right: chat demo */}
-          <div className="flex-1 bg-gradient-to-br from-brand-50 via-white to-emerald-50 p-5 flex flex-col min-h-0 gap-3 border-t md:border-t-0 md:border-l border-gray-100">
+          <div className="flex flex-shrink-0 flex-col justify-center bg-gradient-to-br from-brand-50 via-white to-emerald-50 px-3 py-2 md:min-h-0 md:flex-1 md:gap-3 md:border-l md:p-5">
             {current.storyCard && (
-              <WaStoryCard businessName={current.chat.businessName} caption={current.storyCard.caption} timeLabel={current.storyCard.timeLabel} />
-            )}
-            <div className="flex-1 min-h-0">
-              <WaChat
+              <WaStoryCard
                 businessName={current.chat.businessName}
-                messages={current.chat.messages}
+                caption={current.storyCard.caption}
+                timeLabel={current.storyCard.timeLabel}
+                className={
+                  isMobile
+                    ? "mx-auto block aspect-[9/16] w-full max-w-[220px] max-h-[min(38dvh,280px)]"
+                    : "hidden max-h-[140px] flex-shrink-0 md:block md:max-h-none"
+                }
               />
-            </div>
+            )}
+            {(!current.storyCard || !isMobile) && (
+              <div className={isMobile ? "" : "min-h-0 flex-1"}>
+                <WaChat
+                  businessName={current.chat.businessName}
+                  messages={current.chat.messages}
+                  compact={isMobile}
+                  className={
+                    isMobile
+                      ? "mx-auto w-full max-w-sm"
+                      : "h-full min-h-[280px] w-full"
+                  }
+                />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between gap-3 px-6 md:px-8 py-4 border-t border-gray-100 bg-gray-50 flex-shrink-0">
+        <div className="relative z-10 flex flex-shrink-0 flex-col gap-2 border-t border-gray-100 bg-gray-50 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-between md:px-8 md:py-4">
           <button
             type="button"
             onClick={dismiss}
-            className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+            className="order-2 text-center text-sm text-gray-400 transition-colors hover:text-gray-600 sm:order-1 sm:text-left"
             disabled={complete.isPending}
           >
             Pular tour
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="order-1 flex items-center gap-2 sm:order-2">
             <Button
               type="button"
               variant="outline"
+              size="sm"
+              className="flex-1 sm:flex-none"
               onClick={() => setStep((s) => s - 1)}
               disabled={!canBack}
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="h-4 w-4 shrink-0" />
               Voltar
             </Button>
             <Button
               type="button"
+              size="sm"
+              className="flex-1 sm:flex-none"
               onClick={() => {
-                if (isLast) { dismiss(); return; }
+                if (isLast) {
+                  dismiss();
+                  return;
+                }
                 setStep((s) => s + 1);
               }}
               disabled={complete.isPending}
             >
               {isLast ? (
                 <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  Começar agora
+                  <CheckCircle2 className="h-4 w-4" />
+                  Começar
                 </>
               ) : (
                 <>
                   Próximo
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="h-4 w-4" />
                 </>
               )}
             </Button>

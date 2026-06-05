@@ -32,13 +32,31 @@ async function startWhatsAppWorkers() {
     console.warn(
       '[whatsapp] Redis offline — inbound sem fila; mensagens processadas no handler Baileys.'
     )
-    console.warn('[whatsapp] Para fila: docker compose up -d redis')
+    console.warn('[whatsapp] Para fila: suba Redis local (REDIS_URL)')
   }
 
   startStatusScheduler()
 }
 
 void startWhatsAppWorkers()
+
+const retentionRaw = process.env.PRIVACY_RETENTION_INTERVAL_HOURS?.trim()
+const retentionIntervalHours = retentionRaw ? Number(retentionRaw) : 0
+if (retentionIntervalHours > 0) {
+  const runRetention = async () => {
+    try {
+      const { runPrivacyRetentionForAllTenants } = await import(
+        './services/privacy-compliance.js'
+      )
+      const result = await runPrivacyRetentionForAllTenants(365)
+      console.log('[privacy] retention run completed', result)
+    } catch (err) {
+      console.error('[privacy] retention run failed:', err)
+    }
+  }
+  setTimeout(runRetention, 10_000)
+  setInterval(runRetention, retentionIntervalHours * 60 * 60 * 1000)
+}
 
 serve(
   {

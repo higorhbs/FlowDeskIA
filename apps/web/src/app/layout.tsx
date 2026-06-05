@@ -4,7 +4,7 @@ import { APP_META_DESCRIPTION, APP_PAGE_TITLE } from "@flowdesk/shared";
 import "./globals.css";
 import { GoogleAdsTag } from "@/components/analytics/GoogleAdsTag";
 import { CookieConsentBanner } from "@/components/privacy/CookieConsentBanner";
-import { DesktopOnlyGate } from "@/components/layout/DesktopOnlyGate";
+import { MobileExperienceGate } from "@/components/layout/MobileExperienceGate";
 import { Providers } from "@/components/providers";
 import { ToasterHost } from "@/components/toaster-host";
 import { cn } from "@/lib/utils";
@@ -56,11 +56,11 @@ export default function RootLayout({
       <body className={inter.className} suppressHydrationWarning>
         <script src="/theme-init.js" defer />
         <Providers>
-          <DesktopOnlyGate>
+          <MobileExperienceGate>
             {children}
             <ToasterHost />
             <CookieConsentBanner />
-          </DesktopOnlyGate>
+          </MobileExperienceGate>
         </Providers>
       </body>
     </html>

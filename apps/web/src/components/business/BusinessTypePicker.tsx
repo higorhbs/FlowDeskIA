@@ -9,29 +9,32 @@ import {
   LayoutGrid,
   Check,
 } from "lucide-react";
+import { BUSINESS_TYPE_LABELS, BUSINESS_TYPE_ORDER, type BusinessType } from "@flowdesk/shared";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const BUSINESS_TYPE_OPTIONS = [
-  { value: "BARBERSHOP", label: "Barbearia", icon: Scissors, color: "bg-slate-100 text-slate-700 border-slate-200" },
-  { value: "SALON", label: "Salão / Manicure", icon: Sparkles, color: "bg-pink-50 text-pink-700 border-pink-200" },
-  {
-    value: "RESTAURANT",
-    label: "Restaurante",
-    icon: UtensilsCrossed,
-    color: "bg-orange-50 text-orange-700 border-orange-200",
-  },
-  { value: "DENTAL", label: "Dentista / Clínica", icon: Stethoscope, color: "bg-teal-50 text-teal-700 border-teal-200" },
-  { value: "STORE", label: "Comércio local", icon: Store, color: "bg-violet-50 text-violet-700 border-violet-200" },
-  { value: "OTHER", label: "Outro", icon: LayoutGrid, color: "bg-gray-100 text-gray-700 border-gray-200" },
-] as const;
+const BUSINESS_TYPE_META: Record<
+  BusinessType,
+  { icon: typeof Store; color: string }
+> = {
+  STORE: { icon: Store, color: "bg-violet-50 text-violet-700 border-violet-200" },
+  BARBERSHOP: { icon: Scissors, color: "bg-slate-100 text-slate-700 border-slate-200" },
+  SALON: { icon: Sparkles, color: "bg-pink-50 text-pink-700 border-pink-200" },
+  RESTAURANT: { icon: UtensilsCrossed, color: "bg-orange-50 text-orange-700 border-orange-200" },
+  DENTAL: { icon: Stethoscope, color: "bg-teal-50 text-teal-700 border-teal-200" },
+  OTHER: { icon: LayoutGrid, color: "bg-gray-100 text-gray-700 border-gray-200" },
+};
 
-type BusinessTypeValue = (typeof BUSINESS_TYPE_OPTIONS)[number]["value"];
+const BUSINESS_TYPE_OPTIONS = BUSINESS_TYPE_ORDER.map((value) => ({
+  value,
+  label: BUSINESS_TYPE_LABELS[value],
+  ...BUSINESS_TYPE_META[value],
+}));
 
 type Props = {
   value: string;
-  onChange: (value: BusinessTypeValue) => void;
+  onChange: (value: BusinessType) => void;
   typeLabel?: string;
   onTypeLabelChange?: (label: string) => void;
   typeLabelError?: string;

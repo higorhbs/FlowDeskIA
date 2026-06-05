@@ -26,7 +26,7 @@ export const internalNotificationsPaths = {
     post: {
       tags: ['Internal'],
       summary: 'Notificar pagamento recebido no WhatsApp',
-      description: 'Chamado por apps/api após webhook Asaas PAID. Header x-internal-secret obrigatório.',
+      description: 'Notificação interna de pagamento PAID (legado). Header x-internal-secret obrigatório.',
       parameters: [internalSecretHeader],
       requestBody: {
         required: true,

@@ -71,20 +71,17 @@ function shouldSkipJid(jid: string): boolean {
 }
 
 function resolveAddress(key: MsgKey, remoteJid: string, lidToPhone: Map<string, string>) {
+  const normalized = toSendJid(remoteJid);
   const extended = key as MsgKey & { senderPn?: string; participantPn?: string };
   const pn = extended.senderPn || extended.participantPn;
-  if (pn) {
-    const phoneJid = pnToJid(pn);
-    return { from: phoneJid, replyJid: phoneJid };
-  }
+  const phoneJid = pn ? pnToJid(pn) : null;
 
-  const normalized = toSendJid(remoteJid);
   if (isLidUser(normalized)) {
-    const mapped = lidToPhone.get(normalized);
-    if (mapped) return { from: mapped, replyJid: mapped };
-    return { from: normalized, replyJid: normalized };
+    const from = phoneJid ?? lidToPhone.get(normalized) ?? normalized;
+    return { from, replyJid: normalized };
   }
 
+  if (phoneJid) return { from: phoneJid, replyJid: phoneJid };
   return { from: normalized, replyJid: normalized };
 }
 
@@ -132,9 +129,16 @@ export function detectMediaType(
 
 function socketIsOpen(sock: WASocket | null): boolean {
   if (!sock) return false;
-  const client = (sock as unknown as { ws?: { isOpen?: boolean } }).ws;
-  if (!client) return true;
-  return client.isOpen === true;
+  const ws = (sock as { ws?: { isOpen?: boolean; readyState?: number } }).ws;
+  if (!ws) return true;
+  if (ws.isOpen === true) return true;
+  if (typeof ws.readyState === "number") return ws.readyState === 1;
+  return true;
+}
+
+function linkedDeviceBrowser(): [string, string, string] {
+  const name = process.env.WA_LINKED_DEVICE_NAME?.trim() || "FlowDesk";
+  return [name, "Chrome", "120.0.0"];
 }
 
 function isStatusAudienceJid(jid: string): boolean {
@@ -203,6 +207,7 @@ export class WhatsAppClient extends EventEmitter {
   private msgRetryCounterCache = new NodeCache({ stdTTL: 600, useClones: false });
   private seenInboundIds = new NodeCache({ stdTTL: 300, useClones: false });
   private lidToPhone = new Map<string, string>();
+  private replyJidByContact = new Map<string, string>();
   public status: ConnectionStatus = "close";
   public lastQrDataUrl?: string;
   private connecting = false;
@@ -215,7 +220,22 @@ export class WhatsAppClient extends EventEmitter {
   ) {
     super();
     this.sessionPath = path.join(sessionsRoot, businessId);
+    this.ensureSessionDir();
+  }
+
+  private ensureSessionDir() {
     fs.mkdirSync(this.sessionPath, { recursive: true });
+  }
+
+  private stopSocket() {
+    const sock = this.sock;
+    if (!sock) return;
+    try {
+      sock.ev.removeAllListeners("creds.update");
+      sock.end(undefined);
+    } catch {
+      /* ignore */
+    }
   }
 
   private tryEmitInbound(msg: WAMessage) {
@@ -245,6 +265,7 @@ export class WhatsAppClient extends EventEmitter {
     }
 
     const { from, replyJid } = resolveAddress(msg.key, rawJid, this.lidToPhone);
+    this.rememberReplyJid(from, replyJid);
     const parsed: WhatsAppMessage = {
       from,
       replyJid,
@@ -316,7 +337,13 @@ export class WhatsAppClient extends EventEmitter {
 
     this.sock.ev.on("messages.upsert", ({ messages, type }) => {
       console.log(`[wa:${this.businessId}] upsert type=${type} count=${messages.length}`);
-      for (const msg of messages) this.tryEmitInbound(msg);
+      for (const msg of messages) {
+        if (msg.key.fromMe && msg.message && msg.key.id) {
+          this.messageStore.set(messageStoreKey(msg.key), msg.message);
+          continue;
+        }
+        this.tryEmitInbound(msg);
+      }
     });
 
     this.sock.ev.on("messages.update", (updates) => {
@@ -371,17 +398,22 @@ export class WhatsAppClient extends EventEmitter {
     this.status = "connecting";
     try {
       if (this.sock) {
-        try {
-          this.sock.end(undefined);
-        } catch {
-          /* ignore */
-        }
+        this.stopSocket();
         this.sock = null;
         this.boundSock = null;
         this.status = "close";
       }
 
-      const { state, saveCreds } = await useMultiFileAuthState(this.sessionPath);
+      this.ensureSessionDir();
+      const { state, saveCreds: persistCreds } = await useMultiFileAuthState(this.sessionPath);
+      const saveCreds = async () => {
+        try {
+          this.ensureSessionDir();
+          await persistCreds();
+        } catch (err) {
+          console.error(`[wa:${this.businessId}] saveCreds failed:`, err);
+        }
+      };
       let version: [number, number, number];
       try {
         const latest = await fetchLatestBaileysVersion();
@@ -393,6 +425,7 @@ export class WhatsAppClient extends EventEmitter {
       this.sock = makeWASocket({
         version,
         logger: this.logger as any,
+        browser: linkedDeviceBrowser(),
         auth: {
           creds: state.creds,
           keys: makeCacheableSignalKeyStore(state.keys, this.logger as any),
@@ -414,6 +447,23 @@ export class WhatsAppClient extends EventEmitter {
       this.status = "close";
       throw err;
     }
+  }
+
+  private rememberReplyJid(from: string, replyJid: string) {
+    const reply = replyJid.trim();
+    if (!reply) return;
+    this.replyJidByContact.set(from, reply);
+    this.replyJidByContact.set(reply, reply);
+    if (from !== reply) this.replyJidByContact.set(toSendJid(from), reply);
+  }
+
+  private resolveSendJid(to: string): string {
+    const raw = to.trim();
+    if (!raw) throw new Error("Destino vazio");
+    if (raw.includes("@")) return toSendJid(raw);
+    const cached = this.replyJidByContact.get(raw) ?? this.replyJidByContact.get(toSendJid(raw));
+    if (cached) return cached;
+    return toSendJid(raw);
   }
 
   private stashSentMessage(result: WAMessage | undefined) {
@@ -438,7 +488,7 @@ export class WhatsAppClient extends EventEmitter {
 
   async sendText(to: string, text: string): Promise<string | undefined> {
     if (!this.sock) throw new Error("Socket not connected");
-    const jid = toSendJid(to);
+    const jid = this.resolveSendJid(to);
     await this.ensurePreKeys();
     const result = await this.sock.sendMessage(jid, { text });
     this.stashSentMessage(result);
@@ -525,7 +575,7 @@ export class WhatsAppClient extends EventEmitter {
     caption?: string
   ): Promise<string | undefined> {
     if (!this.sock) throw new Error("Socket not connected");
-    const jid = toSendJid(to);
+    const jid = this.resolveSendJid(to);
     const { buffer, mimetype } = await this.loadRemoteMedia(mediaUrl, mediaType);
     const cap = caption?.trim() || undefined;
     const content =
@@ -696,16 +746,26 @@ export class WhatsAppClient extends EventEmitter {
     this.cancelScheduledReconnect();
     this.connecting = false;
     this.lastQrDataUrl = undefined;
-    try {
-      await this.sock?.logout();
-    } catch {
-      /* ignore */
-    }
+    const sock = this.sock;
     this.sock = null;
     this.boundSock = null;
     this.status = "close";
+    if (sock) {
+      sock.ev.removeAllListeners("creds.update");
+      try {
+        await sock.logout();
+      } catch {
+        /* ignore */
+      }
+      try {
+        sock.end(undefined);
+      } catch {
+        /* ignore */
+      }
+    }
     this.messageStore.clear();
     this.lidToPhone.clear();
+    this.replyJidByContact.clear();
     if (fs.existsSync(this.sessionPath)) {
       fs.rmSync(this.sessionPath, { recursive: true, force: true });
     }

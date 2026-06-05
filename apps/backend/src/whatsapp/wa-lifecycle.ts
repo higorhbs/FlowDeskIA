@@ -164,7 +164,7 @@ export function attachWhatsAppMessageHandler(businessId: string, client: WhatsAp
       } else if (!loggedRedisDirectMode) {
         loggedRedisDirectMode = true
         console.warn(
-          '[whatsapp] Redis indisponível — bot responde direto (sem fila). Suba: docker compose up -d redis'
+          '[whatsapp] Redis indisponível — bot responde direto (sem fila). Configure REDIS_URL.'
         )
       }
       try {

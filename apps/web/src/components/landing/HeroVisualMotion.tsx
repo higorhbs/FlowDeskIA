@@ -44,7 +44,7 @@ export function HeroVisualMotion({
   });
 
   return (
-    <div className="relative mx-auto mt-10 max-w-6xl px-4 sm:mt-14 sm:px-6 lg:px-8">
+    <div className="relative mx-auto mt-10 hidden max-w-6xl px-4 sm:mt-14 sm:px-6 md:block lg:px-8">
       <motion.div
         key={enterKey("visual")}
         className="relative isolate rounded-[1.75rem] sm:rounded-[2rem]"

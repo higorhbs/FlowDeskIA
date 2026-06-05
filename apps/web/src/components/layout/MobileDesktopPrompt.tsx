@@ -5,7 +5,11 @@ import { Monitor, Smartphone, ArrowRight, Copy, Check } from "lucide-react";
 import { APP_DISPLAY_NAME } from "@flowdesk/shared";
 import { Button } from "@/components/ui/button";
 
-export function MobileDesktopPrompt() {
+type MobileDesktopPromptProps = {
+  variant?: "default" | "setup";
+};
+
+export function MobileDesktopPrompt({ variant = "default" }: MobileDesktopPromptProps) {
   const [url, setUrl] = useState("");
   const [copied, setCopied] = useState(false);
 
@@ -43,12 +47,24 @@ export function MobileDesktopPrompt() {
           {APP_DISPLAY_NAME}
         </p>
         <h1 className="text-2xl font-bold text-white leading-tight mb-3">
-          O painel funciona no computador
+          {variant === "setup"
+            ? "Negócio criado! Use o painel no computador"
+            : "O painel funciona no computador"}
         </h1>
         <p className="text-sm text-white/85 leading-relaxed mb-8">
-          Ainda não temos versão para celular. Abra este mesmo endereço no{" "}
-          <strong className="font-semibold text-white">Chrome, Edge ou Safari no PC</strong>{" "}
-          para usar o sistema com segurança.
+          {variant === "setup" ? (
+            <>
+              Sua conta e seu negócio já estão salvos na nuvem. Para conectar o WhatsApp,
+              conversas, IA e demais ferramentas, abra este mesmo endereço no{" "}
+              <strong className="font-semibold text-white">Chrome, Edge ou Safari no PC</strong>.
+            </>
+          ) : (
+            <>
+              O painel completo ainda não está disponível no celular. Abra este mesmo endereço no{" "}
+              <strong className="font-semibold text-white">Chrome, Edge ou Safari no PC</strong>{" "}
+              para usar o sistema com segurança.
+            </>
+          )}
         </p>
 
         <div className="rounded-2xl bg-white/95 backdrop-blur-sm p-5 text-left shadow-2xl shadow-black/15 space-y-4">
@@ -98,7 +114,9 @@ export function MobileDesktopPrompt() {
         </div>
 
         <p className="mt-6 text-xs text-white/60">
-          Obrigado pela paciência — em breve podemos ter suporte mobile.
+          {variant === "setup"
+            ? "No celular você já pode criar conta e cadastrar o negócio; o restante é no desktop."
+            : "Obrigado pela paciência — em breve podemos ter suporte mobile."}
         </p>
       </div>
     </div>

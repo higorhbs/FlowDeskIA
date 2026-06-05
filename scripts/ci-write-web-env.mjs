@@ -4,15 +4,15 @@ import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || "";
-const backendUrl =
-  process.env.NEXT_PUBLIC_BACKEND_URL?.trim() ||
+const waApiUrl =
   process.env.NEXT_PUBLIC_WA_API_URL?.trim() ||
-  apiUrl;
+  process.env.NEXT_PUBLIC_API_URL?.trim() ||
+  "";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || waApiUrl;
 
 const keys = [
   "NEXT_PUBLIC_API_URL",
-  "NEXT_PUBLIC_BACKEND_URL",
+  "NEXT_PUBLIC_WA_API_URL",
   "NEXT_PUBLIC_FIREBASE_API_KEY",
   "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
   "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
@@ -21,15 +21,24 @@ const keys = [
   "NEXT_PUBLIC_FIREBASE_APP_ID",
   "NEXT_PUBLIC_GOOGLE_CLIENT_ID",
   "NEXT_PUBLIC_GOOGLE_ADS_ID",
+  "NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL",
   "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
   "NEXT_PUBLIC_STRIPE_PAYMENT_LINK_STARTER",
   "NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO",
   "NEXT_PUBLIC_STRIPE_PAYMENT_LINK_UNLIMITED",
   "NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL",
+  "NEXT_PUBLIC_SWETRIX_PROJECT_ID",
+  "NEXT_PUBLIC_SWETRIX_API_URL",
+  "NEXT_PUBLIC_LEGAL_ENTITY_TYPE",
+  "NEXT_PUBLIC_LEGAL_ENTITY_NAME",
+  "NEXT_PUBLIC_LEGAL_ENTITY_DOCUMENT",
+  "NEXT_PUBLIC_LEGAL_WEBSITE",
+  "NEXT_PUBLIC_PRIVACY_EMAIL",
+  "NEXT_PUBLIC_SUPPORT_EMAIL",
 ];
 
-if (!apiUrl) {
-  console.error("NEXT_PUBLIC_API_URL ausente no ambiente do CI.");
+if (!apiUrl && !waApiUrl) {
+  console.error("NEXT_PUBLIC_API_URL ou NEXT_PUBLIC_WA_API_URL ausente no ambiente do CI.");
   process.exit(1);
 }
 
@@ -51,8 +60,13 @@ const projectId =
 const lines = keys.map((k) => {
   if (k === "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN") return `${k}=${authDomain}`;
   if (k === "NEXT_PUBLIC_FIREBASE_PROJECT_ID") return `${k}=${projectId}`;
-  if (k === "NEXT_PUBLIC_BACKEND_URL") return `${k}=${backendUrl}`;
+  if (k === "NEXT_PUBLIC_API_URL") return `${k}=${apiUrl}`;
+  if (k === "NEXT_PUBLIC_WA_API_URL") return `${k}=${waApiUrl}`;
   return `${k}=${process.env[k] ?? ""}`;
 });
 writeFileSync(resolve(root, "apps/web/.env.production"), `${lines.join("\n")}\n`);
+const swetrixId = process.env.NEXT_PUBLIC_SWETRIX_PROJECT_ID?.trim() ?? "";
+if (!swetrixId) {
+  console.warn("⚠️  NEXT_PUBLIC_SWETRIX_PROJECT_ID ausente no CI — analytics Swetrix desligado no build.");
+}
 console.log("apps/web/.env.production gerado para CI.");

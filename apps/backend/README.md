@@ -97,7 +97,7 @@ src/
 | `POST` | `/auth/confirm-verification/session` | Confirmar sessão (Bearer) |
 | `POST` | `/auth/sync` | Criar tenant Firestore (Bearer) |
 
-Env: `FIREBASE_WEB_API_KEY`, credencial Admin (igual `@flowdesk/api`), `WEB_ORIGIN`, `CORS_ORIGIN`.
+Env: `FIREBASE_WEB_API_KEY`, credencial Admin, `WEB_ORIGIN`, `CORS_ORIGIN`, `STRIPE_*`, `ASAAS_*`.
 
 ### Negócios (onboarding)
 
@@ -135,18 +135,52 @@ Requer `ENABLE_WORKERS=true` e `WA_SESSION_PATH`.
 | `DELETE` | `/stories/whatsapp/:businessId/:statusId` | Cancela pendente |
 | `DELETE` | `/stories/whatsapp/:businessId/series/:seriesId` | Cancela série |
 
+### Billing (Stripe)
+
+| Método | Path | Auth |
+| ------ | ---- | ---- |
+| `POST` | `/billing/sync` | Bearer |
+| `POST` | `/billing/checkout` | Bearer |
+| `POST` | `/billing/portal` | Bearer |
+| `GET` | `/billing/prices` | Bearer |
+
+### Privacidade (LGPD)
+
+| Método | Path | Auth |
+| ------ | ---- | ---- |
+| `GET` | `/privacy/export` | Bearer |
+| `POST` | `/privacy/requests` | Bearer |
+| `POST` | `/privacy/delete-account` | Bearer |
+| `POST` | `/privacy/anonymize` | Bearer |
+| `POST` | `/privacy/retention/run` | Bearer |
+
+### Integração Asaas
+
+| Método | Path | Auth |
+| ------ | ---- | ---- |
+| `GET` | `/businesses/:id/integrations/asaas` | Bearer |
+| `PUT` | `/businesses/:id/integrations/asaas` | Bearer |
+| `DELETE` | `/businesses/:id/integrations/asaas` | Bearer |
+
+### Webhooks (sem Bearer)
+
+| Método | Path |
+| ------ | ---- |
+| `POST` | `/webhooks/stripe` |
+| `POST` | `/webhooks/asaas` |
+
 ### Notificações internas (`INTERNAL_NOTIFY_SECRET` + header `x-internal-secret`)
 
 | Método | Path | Uso |
 | ------ | ---- | --- |
-| `POST` | `/internal/notifications/payment` | `apps/api` após pagamento Asaas `PAID` |
+| `POST` | `/internal/notifications/payment` | Legado — webhook Asaas chama in-process |
 | `POST` | `/internal/notifications/booking` | Confirmação de agendamento via WA |
 
-### Deploy Docker
+### Deploy
 
 ```bash
-docker compose -f docker-compose.prod.yml build backend
-docker compose -f docker-compose.prod.yml up -d backend redis
+pnpm build
+node src/index.js
 ```
 
-Imagem: `apps/backend/Dockerfile`. Workers exigem `REDIS_URL` e `ENABLE_WORKERS=true`.
+Workers exigem `REDIS_URL` e `ENABLE_WORKERS=true`. Firestore rules/índices e Hosting são geridos no [Firebase Console](https://console.firebase.google.com).

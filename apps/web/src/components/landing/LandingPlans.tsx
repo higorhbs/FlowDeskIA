@@ -5,7 +5,7 @@ import { WobbleCard } from "@/components/ui/wobble-card";
 import { Button } from "@/components/ui/button";
 import { useAuthDrawer } from "@/contexts/auth-drawer-context";
 import { cn, formatCurrency } from "@/lib/utils";
-import { PLAN_PRICES, planMarketingFeatures } from "@flowdesk/shared";
+import { PLAN_PRICES, planMarketingFeatures, STARTER_TRIAL_DAYS } from "@flowdesk/shared";
 import type { PlanTier } from "@flowdesk/shared";
 
 type PlanCardConfig = {
@@ -82,7 +82,7 @@ function PlanWobbleCard({
             <span className="text-sm font-medium text-white/70">/mês</span>
           </p>
           <p className="mt-1 text-sm text-white/65">
-            {id === "STARTER" ? "14 dias grátis · sem cartão" : "Cobrança imediata"}
+            {id === "STARTER" ? `${STARTER_TRIAL_DAYS} dias grátis · sem cartão` : "Cobrança imediata"}
           </p>
 
           <ul className="mt-6 flex-1 space-y-2.5 text-sm text-white/90">
@@ -115,7 +115,7 @@ function PlanWobbleCard({
   );
 }
 
-export function LandingPlans() {
+export function LandingPlans({ adMode = false }: { adMode?: boolean }) {
   const { openAuth } = useAuthDrawer();
 
   return (
@@ -130,18 +130,28 @@ export function LandingPlans() {
       />
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200/80 bg-white/80 px-3 py-1 text-xs font-semibold text-brand-800 shadow-sm backdrop-blur-sm">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold shadow-sm backdrop-blur-sm ${
+              adMode
+                ? "border-brand-300 bg-brand-50 text-brand-800 ring-2 ring-brand-200/60"
+                : "border-brand-200/80 bg-white/80 text-brand-800"
+            }`}
+          >
             <Zap className="size-3" aria-hidden />
-            Starter: 14 dias grátis
+            {adMode
+              ? `Teste grátis ${STARTER_TRIAL_DAYS} dias — sem cartão`
+              : `Starter: ${STARTER_TRIAL_DAYS} dias grátis`}
           </span>
           <h2
             id="plans-heading"
             className="mt-4 text-2xl font-bold tracking-tight text-foreground sm:text-3xl"
           >
-            Planos simples para crescer no WhatsApp
+            {adMode ? "Escolha seu plano e comece agora" : "Planos simples para crescer no WhatsApp"}
           </h2>
           <p className="mt-3 text-base text-muted-foreground sm:text-lg">
-            Sem taxa escondida. Escale quando precisar — do trial ao plano completo.
+            {adMode
+              ? "Ative o trial em um clique. Upgrade só quando fizer sentido para o seu negócio."
+              : "Sem taxa escondida. Escale quando precisar — do trial ao plano completo."}
           </p>
         </div>
 

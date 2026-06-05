@@ -7,10 +7,9 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "pnpm run build:deps && pnpm run build:whatsapp && node --watch src/index.js",
-    "dev:redis": "docker compose -f ../../docker-compose.yml up -d redis",
+    "dev": "node ../../scripts/backend-dev.mjs",
     "build": "pnpm run build:deps && pnpm run build:whatsapp && node --check src/index.js",
-    "build:deps": "pnpm --filter @flowdesk/shared build && pnpm --filter @flowdesk/firebase build && pnpm --filter @flowdesk/whatsapp-client build",
+    "build:deps": "pnpm --filter @flowdesk/shared --filter @flowdesk/firebase --filter @flowdesk/whatsapp-client --parallel run build",
     "build:whatsapp": "tsc -p tsconfig.whatsapp.json",
     "start": "node src/index.js"
   },
@@ -25,6 +24,7 @@
     "date-fns": "^3.6.0",
     "hono": "^4.12.23",
     "ioredis": "^5.4.1",
+    "stripe": "^22.2.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

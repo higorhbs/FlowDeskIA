@@ -42,7 +42,7 @@ Vocabulário e fluxos adaptados para: **Barbearia**, **Salão**, **Restaurante**
 ### Conta e conformidade
 
 - Login com **Google** ou **e-mail/senha** (Firebase Auth)
-- **Trial de 14 dias** no plano Starter
+- **Trial de 7 dias** no plano Starter
 - **LGPD**: exportação de dados, solicitações de titular, exclusão de conta
 - Retenção automática de dados (configurável na API)
 
@@ -57,22 +57,15 @@ O monorepo é dividido em três camadas em produção:
 │  Dashboard Web  │ ◄──────────────────────► │  Firebase Auth   │
 │  (Next.js SPA)  │                            │  + Firestore     │
 └────────┬────────┘                            └──────────────────┘
-         │ REST (billing, privacy, Asaas)
+         │ REST (billing, privacy, Asaas, WhatsApp)
          ▼
 ┌─────────────────┐
-│  API Fastify    │  Firebase Functions (/api/*) ou VM Oracle (Docker)
-└─────────────────┘
-
-         │ REST (connect, send, bot)
-         ▼
-┌─────────────────┐
-│  Backend Hono   │  apps/backend — Baileys, filas Redis, bot, status
+│  Backend Hono   │  VM Oracle (Docker) ou local :3001
 └─────────────────┘
 ```
 
 - **Dashboard**: lê e grava negócios, catálogo, FAQ, conversas e agendamentos **direto no Firestore** (regras de segurança por `tenantId`).
-- **API** (`apps/api`): cobrança Stripe, webhooks, integração Asaas, privacidade/LGPD e sync de tenant.
-- **Backend** (`apps/backend`): WhatsApp (Baileys), bot inbound, workers BullMQ e rotas do painel (`/chat/whatsapp/*`).
+- **Backend**: WhatsApp (Baileys), cobrança Stripe, webhooks, integração Asaas, privacidade/LGPD e auth sync.
 
 ---
 
@@ -82,13 +75,13 @@ O monorepo é dividido em três camadas em produção:
 | --- | --- |
 | Monorepo | Turborepo + pnpm |
 | Frontend | Next.js 16 (App Router), Tailwind CSS 4, TanStack Query |
-| API | Fastify + TypeScript |
+| Backend | Hono + Node.js (WhatsApp em TypeScript) |
 | Banco / Auth | Firebase Firestore + Firebase Authentication |
 | Pagamentos assinatura | Stripe |
 | Pagamentos PIX | Asaas |
-| WhatsApp | Baileys (`apps/backend` + Redis) |
-| Deploy web | Firebase Hosting (export estático) |
-| Deploy API | Firebase Functions ou Docker na Oracle Cloud |
+| WhatsApp | Baileys (agente externo `flowdesk-wa`) |
+| Deploy web | Firebase Hosting (console ou upload de `apps/web/out`) |
+| Deploy backend | Node.js na VM/servidor (`pnpm build` + `node src/index.js`) |
 
 ---
 
@@ -98,15 +91,12 @@ O monorepo é dividido em três camadas em produção:
 flowdesk/
 ├── apps/
 │   ├── web/                 # Dashboard Next.js (porta 3000)
-│   ├── api/                 # API Fastify — billing, webhooks, privacy
-│   └── backend/             # Hono — WhatsApp, auth/negócios HTTP, workers
+│   └── backend/             # Backend Hono (porta 3001)
 ├── packages/
 │   ├── firebase/            # Admin SDK + client Firestore (client-ops)
 │   ├── shared/              # Intents, planos, vocabulário, menu do bot
-│   └── whatsapp-client/     # Wrapper Baileys
-├── scripts/                 # Deploy, Stripe, hosting, Oracle VM
-├── firebase.json            # Hosting + Functions + Firestore
-└── docker-compose*.yml      # API na VM (opcional)
+│   └── whatsapp-client/     # Wrapper Baileys (usado pelo flowdesk-wa)
+└── scripts/                 # Build hosting, Stripe, env de produção
 ```
 
 ---
@@ -120,7 +110,7 @@ flowdesk/
 - Projeto Firebase (Auth + Firestore + Hosting)
 - Credencial Admin em `.secrets/firebase-adminsdk.json`
 
-> Redis e `ENABLE_WORKERS=true` no backend são necessários para QR, bot inbound e status agendado.
+> Redis e o agente WhatsApp só são necessários para testar conexão/bot localmente (`flowdesk-wa`).
 
 ### Setup
 
@@ -142,19 +132,19 @@ GOOGLE_APPLICATION_CREDENTIALS=.secrets/firebase-adminsdk.json
 ### Desenvolvimento
 
 ```bash
-pnpm dev          # web :3000 + api + backend (turbo)
+pnpm dev          # web :3000 + backend :3001
 pnpm dev:web      # só frontend
-pnpm dev:api      # só API (billing)
-pnpm dev:backend  # backend :3001 (WhatsApp + rotas painel)
+pnpm dev:backend  # só backend
 ```
 
 | Serviço | URL |
 | --- | --- |
 | Dashboard | http://localhost:3000 |
-| API | http://localhost:3001 |
+| Backend | http://localhost:3001 |
 | Health | http://localhost:3001/health |
+| Swagger | http://localhost:3001/swagger |
 
-Para WhatsApp completo (QR, bot, envio), suba o **backend** com Redis e `NEXT_PUBLIC_BACKEND_URL=http://localhost:3001` no web.
+Configure `NEXT_PUBLIC_WA_API_URL` e `NEXT_PUBLIC_API_URL` para a mesma URL do backend.
 
 ---
 
@@ -162,7 +152,7 @@ Para WhatsApp completo (QR, bot, envio), suba o **backend** com Redis e `NEXT_PU
 
 | Plano | Preço | Mensagens/mês | Catálogo | Agendamentos/mês | Extras |
 | --- | --- | --- | --- | --- | --- |
-| **Starter** | R$ 69,90 | 500 | 3 itens | 30 | 2 stories/mês · Trial 14 dias |
+| **Starter** | R$ 69,90 | 500 | 3 itens | 30 | 2 stories/mês · Trial 7 dias |
 | **Pro** | R$ 99 | 5.000 | 100 itens | 500 | 10 stories/mês · PIX Asaas |
 | **Unlimited** | R$ 199 | Ilimitado | Ilimitado | Ilimitado | Stories ilimitados |
 
@@ -172,27 +162,28 @@ Sincronizar preços Stripe: `pnpm stripe:sync-prices`
 
 ## Deploy
 
-| Componente | Onde | Comando / doc |
+Firebase (Hosting, Firestore rules, índices, Auth domains) é configurado no **Firebase Console**, não neste repositório.
+
+| Componente | Onde | Como |
 | --- | --- | --- |
-| **Web** | Firebase Hosting | `pnpm deploy:hosting` |
-| **Firestore** | Regras e índices | `pnpm deploy:firestore` |
-| **API** | Firebase Functions (`/api/*`) | `firebase deploy --only functions` |
-| **API (VM)** | Oracle Cloud + Caddy + Docker | `scripts/oracle/deploy-api.sh` — ver `scripts/oracle/BILLING-VM-SETUP.md` |
-| **WhatsApp** | `apps/backend` (Pi/VPS + Redis) | `docker compose` ou `pnpm dev:backend` |
+| **Web** | Firebase Hosting | `pnpm setup:billing-env` → `pnpm build:hosting` → publicar `apps/web/out` no console |
+| **Firestore** | Firebase Console | Rules e índices no painel |
+| **Backend** | VM/servidor | `pnpm --filter @flowdesk/backend build` + processo Node na porta 3001 |
 
 ### Front de produção
 
 ```bash
 pnpm setup:billing-env    # gera apps/web/.env.production a partir do .env
-pnpm deploy:hosting
+pnpm build:hosting        # gera apps/web/out
+# Publique o conteúdo de apps/web/out no Firebase Hosting (console)
 ```
 
 Variáveis essenciais em `apps/web/.env.production`:
 
 | Variável | Uso |
 | --- | --- |
-| `NEXT_PUBLIC_API_URL` | API de billing/privacy (ex.: `https://projeto.web.app/api`) |
-| `NEXT_PUBLIC_BACKEND_URL` | Backend WhatsApp (ex.: `https://wa.seudominio.com`) |
+| `NEXT_PUBLIC_API_URL` | Backend (billing/privacy/Asaas) — mesma URL do WA |
+| `NEXT_PUBLIC_WA_API_URL` | Backend WhatsApp (ex.: `https://wa.seudominio.com`) |
 | `NEXT_PUBLIC_FIREBASE_*` | Config do projeto Firebase |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Login Google |
 
@@ -208,24 +199,14 @@ Deixe os Payment Links Stripe vazios em produção — checkout passa pela API p
 | `CORS_ORIGIN` | URL(s) do Hosting |
 | `PRIVACY_RETENTION_INTERVAL_HOURS` | Job de retenção LGPD (0 = desligado) |
 
-### Backend WhatsApp (`apps/backend/.env`)
+### Agente WhatsApp (flowdesk-wa)
 
 | Variável | Uso |
 | --- | --- |
-| `ENABLE_WORKERS` | Liga restore Baileys + workers |
-| `REDIS_URL` | BullMQ (obrigatório com workers) |
+| `FIREBASE_*` | Leitura/escrita Firestore |
+| `REDIS_URL` | Filas e sessão |
 | `WA_SESSION_PATH` | Persistência Baileys |
-| `WA_API_PUBLIC_URL` | URL pública para links de mídia |
-| `INTERNAL_NOTIFY_SECRET` | `POST /internal/notifications/*` (apps/api encaminha) |
-| `FIREBASE_*` / `GOOGLE_APPLICATION_CREDENTIALS` | Admin SDK |
-| `CORS_ORIGIN` / `WEB_ORIGIN` | URL do dashboard |
-
-### API → backend (notificações WA)
-
-| Variável | Uso |
-| --- | --- |
-| `BACKEND_NOTIFY_URL` | Base do backend (ex.: `http://backend:3001`) |
-| `INTERNAL_NOTIFY_SECRET` | Mesmo valor do backend |
+| `CORS_ORIGIN` | URL do dashboard |
 
 ---
 
@@ -233,7 +214,7 @@ Deixe os Payment Links Stripe vazios em produção — checkout passa pela API p
 
 1. Dashboard → **Negócios** → **WhatsApp**
 2. **Gerar QR Code** e escanear no celular
-3. Bot ativo após conectar (requer `pnpm dev:backend` com Redis e `ENABLE_WORKERS=true`)
+3. Bot ativo após conectar (requer agente `flowdesk-wa` no ar)
 
 ---
 
@@ -243,21 +224,9 @@ Deixe os Payment Links Stripe vazios em produção — checkout passa pela API p
 | --- | --- |
 | `pnpm google:oauth-setup` | URLs de redirect OAuth |
 | `pnpm prepare:hosting` | Copia packages para `apps/web/vendor` |
-| `pnpm build:hosting` | Build estático para Firebase Hosting |
-| `pnpm preview:hosting` | Preview local do export |
+| `pnpm build:hosting` | Build estático (`apps/web/out`) |
 | `pnpm setup:billing-env` | Gera `.env.production` do web |
-| `pnpm setup:github-deploy` | Secrets GitHub Actions (deploy VM) |
-| `pnpm setup:server-env` | Template `.env` para servidor |
-| `pnpm oracle:prep-env` | Prepara env local para Oracle |
-| `pnpm oracle:setup-billing` | Stripe webhook na VM |
-
----
-
-## CI
-
-- **`.github/workflows/deploy-api-image.yml`** — build e push da imagem Docker `ghcr.io/OWNER/flowdesk-api` a cada push em `main` (paths da API/packages).
-
-Na VM, defina `API_IMAGE=ghcr.io/OWNER/flowdesk-api:latest` no `.env` para deploy em ~30s sem rebuild local.
+| `pnpm setup:github-deploy` | Sincroniza secrets GitHub (env do front) |
 
 ---
 

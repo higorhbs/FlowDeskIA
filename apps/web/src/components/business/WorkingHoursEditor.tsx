@@ -218,11 +218,7 @@ type Props = {
   onLunchBreakChange: (value: LunchBreakValue) => void;
   lunchMsg: string;
   onLunchMsgChange: (value: string) => void;
-  onQuickSaveException?: (
-    payload: { date: string; slot: [string, string] | null } | { date: string; remove: true },
-  ) => void | Promise<void>;
-  onQuickSaveWorkingHours?: () => void | Promise<void>;
-  onQuickSaveLunch?: (data: { lunchBreak: LunchBreakValue; lunchMsg: string }) => void | Promise<void>;
+  onCommit?: () => void;
 };
 
 export function WorkingHoursEditor({
@@ -234,9 +230,7 @@ export function WorkingHoursEditor({
   onLunchBreakChange,
   lunchMsg,
   onLunchMsgChange,
-  onQuickSaveException,
-  onQuickSaveWorkingHours,
-  onQuickSaveLunch,
+  onCommit,
 }: Props) {
   const [editingDay, setEditingDay] = useState<string | null>(null);
   const [specialDate, setSpecialDate] = useState("");
@@ -284,16 +278,15 @@ export function WorkingHoursEditor({
     const dayKey = dayKeyFromDate(today);
     const baseSlot = specialHours[todayKey] ?? value[dayKey] ?? ["09:00", "18:00"];
     const openAt = baseSlot ? baseSlot[0] : "09:00";
-    const slot: [string, string] = [openAt, time];
-    onSpecialHoursChange({ ...specialHours, [todayKey]: slot });
-    void onQuickSaveException?.({ date: todayKey, slot });
+    onSpecialHoursChange({ ...specialHours, [todayKey]: [openAt, time] });
+    onCommit?.();
   }
 
   function addSpecialDay() {
     if (!specialDate) return;
     const slot: [string, string] | null = specialClosed ? null : [specialOpen, specialClose];
     onSpecialHoursChange({ ...specialHours, [specialDate]: slot });
-    void onQuickSaveException?.({ date: specialDate, slot });
+    onCommit?.();
     setSpecialDate("");
     setSpecialClosed(false);
   }
@@ -387,7 +380,7 @@ export function WorkingHoursEditor({
                         type="button"
                         onClick={() => {
                           setEditingDay(null);
-                          void onQuickSaveWorkingHours?.();
+                          onCommit?.();
                         }}
                         className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-800 transition-colors"
                       >
@@ -449,9 +442,8 @@ export function WorkingHoursEditor({
           <Toggle
             checked={lunchBreak !== null}
             onChange={(enabled) => {
-              const next = enabled ? lunchBreak ?? ["12:00", "13:00"] : null;
-              onLunchBreakChange(next);
-              void onQuickSaveLunch?.({ lunchBreak: next, lunchMsg });
+              onLunchBreakChange(enabled ? lunchBreak ?? ["12:00", "13:00"] : null);
+              onCommit?.();
             }}
           />
         </div>
@@ -469,7 +461,7 @@ export function WorkingHoursEditor({
               />
               <button
                 type="button"
-                onClick={() => void onQuickSaveLunch?.({ lunchBreak, lunchMsg })}
+                onClick={() => onCommit?.()}
                 className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-800 transition-colors"
               >
                 <Check className="w-3.5 h-3.5" />
@@ -544,9 +536,8 @@ export function WorkingHoursEditor({
           <button
             type="button"
             onClick={() => {
-              const todayKey = dateKeyFromOffset(0);
-              onSpecialHoursChange({ ...specialHours, [todayKey]: null });
-              void onQuickSaveException?.({ date: todayKey, slot: null });
+              onSpecialHoursChange({ ...specialHours, [dateKeyFromOffset(0)]: null });
+              onCommit?.();
             }}
             className="text-xs border border-red-200 bg-red-50 text-red-700 rounded-lg px-3 py-1.5 hover:bg-red-100"
           >
@@ -581,7 +572,7 @@ export function WorkingHoursEditor({
                     const next = { ...specialHours };
                     delete next[day];
                     onSpecialHoursChange(next);
-                    void onQuickSaveException?.({ date: day, remove: true });
+                    onCommit?.();
                   }}
                   className="text-xs text-red-600 hover:text-red-700"
                 >

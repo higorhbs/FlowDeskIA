@@ -7,17 +7,12 @@ import { ptBR } from "date-fns/locale";
 import {
   APP_DISPLAY_NAME,
   PLAN_LIMITS,
-  countScheduledStoriesInMonth,
+  storiesQuotaUsed,
   formatPlanLimit,
   type PlanTier,
 } from "@flowdesk/shared";
-import {
-  scheduledStatusApi,
-  businessApi,
-  tenantApi,
-  resolveChatMediaUrl,
-  type ScheduledStatus,
-} from "@/lib/api";
+import { getClientTenantStoriesPublished } from "@flowdesk/firebase/client";
+import { scheduledStatusApi, businessApi, tenantApi, type ScheduledStatus } from "@/lib/api";
 import { useBusinessId } from "@/lib/use-business-id";
 import { useAuth } from "@/contexts/auth-context";
 import { useSyncWhatsAppBusiness } from "@/lib/use-sync-wa-business";
@@ -72,6 +67,7 @@ export default function StatusSchedulePage() {
   const { ready, uid } = useAuth();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const submittingRef = useRef(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
@@ -93,7 +89,7 @@ export default function StatusSchedulePage() {
   const [selectedMinute, setSelectedMinute] = useState<number>(() => initialSchedule.getMinutes());
   const mountedAt = useMemo(() => new Date(), []);
 
-  const { connected } = useSyncWhatsAppBusiness(businessId);
+  const { connectedStable } = useSyncWhatsAppBusiness(businessId);
 
   const { data: business } = useQuery({
     queryKey: ["business", businessId],
@@ -114,9 +110,19 @@ export default function StatusSchedulePage() {
     enabled: ready && !!uid,
   });
 
+  const { data: storiesPublished = 0 } = useQuery({
+    queryKey: ["tenant-stories-published", uid],
+    queryFn: () => getClientTenantStoriesPublished(uid!),
+    enabled: ready && !!uid,
+    refetchInterval: 20_000,
+  });
+
   const plan = (tenant?.plan ?? "STARTER") as PlanTier;
   const storiesLimit = PLAN_LIMITS[plan].scheduledStoriesPerMonth;
-  const storiesUsed = useMemo(() => countScheduledStoriesInMonth(items), [items]);
+  const storiesUsed = useMemo(
+    () => storiesQuotaUsed(storiesPublished, items),
+    [storiesPublished, items],
+  );
   const storiesLeft = Number.isFinite(storiesLimit)
     ? Math.max(0, storiesLimit - storiesUsed)
     : Infinity;
@@ -124,8 +130,17 @@ export default function StatusSchedulePage() {
     !publishNow && Number.isFinite(storiesLimit) && selectedDayKeys.length > storiesLeft;
 
   const createMutation = useMutation({
+    retry: false,
     mutationFn: async () => {
+      if (submittingRef.current) throw new Error("Agendamento em andamento.");
+      submittingRef.current = true;
+      try {
       if (!file) throw new Error("Selecione uma imagem ou vídeo.");
+      if (publishNow && storiesLeft === 0) {
+        throw new Error(
+          `Seu plano permite ${storiesLimit} publicações de stories por mês e você já atingiu o limite.`,
+        );
+      }
       if (selectionExceedsQuota) {
         throw new Error(
           storiesLeft === 0
@@ -144,9 +159,13 @@ export default function StatusSchedulePage() {
         hour: selectedHour,
         minute: selectedMinute,
       });
+      } finally {
+        submittingRef.current = false;
+      }
     },
     onSuccess: (rows) => {
       void queryClient.invalidateQueries({ queryKey: ["scheduled-status", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["tenant-stories-published", uid] });
       setFile(null);
       setPreview(null);
       setCaption("");
@@ -201,6 +220,14 @@ export default function StatusSchedulePage() {
     return m;
   }, [pending]);
 
+  const duplicateScheduleSlots = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const i of pending) {
+      counts.set(i.scheduledAt, (counts.get(i.scheduledAt) ?? 0) + 1);
+    }
+    return [...counts.entries()].filter(([, n]) => n > 1);
+  }, [pending]);
+
   function onPickFile(f: File | null) {
     setFile(f);
     if (preview) URL.revokeObjectURL(preview);
@@ -247,7 +274,7 @@ export default function StatusSchedulePage() {
         </div>
       )}
 
-      {!connected && (
+      {!connectedStable && (
         <div className="flex items-start gap-3 mb-6 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200">
           <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-amber-900">
@@ -269,7 +296,7 @@ export default function StatusSchedulePage() {
 
           {/* File picker */}
           <div>
-            <Label className="mb-2 block">Arte (imagem ou vídeo MP4)</Label>
+            <Label className="mb-2 block">Arte (JPEG, PNG ou vídeo MP4 — WebP vira JPEG ao enviar)</Label>
             <input
               ref={fileRef}
               type="file"
@@ -366,6 +393,11 @@ export default function StatusSchedulePage() {
             ou no celular abra a aba <strong className="font-medium text-gray-700">Atualizações</strong>{" "}
             (não só o círculo do perfil). Às vezes o app mostra &quot;aguardando atualização&quot; por
             alguns minutos mesmo com o status no ar — isso é normal ao publicar pela API.
+            No <strong className="font-medium text-gray-700">iPhone</strong>, deixe o WhatsApp aberto no celular
+            por 1–2 min após o horário agendado; se aparecer &quot;Aguardando a atualização de status&quot;, feche e
+            reabra o app ou toque em &quot;Saiba mais&quot; e aguarde a sincronização com o dispositivo vinculado.
+            Status publicados pela API costumam não poder ser apagados pelo celular; cancele aqui na fila
+            antes do horário se precisar desistir.
           </p>
 
           <Button
@@ -403,6 +435,17 @@ export default function StatusSchedulePage() {
             Nenhum status agendado.
           </p>
         ) : (
+          <>
+            {duplicateScheduleSlots.length > 0 && (
+              <div className="flex items-start gap-3 mb-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-900">
+                  Há {duplicateScheduleSlots.length} horário(s) com mais de um story na fila.
+                  O WhatsApp não lida bem com dois status no mesmo minuto — o segundo pode falhar ou
+                  ficar estranho no celular. Espaçe em <strong>2–3 minutos</strong> ou cancele um.
+                </p>
+              </div>
+            )}
           <ul className="space-y-3">
             {pending.map((row) => (
               <StatusRow
@@ -424,6 +467,7 @@ export default function StatusSchedulePage() {
               />
             ))}
           </ul>
+          </>
         )}
       </section>
 
@@ -474,15 +518,14 @@ function StatusRow({
   const [repostOpen, setRepostOpen] = useState(false);
   const when = format(new Date(row.scheduledAt), "dd/MM/yyyy HH:mm", { locale: ptBR });
   const isVideo = row.mediaType === "video";
-  const mediaSrc = resolveChatMediaUrl(row.mediaUrl);
   const canRepost = REPOSTABLE.includes(row.status);
 
   return (
     <li className="flex gap-3 p-3 rounded-xl border border-gray-100 bg-white shadow-sm">
       <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-        {mediaSrc && !isVideo ? (
+        {row.mediaUrl && !isVideo ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={mediaSrc} alt="" className="w-full h-full object-cover" />
+          <img src={row.mediaUrl} alt="" className="w-full h-full object-cover" />
         ) : isVideo ? (
           <Video className="w-6 h-6 text-gray-500" />
         ) : (
@@ -639,10 +682,10 @@ function StoryPreviewModal({
 
         {/* Media — fills the frame */}
         <div className="absolute inset-0 bg-gray-900">
-          {mediaSrc && (
+          {row.mediaUrl && (
             isVideo ? (
               <video
-                src={mediaSrc}
+                src={row.mediaUrl}
                 className="w-full h-full object-cover"
                 autoPlay
                 loop
@@ -651,7 +694,7 @@ function StoryPreviewModal({
               />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={mediaSrc} alt="" className="w-full h-full object-cover" />
+              <img src={row.mediaUrl} alt="" className="w-full h-full object-cover" />
             )
           )}
         </div>

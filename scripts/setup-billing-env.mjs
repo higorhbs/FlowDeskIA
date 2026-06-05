@@ -19,7 +19,13 @@ function loadEnv(filePath) {
 }
 
 const env = loadEnv(resolve(root, ".env"));
-const apiDomain = (env.BILLING_API_DOMAIN || env.API_DOMAIN)?.trim();
+const waUrlDirect =
+  env.NEXT_PUBLIC_WA_API_URL?.trim() || env.WA_API_PUBLIC_URL?.trim() || "";
+const apiDomain = (
+  waUrlDirect ||
+  env.BILLING_API_DOMAIN ||
+  env.API_DOMAIN
+)?.trim();
 
 if (!apiDomain) {
   console.error("\n❌ Defina BILLING_API_DOMAIN ou API_DOMAIN no .env da raiz");
@@ -27,27 +33,26 @@ if (!apiDomain) {
   process.exit(1);
 }
 
-const apiUrl = apiDomain.startsWith("http") ? apiDomain.replace(/\/$/, "") : `https://${apiDomain}`;
-
-function resolveBackendUrl() {
+function resolveWaApiUrl() {
   const direct =
-    env.NEXT_PUBLIC_BACKEND_URL?.trim() ||
     env.NEXT_PUBLIC_WA_API_URL?.trim() ||
     env.WA_API_PUBLIC_URL?.trim() ||
-    env.BACKEND_PUBLIC_URL?.trim() ||
     "";
   if (direct) return direct.replace(/\/$/, "");
-  const host = env.BACKEND_DOMAIN?.trim() || env.WA_API_DOMAIN?.trim();
-  if (!host) return "";
-  return host.startsWith("http") ? host.replace(/\/$/, "") : `https://${host}`;
+  const waDomain = env.WA_API_DOMAIN?.trim();
+  if (waDomain) {
+    return waDomain.startsWith("http") ? waDomain.replace(/\/$/, "") : `https://${waDomain}`;
+  }
+  return apiDomain.startsWith("http") ? apiDomain.replace(/\/$/, "") : `https://${apiDomain}`;
 }
 
-const backendUrl = resolveBackendUrl();
-if (!backendUrl) {
+const waApiUrl = resolveWaApiUrl();
+const apiUrl = waApiUrl;
+if (!waApiUrl) {
   console.warn(
-    "\n⚠️  NEXT_PUBLIC_BACKEND_URL / WA_API_PUBLIC_URL / BACKEND_DOMAIN ausente no .env da raiz.",
+    "\n⚠️  NEXT_PUBLIC_WA_API_URL / WA_API_PUBLIC_URL / WA_API_DOMAIN ausente no .env da raiz.",
   );
-  console.warn("   WhatsApp (QR, bot) não funcionará até configurar e rodar deploy:hosting de novo.\n");
+  console.warn("   WhatsApp (QR Code) não funcionará até configurar WA_API_PUBLIC_URL e publicar o front.\n");
 }
 
 const keys = [
@@ -60,14 +65,21 @@ const keys = [
   "NEXT_PUBLIC_GOOGLE_CLIENT_ID",
   "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
   "NEXT_PUBLIC_GOOGLE_ADS_ID",
+  "NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL",
   "NEXT_PUBLIC_SWETRIX_PROJECT_ID",
   "NEXT_PUBLIC_SWETRIX_API_URL",
+  "NEXT_PUBLIC_LEGAL_ENTITY_TYPE",
+  "NEXT_PUBLIC_LEGAL_ENTITY_NAME",
+  "NEXT_PUBLIC_LEGAL_ENTITY_DOCUMENT",
+  "NEXT_PUBLIC_LEGAL_WEBSITE",
+  "NEXT_PUBLIC_PRIVACY_EMAIL",
+  "NEXT_PUBLIC_SUPPORT_EMAIL",
 ];
 
 const lines = [
   `# Gerado por scripts/setup-billing-env.mjs — não commitar`,
   `NEXT_PUBLIC_API_URL=${apiUrl}`,
-  `NEXT_PUBLIC_BACKEND_URL=${backendUrl}`,
+  `NEXT_PUBLIC_WA_API_URL=${waApiUrl}`,
   "",
   ...keys.map((k) => `${k}=${env[k] ?? ""}`),
   "",
@@ -81,7 +93,10 @@ const lines = [
 
 const outPath = resolve(root, "apps/web/.env.production");
 writeFileSync(outPath, lines.join("\n"));
+const swetrixId = env.NEXT_PUBLIC_SWETRIX_PROJECT_ID?.trim() ?? "";
 console.log(`\n✅ ${outPath}`);
 console.log(`   NEXT_PUBLIC_API_URL=${apiUrl}`);
-if (backendUrl) console.log(`   NEXT_PUBLIC_BACKEND_URL=${backendUrl}`);
-console.log("\nPróximo: pnpm deploy:hosting\n");
+if (waApiUrl) console.log(`   NEXT_PUBLIC_WA_API_URL=${waApiUrl}`);
+if (swetrixId) console.log(`   NEXT_PUBLIC_SWETRIX_PROJECT_ID=${swetrixId}`);
+else console.warn("   ⚠️  NEXT_PUBLIC_SWETRIX_PROJECT_ID vazio — Swetrix não grava visitas no build.");
+console.log("\nPróximo: pnpm build:hosting e publique apps/web/out no Firebase Hosting (console).\n");

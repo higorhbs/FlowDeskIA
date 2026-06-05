@@ -46,9 +46,10 @@ export function LgpdConsentGate() {
         </p>
 
         <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 text-sm text-gray-700 space-y-2 mb-6">
-          <p>• Tratamos dados para operação do atendimento via WhatsApp.</p>
-          <p>• Você pode solicitar exportação dos seus dados a qualquer momento.</p>
-          <p>• Mantemos registro de aceite da versão da política.</p>
+          <p>• Identificamos o controlador e o canal do encarregado na Política de Privacidade.</p>
+          <p>• Tratamos dados para operação do atendimento via WhatsApp e cobrança do plano.</p>
+          <p>• Você pode exportar ou excluir sua conta em Meu perfil a qualquer momento.</p>
+          <p>• Registramos a versão da política que você aceitar ({LGPD_POLICY_VERSION}).</p>
         </div>
 
         <div className="flex flex-wrap gap-3 mb-6">

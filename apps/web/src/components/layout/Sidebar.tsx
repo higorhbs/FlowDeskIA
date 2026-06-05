@@ -29,7 +29,6 @@ import { SidebarProfile } from "./SidebarProfile";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { businessApi, whatsappApi, conversationApi } from "@/lib/api";
 import { patchWhatsAppStatus } from "@/lib/use-sync-wa-business";
-import { invalidateBusinessData } from "@/lib/invalidate-business";
 import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { VocabLabel } from "@/components/layout/VocabLabel";
 import { BusinessNavLink } from "@/components/layout/BusinessNavLink";
@@ -39,8 +38,7 @@ import { usePlanAllowsPix } from "@/lib/use-plan-allows-pix";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 
-const SUPPORT_EMAIL_URL =
-  "https://mail.google.com/mail/?view=cm&fs=1&to=1devhigor@gmail.com&su=Suporte%20FlowDesk";
+import { getSupportMailtoUrl } from "@/lib/legal-config";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -81,9 +79,11 @@ export function Sidebar() {
         qr: undefined,
       });
       void businessApi.setConnected(businessId, false).then(() => {
-        invalidateBusinessData(queryClient, businessId);
+        queryClient.setQueryData(["business", businessId], (prev: { isConnected?: boolean } | undefined) =>
+          prev ? { ...prev, isConnected: false } : prev,
+        );
+        void queryClient.invalidateQueries({ queryKey: ["businesses"] });
       });
-      void queryClient.invalidateQueries({ queryKey: ["wa-status", businessId] });
       toast.success("WhatsApp desconectado");
     },
     onError: (err: Error) => toast.error(err.message ?? "Erro ao desconectar"),
@@ -275,7 +275,7 @@ export function Sidebar() {
 
       <div className="px-3 py-3 border-t border-gray-100">
         <a
-          href={SUPPORT_EMAIL_URL}
+          href={getSupportMailtoUrl("Suporte FlowDesk")}
           target="_blank"
           rel="noreferrer"
           className="mb-1 flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"

@@ -27,7 +27,7 @@ export function getFirebaseApp(): FirebaseApp {
     const firebaseConfig = buildFirebaseConfig();
     if (!firebaseConfig.apiKey?.trim() || !firebaseConfig.projectId?.trim()) {
       throw new Error(
-        "Firebase: NEXT_PUBLIC_FIREBASE_API_KEY ou PROJECT_ID ausentes no build. Confira secrets do GitHub e rode deploy:hosting.",
+        "Firebase: NEXT_PUBLIC_FIREBASE_API_KEY ou PROJECT_ID ausentes no build. Confira .env.production ou secrets do CI.",
       );
     }
     return initializeApp(firebaseConfig);
@@ -70,6 +70,7 @@ export function getClientDb(): Firestore {
 export {
   ensureClientTenant,
   getClientTenant,
+  getClientTenantStoriesPublished,
   updateClientTenantProfile,
   completeClientOnboarding,
   acceptClientLgpd,
@@ -83,11 +84,6 @@ export type {
   Plan,
   PlanStatus,
   Tenant,
-  Business,
-  BusinessCreateInput,
-  BusinessSchedule,
-  BusinessType,
-  TimeSlot,
   BotMenuItemConfig,
   ConversationStatus,
   AppointmentStatus,

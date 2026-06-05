@@ -8,7 +8,7 @@ import {
   HERO_TITLE_WORDS,
 } from "@/components/landing/hero-motion";
 import { TextAnimate } from "@/components/ui/text-animate";
-import { APP_DISPLAY_NAME } from "@flowdesk/shared";
+import { APP_DISPLAY_NAME, STARTER_TRIAL_DAYS } from "@flowdesk/shared";
 
 function useAnimateIn() {
   const [active, setActive] = useState(false);
@@ -16,7 +16,11 @@ function useAnimateIn() {
   return active;
 }
 
-export function HeroCopyMotion() {
+const AD_TITLE_LEAD = "Seu WhatsApp vende e agenda sozinho com";
+const AD_TITLE_WORDS = AD_TITLE_LEAD.split(" ");
+const AD_SUBTITLE = `Teste grátis por ${STARTER_TRIAL_DAYS} dias, sem cartão. A IA responde clientes, confirma horários, cobra PIX e publica status — 24 horas por dia.`;
+
+export function HeroCopyMotion({ adMode = false }: { adMode?: boolean }) {
   const active = useAnimateIn();
   const prefersReduced = useReducedMotion();
   const reduced = Boolean(active && prefersReduced);
@@ -39,7 +43,7 @@ export function HeroCopyMotion() {
         variants={v.titleContainer}
         className="perspective-[1200px] text-[1.75rem] font-bold leading-[1.15] tracking-tight text-foreground sm:text-4xl md:text-5xl md:leading-[1.1] lg:text-[3.25rem]"
       >
-        {HERO_TITLE_WORDS.map((word, i) => (
+        {(adMode ? AD_TITLE_WORDS : HERO_TITLE_WORDS).map((word, i) => (
           <motion.span
             key={`${word}-${i}`}
             variants={v.titleWord}
@@ -54,7 +58,7 @@ export function HeroCopyMotion() {
           animation="blurInUp"
           startOnView={false}
           once
-          delay={HERO_TITLE_WORDS.length * 0.055 + 0.12}
+          delay={(adMode ? AD_TITLE_WORDS : HERO_TITLE_WORDS).length * 0.055 + 0.12}
           duration={0.45}
           className="inline-block text-primary"
           accessible={false}
@@ -62,13 +66,21 @@ export function HeroCopyMotion() {
           {HERO_TITLE_ACCENT}
         </TextAnimate>
       </motion.h1>
+      {adMode && (
+        <motion.p
+          variants={v.subtitle}
+          className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700 ring-1 ring-brand-200/70 sm:text-sm"
+        >
+          {STARTER_TRIAL_DAYS} dias grátis · Sem cartão de crédito
+        </motion.p>
+      )}
       <motion.p
         variants={v.subtitle}
         className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:mt-5 sm:text-lg"
       >
-        Automatize seu atendimento no WhatsApp com IA. O {APP_DISPLAY_NAME} responde
-        clientes, agenda horários, envia confirmações, cobra via PIX e publica
-        stories automaticamente.
+        {adMode
+          ? AD_SUBTITLE
+          : `Automatize seu atendimento no WhatsApp com IA. O ${APP_DISPLAY_NAME} responde clientes, agenda horários, envia confirmações, cobra via PIX e publica stories automaticamente.`}
       </motion.p>
     </motion.div>
   );

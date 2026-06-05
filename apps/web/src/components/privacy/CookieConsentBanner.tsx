@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SwetrixScripts } from "@/components/analytics/SwetrixScripts";
 import { hasGoogleAdsTag } from "@/lib/google-ads-config";
-import { swetrixProjectId } from "@/lib/swetrix-config";
+import { hasSwetrix } from "@/lib/swetrix-config";
 
 const CONSENT_KEY = "flowdesk_cookie_consent_v1";
 
@@ -35,7 +35,7 @@ function denyGoogleAdsConsent() {
 }
 
 export function CookieConsentBanner() {
-  const hasAnalytics = useMemo(() => Boolean(swetrixProjectId) || hasGoogleAdsTag(), []);
+  const hasAnalytics = useMemo(() => hasSwetrix() || hasGoogleAdsTag(), []);
   const [consent, setConsent] = useState<ConsentState>(null);
   const [ready, setReady] = useState(false);
 
@@ -66,8 +66,8 @@ export function CookieConsentBanner() {
         <div className="fixed inset-x-0 bottom-0 z-[80] border-t border-gray-200 bg-white/95 p-4 backdrop-blur">
           <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-gray-700">
-              Usamos cookies de medicao e conversao (Google Ads) para melhorar o produto. Voce pode aceitar ou
-              recusar.
+              Usamos cookies de medicao (Swetrix) e conversao (Google Ads) para melhorar o produto. Aceite para
+              registrar visitas e campanhas.
             </p>
             <div className="flex items-center gap-2">
               <Button

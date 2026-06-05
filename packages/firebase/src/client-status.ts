@@ -10,15 +10,13 @@ import {
 } from "firebase/firestore";
 import type { Plan } from "./types.js";
 import type { ScheduledStatus, ScheduledStatusMediaType } from "./types.js";
-import {
-  buildImmediateScheduledAt,
-  resolveStoryScheduledAts,
-} from "./schedule-status-dates.js";
+import { resolveStoryScheduledAts } from "./schedule-status-dates.js";
 import {
   assertScheduledStoriesQuota,
-  countScheduledStoriesInMonth,
+  storiesQuotaUsed,
   type PlanTier,
 } from "@flowdesk/shared";
+import { getClientTenantStoriesPublished } from "./client-tenant.js";
 import { getClientDb } from "./client.js";
 
 function nowIso() {
@@ -59,9 +57,12 @@ async function assertStoriesQuotaForCreate(
   adding: number
 ) {
   const plan = await getTenantPlan(tenantId);
-  const snap = await getDocs(scheduledStatusesCol(businessId));
+  const [published, snap] = await Promise.all([
+    getClientTenantStoriesPublished(tenantId),
+    getDocs(scheduledStatusesCol(businessId)),
+  ]);
   const rows = snap.docs.map((d) => d.data() as ScheduledStatus);
-  const used = countScheduledStoriesInMonth(rows);
+  const used = storiesQuotaUsed(published, rows);
   assertScheduledStoriesQuota(plan, used, adding);
 }
 
@@ -79,6 +80,28 @@ export async function listClientScheduledStatuses(
   await assertBusinessOwned(businessId, tenantId);
   const snap = await getDocs(query(scheduledStatusesCol(businessId), orderBy("scheduledAt", "desc")));
   return snap.docs.map((d) => ({ id: d.id, businessId, ...d.data() }) as ScheduledStatus);
+}
+
+const DUPLICATE_WINDOW_MS = 120_000;
+
+function captionKey(caption?: string) {
+  return caption?.trim() || "";
+}
+
+function isRecentDuplicate(
+  rows: ScheduledStatus[],
+  candidate: { caption?: string; scheduledAt: string; mediaType: ScheduledStatusMediaType }
+) {
+  const cap = captionKey(candidate.caption);
+  const cutoff = Date.now() - DUPLICATE_WINDOW_MS;
+  return rows.some(
+    (r) =>
+      r.status === "scheduled" &&
+      r.scheduledAt === candidate.scheduledAt &&
+      r.mediaType === candidate.mediaType &&
+      captionKey(r.caption) === cap &&
+      new Date(r.createdAt).getTime() >= cutoff
+  );
 }
 
 export type CreateScheduledStatusInput = {
@@ -108,18 +131,34 @@ export async function createClientScheduledStatuses(
   if (!data.scheduledAts.length) throw new Error("Informe pelo menos um horário.");
   await assertStoriesQuotaForCreate(businessId, tenantId, data.scheduledAts.length);
 
+  const existingSnap = await getDocs(scheduledStatusesCol(businessId));
+  const existingRows = existingSnap.docs.map(
+    (d) => ({ id: d.id, businessId, ...d.data() }) as ScheduledStatus
+  );
+
   const seriesId = data.seriesId ?? (data.scheduledAts.length > 1 ? newId() : undefined);
   const ts = nowIso();
   const batch = writeBatch(getClientDb());
   const rows: ScheduledStatus[] = [];
+
   for (const scheduledAt of data.scheduledAts) {
-    const atIso = data.publishNow ? buildImmediateScheduledAt() : scheduledAt;
+    const atIso = data.publishNow ? nowIso() : scheduledAt;
     const at = new Date(atIso).getTime();
     if (!Number.isFinite(at)) {
       throw new Error("Horário de agendamento inválido.");
     }
-    if (!data.publishNow && at < Date.now() + 60_000) {
+    if (!data.publishNow && at <= Date.now() + 60_000) {
       throw new Error("Todos os horários devem ser pelo menos 1 minuto no futuro.");
+    }
+    const iso = new Date(atIso).toISOString();
+    if (
+      isRecentDuplicate(existingRows, {
+        caption: data.caption,
+        scheduledAt: iso,
+        mediaType: data.mediaType,
+      })
+    ) {
+      continue;
     }
     const id = newId();
     const row = removeUndefined({
@@ -128,7 +167,7 @@ export async function createClientScheduledStatuses(
       mediaUrl: data.mediaUrl,
       mediaType: data.mediaType,
       caption: data.caption?.trim() || undefined,
-      scheduledAt: new Date(atIso).toISOString(),
+      scheduledAt: iso,
       status: "scheduled",
       seriesId,
       sourceStatusId: data.sourceStatusId,
@@ -137,6 +176,25 @@ export async function createClientScheduledStatuses(
     }) as ScheduledStatus;
     batch.set(doc(scheduledStatusesCol(businessId), id), row);
     rows.push(row);
+  }
+
+  if (!rows.length) {
+    const dupes = existingRows.filter(
+      (r) =>
+        r.status === "scheduled" &&
+        data.scheduledAts.some((scheduledAt) => {
+          const iso = new Date(scheduledAt).toISOString();
+          return (
+            r.scheduledAt === iso &&
+            r.mediaType === data.mediaType &&
+            captionKey(r.caption) === captionKey(data.caption)
+          );
+        })
+    );
+    if (dupes.length) {
+      return dupes.sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
+    }
+    throw new Error("Nenhum horário novo para agendar.");
   }
 
   await batch.commit();

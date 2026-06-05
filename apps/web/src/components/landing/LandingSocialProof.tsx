@@ -230,7 +230,7 @@ function TestimonialCard({
   );
 }
 
-export function LandingSocialProof() {
+export function LandingSocialProof({ adMode = false }: { adMode?: boolean }) {
   return (
     <section
       id="clientes"
@@ -250,7 +250,9 @@ export function LandingSocialProof() {
             id="social-proof-heading"
             className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl"
           >
-            Negócios locais que já automatizaram o WhatsApp
+            {adMode
+              ? "Quem já usa não volta ao atendimento manual"
+              : "Negócios locais que já automatizaram o WhatsApp"}
           </h2>
           <p className="mt-3 text-base text-muted-foreground sm:text-lg">
             Comércios, serviços e clínicas locais usando o {APP_DISPLAY_NAME} todos

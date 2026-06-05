@@ -117,7 +117,7 @@ export async function readWhatsAppStatus(sessionsRoot, businessId, business) {
     client = ensureWhatsAppClient(sessionsRoot, businessId)
   }
 
-  const connected = client.isConnected()
+  const connected = client.isConnected() || client.isReadyToSend()
   if (connected !== business.isConnected) {
     await setBusinessConnected(businessId, connected)
   }

@@ -1,5 +1,6 @@
 import { addDoc, collection, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import type { Tenant } from "./types.js";
+import { STARTER_TRIAL_DAYS, monthKey } from "@flowdesk/shared";
 import { getClientDb } from "./client.js";
 
 function nowIso() {
@@ -17,7 +18,7 @@ export async function ensureClientTenant(
   }
   const ts = nowIso();
   const trialEnds = new Date();
-  trialEnds.setDate(trialEnds.getDate() + 14);
+  trialEnds.setDate(trialEnds.getDate() + STARTER_TRIAL_DAYS);
   const tenant: Tenant = {
     id,
     name: data.name,
@@ -35,6 +36,15 @@ export async function ensureClientTenant(
 export async function getClientTenant(id: string): Promise<Tenant | null> {
   const snap = await getDoc(doc(getClientDb(), "tenants", id));
   return snap.exists() ? ({ id: snap.id, ...snap.data() } as Tenant) : null;
+}
+
+export async function getClientTenantStoriesPublished(
+  tenantId: string,
+  ref = new Date()
+): Promise<number> {
+  const snap = await getDoc(doc(getClientDb(), "tenants", tenantId, "usage", monthKey(ref)));
+  const n = snap.data()?.storiesPublished;
+  return typeof n === "number" && Number.isFinite(n) ? n : 0;
 }
 
 export async function updateClientTenantProfile(

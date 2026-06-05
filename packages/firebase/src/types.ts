@@ -1,6 +1,10 @@
 export type Plan = "STARTER" | "PRO" | "UNLIMITED";
 export type PlanStatus = "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED";
-export type BusinessType = "BARBERSHOP" | "SALON" | "RESTAURANT" | "DENTAL" | "STORE" | "OTHER";
+export type BusinessType = "STORE" | "BARBERSHOP" | "SALON" | "RESTAURANT" | "DENTAL" | "OTHER";
+export type ConversationStatus = "OPEN" | "ATTENDING" | "CLOSED";
+export type MessageRole = "CUSTOMER" | "IA" | "HUMAN";
+export type AppointmentStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED" | "NO_SHOW";
+export type PaymentStatus = "PENDING" | "PAID" | "OVERDUE" | "CANCELLED";
 
 export type TimeSlot = [string, string] | null;
 
@@ -15,10 +19,25 @@ export interface BusinessSchedule {
   createdAt: string;
   updatedAt: string;
 }
-export type ConversationStatus = "OPEN" | "ATTENDING" | "CLOSED";
-export type MessageRole = "CUSTOMER" | "IA" | "HUMAN";
-export type AppointmentStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED" | "NO_SHOW";
-export type PaymentStatus = "PENDING" | "PAID" | "OVERDUE" | "CANCELLED";
+
+export interface TenantMonthlyUsage {
+  month: string;
+  storiesPublished: number;
+  updatedAt: string;
+}
+
+export type BusinessCreateInput = {
+  name: string;
+  type: BusinessType;
+  phone: string;
+  description?: string;
+  typeLabel?: string;
+  address?: string;
+  greetingMsg?: string;
+  awayMsg?: string;
+  workingHours?: Record<string, [string, string] | null>;
+  timezone?: string;
+};
 
 export interface Tenant {
   id: string;
@@ -60,33 +79,23 @@ export interface BotMenuItemConfig {
   action?: "APPOINTMENT" | "CATALOG" | "FAQ" | "PAYMENT" | "HUMAN";
 }
 
-export type BusinessCreateInput = {
-  name: string;
-  type: BusinessType;
-  phone: string;
-  description?: string;
-};
-
-/** Documento Firestore na criação: id, tenantId, name, type, phone, description?, createdAt, updatedAt */
 export interface Business {
   id: string;
   tenantId: string;
   name: string;
   type: BusinessType;
-  phone: string;
-  createdAt: string;
-  updatedAt: string;
-  description?: string;
   typeLabel?: string;
+  phone: string;
   address?: string;
+  description?: string;
   logoUrl?: string;
-  workingHours?: Record<string, unknown>;
+  workingHours: Record<string, unknown>;
   specialHours?: Record<string, [string, string] | null>;
   lunchBreak?: [string, string] | null;
   lunchMsg?: string;
   timezone?: string;
-  greetingMsg?: string;
-  awayMsg?: string;
+  greetingMsg: string;
+  awayMsg: string;
   botMenu?: BotMenuItemConfig[];
   botMenuEnabled?: boolean;
   greetingEnabled?: boolean;
@@ -98,7 +107,9 @@ export interface Business {
   attendantNames?: string[];
   attendantEnabled?: boolean;
   manualAttendantPrefixEnabled?: boolean;
-  isConnected?: boolean;
+  isConnected: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CatalogItem {

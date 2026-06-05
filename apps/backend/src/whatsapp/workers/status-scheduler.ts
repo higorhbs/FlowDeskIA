@@ -7,8 +7,9 @@ import {
 import { resolveWhatsAppClient } from "../wa-lifecycle.js";
 import { waManager } from "../wa-manager.js";
 
-const TICK_MS = 30_000;
+const TICK_MS = 10_000;
 const GAP_BETWEEN_POSTS_MS = 8_000;
+const IMMEDIATE_PUBLISH_DELAY_MS = 400;
 
 async function publishOne(post: { businessId: string; id: string }) {
   const claimed = await claimScheduledStatus(post.businessId, post.id);
@@ -68,6 +69,14 @@ async function publishOne(post: { businessId: string; id: string }) {
   }
 }
 
+export function enqueueImmediateStatusPublish(post: { businessId: string; id: string }) {
+  setTimeout(() => {
+    void publishOne(post).catch((err) =>
+      console.error("[status-scheduler] immediate publish error:", err)
+    );
+  }, IMMEDIATE_PUBLISH_DELAY_MS);
+}
+
 export function startStatusScheduler() {
   let running = false;
 
@@ -87,7 +96,7 @@ export function startStatusScheduler() {
 
   setTimeout(() => {
     void run().catch((err) => console.error("[status-scheduler] tick error:", err));
-  }, 12_000);
+  }, 3_000);
 
   setInterval(() => {
     void run().catch((err) => console.error("[status-scheduler] tick error:", err));

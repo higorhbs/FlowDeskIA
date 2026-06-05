@@ -11,8 +11,10 @@ import {
   resendVerificationEmail,
   refreshVerifiedSession,
 } from "@/lib/firebase-auth";
-import { APP_DISPLAY_NAME } from "@flowdesk/shared";
+import { getClientAuth } from "@flowdesk/firebase/client";
+import { APP_DISPLAY_NAME, STARTER_TRIAL_DAYS } from "@flowdesk/shared";
 import { setToken } from "@/lib/auth";
+import { trackGoogleAdsSignUp } from "@/lib/google-ads-events";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { AuthDivider } from "@/components/auth/AuthDivider";
 import Link from "next/link";
@@ -88,7 +90,6 @@ type AuthDrawerProps = {
 function LoginForm({ onSwitch }: { onSwitch: () => void }) {
   const router = useRouter();
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
-  const [verificationPassword, setVerificationPassword] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -100,7 +101,6 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
       const res = await loginWithEmail(data.email, data.password);
       if (res.status === "VERIFICATION_REQUIRED") {
         setVerificationEmail(res.email);
-        setVerificationPassword(data.password);
         toast.warning("Enviamos um e-mail de confirmação. Verifique sua caixa de entrada.");
         return;
       }
@@ -111,17 +111,8 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
     }
   }
 
-  if (verificationEmail && verificationPassword) {
-    return (
-      <VerificationPrompt
-        email={verificationEmail}
-        password={verificationPassword}
-        onBack={() => {
-          setVerificationEmail(null);
-          setVerificationPassword(null);
-        }}
-      />
-    );
+  if (verificationEmail) {
+    return <VerificationPrompt email={verificationEmail} onBack={() => setVerificationEmail(null)} />;
   }
 
   return (
@@ -183,7 +174,6 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
 function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
   const router = useRouter();
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
-  const [verificationPassword, setVerificationPassword] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -195,28 +185,24 @@ function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
       const res = await registerWithEmail(data.name, data.email, data.password);
       if (res.status === "VERIFICATION_REQUIRED") {
         setVerificationEmail(res.email);
-        setVerificationPassword(data.password);
         toast.success("Enviamos um link de confirmação para seu e-mail.");
         return;
       }
       setToken(res.token);
+      trackGoogleAdsSignUp();
       router.replace("/dashboard");
     } catch (err: unknown) {
+      const user = getClientAuth().currentUser;
+      if (user) {
+        toast.warning("Conta criada, mas ainda falta confirmar o e-mail.");
+        return;
+      }
       toast.error(authErrorMessage(err, "Falha ao criar conta"));
     }
   }
 
-  if (verificationEmail && verificationPassword) {
-    return (
-      <VerificationPrompt
-        email={verificationEmail}
-        password={verificationPassword}
-        onBack={() => {
-          setVerificationEmail(null);
-          setVerificationPassword(null);
-        }}
-      />
-    );
+  if (verificationEmail) {
+    return <VerificationPrompt email={verificationEmail} onBack={() => setVerificationEmail(null)} />;
   }
 
   return (
@@ -225,7 +211,7 @@ function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
         Criar conta grátis
       </h2>
       <p className="text-sm text-gray-500 mb-6">
-        14 dias sem precisar de cartão
+        {STARTER_TRIAL_DAYS} dias sem precisar de cartão
       </p>
       <GoogleSignInButton />
       <AuthDivider />
@@ -289,15 +275,7 @@ function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
   );
 }
 
-function VerificationPrompt({
-  email,
-  password,
-  onBack,
-}: {
-  email: string;
-  password: string;
-  onBack: () => void;
-}) {
+function VerificationPrompt({ email, onBack }: { email: string; onBack: () => void }) {
   const router = useRouter();
   const [loadingResend, setLoadingResend] = useState(false);
   const [loadingConfirm, setLoadingConfirm] = useState(false);
@@ -305,7 +283,7 @@ function VerificationPrompt({
   async function handleResend() {
     setLoadingResend(true);
     try {
-      await resendVerificationEmail(email, password);
+      await resendVerificationEmail();
       toast.success("E-mail de confirmação reenviado.");
     } catch (err: unknown) {
       toast.error(authErrorMessage(err, "Não foi possível reenviar o e-mail"));
@@ -317,8 +295,9 @@ function VerificationPrompt({
   async function handleConfirm() {
     setLoadingConfirm(true);
     try {
-      const res = await refreshVerifiedSession(email, password);
+      const res = await refreshVerifiedSession();
       setToken(res.token);
+      trackGoogleAdsSignUp();
       toast.success("E-mail confirmado. Abrindo o painel...");
       router.replace("/dashboard");
     } catch (err: unknown) {

@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
   trailingSlash: staticHosting ? true : undefined,
   transpilePackages: ["@flowdesk/shared", "@flowdesk/firebase"],
   serverExternalPackages: ["firebase-admin"],
-  redirects: async () => [{ source: "/landing", destination: "/", permanent: true }],
+  redirects: async () => [],
   rewrites: async () => [
     {
       source: "/__/auth/:path*",

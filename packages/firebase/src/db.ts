@@ -19,13 +19,12 @@ import type {
   ScheduledStatusState,
   ScheduledStatusMediaType,
 } from "./types.js";
-import {
-  buildImmediateScheduledAt,
-  resolveStoryScheduledAts,
-} from "./schedule-status-dates.js";
+import { resolveStoryScheduledAts } from "./schedule-status-dates.js";
 import {
   assertScheduledStoriesQuota,
-  countScheduledStoriesInMonth,
+  storiesQuotaUsed,
+  STARTER_TRIAL_DAYS,
+  monthKey,
   type PlanTier,
 } from "@flowdesk/shared";
 import { buildBusinessCreateRecord, normalizeBusiness } from "./business-record.js";
@@ -149,7 +148,7 @@ export async function createTenant(
 ): Promise<Tenant> {
   const ts = nowIso();
   const trialEnds = new Date();
-  trialEnds.setDate(trialEnds.getDate() + 14);
+  trialEnds.setDate(trialEnds.getDate() + STARTER_TRIAL_DAYS);
   const tenant: Tenant = {
     id,
     name: data.name,
@@ -577,7 +576,9 @@ export async function upsertConversation(
       lastMessageAt: ts,
       customerKey: key,
     };
-    if (dest.includes("@")) patch.replyJid = dest;
+    const prevReply = String(existing.data().replyJid ?? "").trim();
+    if (dest.includes("@lid")) patch.replyJid = dest;
+    else if (dest.includes("@") && !prevReply.includes("@lid")) patch.replyJid = dest;
     await existing.ref.update(patch);
     return { id: existing.id, businessId, ...existing.data(), ...patch } as Conversation;
   }
@@ -828,6 +829,10 @@ export async function finishScheduledStatus(
   if (outcome.status === "published") patch.publishedAt = ts;
   if (outcome.status === "failed") patch.error = outcome.error.slice(0, 500);
   await scheduledStatusesCol(businessId).doc(id).update(patch);
+  if (outcome.status === "published") {
+    const business = await getBusiness(businessId);
+    if (business?.tenantId) await recordTenantStoryPublished(business.tenantId);
+  }
 }
 
 const REPOSTABLE_STATUS: ScheduledStatus["status"][] = ["published", "failed", "cancelled"];
@@ -839,8 +844,11 @@ async function assertStoriesQuotaForCreate(
 ) {
   const tenant = await getTenant(tenantId);
   const plan = (tenant?.plan ?? "STARTER") as PlanTier;
-  const rows = await listScheduledStatuses(businessId);
-  const used = countScheduledStoriesInMonth(rows);
+  const [published, rows] = await Promise.all([
+    getTenantStoriesPublished(tenantId),
+    listScheduledStatuses(businessId),
+  ]);
+  const used = storiesQuotaUsed(published, rows);
   assertScheduledStoriesQuota(plan, used, adding);
 }
 
@@ -865,7 +873,7 @@ export async function createScheduledStatuses(
   const batch = getDb().batch();
   const rows: ScheduledStatus[] = [];
   for (const scheduledAt of data.scheduledAts) {
-    const atIso = data.publishNow ? buildImmediateScheduledAt() : scheduledAt;
+    const atIso = data.publishNow ? nowIso() : scheduledAt;
     const at = new Date(atIso).getTime();
     if (!Number.isFinite(at)) {
       throw new Error("Horário de agendamento inválido.");
@@ -1066,4 +1074,51 @@ export async function getAnalytics(businessId: string) {
       revenueThisMonth,
     },
   };
+}
+
+function tenantUsageRef(tenantId: string, ref = new Date()) {
+  return tenants().doc(tenantId).collection("usage").doc(monthKey(ref));
+}
+
+export async function getTenantStoriesPublished(tenantId: string, ref = new Date()): Promise<number> {
+  const snap = await tenantUsageRef(tenantId, ref).get();
+  const n = snap.data()?.storiesPublished;
+  return typeof n === "number" && Number.isFinite(n) ? n : 0;
+}
+
+async function recordTenantStoryPublished(tenantId: string) {
+  const ref = tenantUsageRef(tenantId);
+  const ts = nowIso();
+  await ref.set(
+    {
+      month: monthKey(),
+      storiesPublished: AdminFieldValue.increment(1),
+      updatedAt: ts,
+    },
+    { merge: true }
+  );
+}
+
+export async function listTenantBusinessIds(tenantId: string): Promise<string[]> {
+  const snap = await businesses().where("tenantId", "==", tenantId).get();
+  return snap.docs.map((d) => d.id);
+}
+
+export async function deleteTenantFirestoreData(tenantId: string): Promise<void> {
+  const db = getDb();
+  const businessSnap = await businesses().where("tenantId", "==", tenantId).get();
+  for (const doc of businessSnap.docs) {
+    await db.recursiveDelete(doc.ref);
+  }
+
+  const feedbackCol = db.collection("tenantCancellationFeedback");
+  while (true) {
+    const feedbackSnap = await feedbackCol.where("tenantId", "==", tenantId).limit(400).get();
+    if (feedbackSnap.empty) break;
+    const batch = db.batch();
+    for (const doc of feedbackSnap.docs) batch.delete(doc.ref);
+    await batch.commit();
+  }
+
+  await db.recursiveDelete(tenants().doc(tenantId));
 }
