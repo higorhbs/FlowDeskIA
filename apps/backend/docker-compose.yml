@@ -9,6 +9,8 @@ services:
     build:
       context: ../..
       dockerfile: apps/backend/Dockerfile
+      platforms:
+        - linux/arm64
     platform: linux/arm64
     container_name: flowdesk-backend
     restart: unless-stopped
