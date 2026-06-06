@@ -11,5 +11,5 @@
     "esModuleInterop": true
   },
   "include": ["api/**/*.js", "src/**/*.js", "src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "../web", "../../apps/web"]
+  "exclude": ["node_modules", "dist", "../web/**", "../../apps/web/**", "**/*.tsx"]
 }

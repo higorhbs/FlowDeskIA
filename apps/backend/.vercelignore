@@ -1,2 +1,5 @@
 ../web
+../web/**
 ../../apps/web
+../../apps/web/**
+**/*.tsx
