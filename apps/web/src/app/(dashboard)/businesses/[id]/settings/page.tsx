@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { businessApi } from "@/lib/api";
+import { businessApi, scheduleApi } from "@/lib/api";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -230,11 +230,11 @@ export default function SettingsPage() {
   }, [business, reset]);
 
   const saveMutation = useMutation({
-    mutationFn: (data: FormData) => {
+    mutationFn: async (data: FormData) => {
       if (lunchBreak && lunchMsg.trim().length < 5) {
         throw new Error("A mensagem de almoço precisa ter pelo menos 5 caracteres.");
       }
-      return businessApi.update(businessId, {
+      const updated = await businessApi.update(businessId, {
         ...data,
         typeLabel: data.type === "OTHER" ? data.typeLabel?.trim() : undefined,
         workingHours,
@@ -242,11 +242,20 @@ export default function SettingsPage() {
         lunchBreak,
         lunchMsg: lunchBreak ? lunchMsg.trim() : undefined,
       });
+      await scheduleApi.put(businessId, {
+        timezone: business?.timezone ?? "America/Sao_Paulo",
+        workingHours,
+        specialHours,
+        lunchBreak,
+        lunchMsg: lunchBreak ? lunchMsg.trim() : undefined,
+      });
+      return updated;
     },
     onSuccess: (_data, variables) => {
       setHoursDirty(false);
       persistBusinessSnapshot({ id: businessId, type: variables.type });
       queryClient.invalidateQueries({ queryKey: ["business", businessId] });
+      queryClient.invalidateQueries({ queryKey: ["schedule", businessId] });
       queryClient.invalidateQueries({ queryKey: ["businesses"] });
       toast.success("Configurações salvas com sucesso!");
     },

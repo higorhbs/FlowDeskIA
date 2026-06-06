@@ -168,6 +168,10 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
     }
   }
 
+  if (!state && isGreeting(messageBody)) {
+    return sendPresentation(business, conversation, customerName);
+  }
+
   if (!open) {
     const response = awayReply(business, customerName);
     await saveAndReturn(business.id, conversation.id, [{ text: response }]);
@@ -234,10 +238,6 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
       conversation,
       sessionKey,
     );
-  }
-
-  if (!state && isGreeting(messageBody)) {
-    return sendPresentation(business, conversation, customerName);
   }
 
   if (!state && looksLikeAppointmentDate(messageBody)) {
@@ -1022,7 +1022,9 @@ function isGreeting(text: string): boolean {
   const normalized = text
     .toLowerCase()
     .trim()
-    .replace(/^[!?.,"']+|[!?.,"']+$/g, "");
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]/gu, "")
+    .replace(/^[!?.,"']+|[!?.,"']+$/g, "")
+    .trim();
   if (!normalized) return false;
 
   const greetings = [

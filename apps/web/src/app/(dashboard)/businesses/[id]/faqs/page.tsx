@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import type { BotMenuItemConfig } from "@flowdesk/firebase/client";
 import { buildBotMenuEntries, getBusinessVocabulary, renderTemplate, DEFAULT_THANKS_MSG } from "@flowdesk/shared";
 import { IaIcon } from "@/lib/ia-brand";
@@ -206,24 +207,12 @@ function ToggleRow({
             Prévia
           </Button>
         )}
-        <Button
-          type="button"
-          variant="ghost"
+        <Switch
+          checked={checked}
           disabled={disabled}
-          onClick={() => !disabled && onChange(!checked)}
-          className={cn(
-            "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent p-0 min-w-0 mt-0.5",
-            checked ? "bg-brand-600 hover:bg-brand-600" : "bg-gray-200 hover:bg-gray-200",
-            disabled && "cursor-not-allowed"
-          )}
-        >
-          <span
-            className={cn(
-              "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200",
-              checked ? "translate-x-5" : "translate-x-0"
-            )}
-          />
-        </Button>
+          onCheckedChange={onChange}
+          className="mt-0.5"
+        />
       </div>
     </div>
   );
@@ -708,16 +697,11 @@ function BotMenuEditor({
                             <ChevronDown className="w-3.5 h-3.5" />
                           </Button>
                         </div>
-                        <Button type="button" variant="ghost" onClick={() => toggle(i)}
-                          className={cn(
-                            "relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent p-0 min-w-0",
-                            item.enabled ? "bg-brand-600 hover:bg-brand-600" : "bg-gray-200 hover:bg-gray-200"
-                          )}>
-                          <span className={cn(
-                            "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200",
-                            item.enabled ? "translate-x-4" : "translate-x-0"
-                          )} />
-                        </Button>
+                        <Switch
+                          checked={item.enabled}
+                          size="sm"
+                          onCheckedChange={() => toggle(i)}
+                        />
                         <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeItem(i)}
                           className="text-gray-300 hover:text-red-500 hover:bg-red-50">
                           <Trash2 className="w-3.5 h-3.5" />
@@ -763,23 +747,12 @@ function BotMenuEditor({
                   <Eye className="w-3.5 h-3.5" />
                   Prévia
                 </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setThanksEnabled((v) => !v)}
-                  className={cn(
-                    "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent p-0 min-w-0 mt-0.5",
-                    thanksEnabled ? "bg-brand-600 hover:bg-brand-600" : "bg-gray-200 hover:bg-gray-200"
-                  )}
+                <Switch
+                  checked={thanksEnabled}
+                  onCheckedChange={setThanksEnabled}
+                  className="mt-0.5"
                   title="Ativar/desativar resposta de agradecimento"
-                >
-                  <span
-                    className={cn(
-                      "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200",
-                      thanksEnabled ? "translate-x-5" : "translate-x-0"
-                    )}
-                  />
-                </Button>
+                />
               </div>
             </div>
             {thanksEnabled ? (
@@ -839,23 +812,12 @@ function BotMenuEditor({
                   <Eye className="w-3.5 h-3.5" />
                   Prévia
                 </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setAttendantEnabled((v) => !v)}
-                  className={cn(
-                    "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent p-0 min-w-0 mt-0.5",
-                    attendantEnabled ? "bg-brand-600 hover:bg-brand-600" : "bg-gray-200 hover:bg-gray-200"
-                  )}
+                <Switch
+                  checked={attendantEnabled}
+                  onCheckedChange={setAttendantEnabled}
+                  className="mt-0.5"
                   title="Ativar/desativar nome de quem atende"
-                >
-                  <span
-                    className={cn(
-                      "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200",
-                      attendantEnabled ? "translate-x-5" : "translate-x-0"
-                    )}
-                  />
-                </Button>
+                />
               </div>
             </div>
             {attendantEnabled ? (

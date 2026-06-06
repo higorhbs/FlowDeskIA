@@ -5,6 +5,7 @@ import { ArrowRight, Pencil, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TemplateMessageField } from "@/components/business/TemplateMessageField";
+import { Switch } from "@/components/ui/switch";
 
 const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
@@ -32,31 +33,6 @@ export function defaultWorkingHours(): WorkingHoursValue {
   const h: WorkingHoursValue = {};
   DAY_KEYS.forEach((d) => { h[d] = d === "sun" ? null : ["09:00", "18:00"]; });
   return h;
-}
-
-// ── Toggle ────────────────────────────────────────────────────────────────────
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <Button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      variant="ghost"
-      className={cn(
-        "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent p-0 min-w-0",
-        "transition-colors duration-200 ease-in-out",
-        checked ? "bg-brand-600 hover:bg-brand-600" : "bg-gray-200 hover:bg-gray-200"
-      )}
-    >
-      <span
-        className={cn(
-          "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ease-in-out",
-          checked ? "translate-x-5" : "translate-x-0"
-        )}
-      />
-    </Button>
-  );
 }
 
 // ── TimePicker ────────────────────────────────────────────────────────────────
@@ -351,9 +327,9 @@ export function WorkingHoursEditor({
               </span>
 
               {/* Toggle */}
-              <Toggle
+              <Switch
                 checked={open}
-                onChange={(v) => {
+                onCheckedChange={(v) => {
                   setDay(day, v ? ["09:00", "18:00"] : null);
                   if (v) setEditingDay(day);
                   else if (editingDay === day) setEditingDay(null);
@@ -446,9 +422,9 @@ export function WorkingHoursEditor({
               No intervalo a IA envia a mensagem de almoço configurada abaixo.
             </p>
           </div>
-          <Toggle
+          <Switch
             checked={lunchBreak !== null}
-            onChange={(enabled) => {
+            onCheckedChange={(enabled) => {
               onLunchBreakChange(enabled ? lunchBreak ?? ["12:00", "13:00"] : null);
               onCommit?.();
             }}

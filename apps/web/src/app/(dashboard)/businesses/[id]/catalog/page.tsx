@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { VocabLabel } from "@/components/layout/VocabLabel";
 
 type CatalogItem = {
@@ -255,15 +256,12 @@ export default function CatalogPage() {
                   <span className={cn("w-2 h-2 rounded-full", watchAvailable ? "bg-emerald-500" : "bg-gray-400")} />
                   {watchAvailable ? "Disponível para pedido" : "Indisponível no momento"}
                 </span>
-                <div className={cn(
-                  "relative inline-flex h-5 w-9 rounded-full border-2 border-transparent transition-colors",
-                  watchAvailable ? "bg-emerald-500" : "bg-gray-300"
-                )}>
-                  <span className={cn(
-                    "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
-                    watchAvailable ? "translate-x-4" : "translate-x-0"
-                  )} />
-                </div>
+                <Switch
+                  checked={watchAvailable}
+                  size="sm"
+                  interactive={false}
+                  className={watchAvailable ? "bg-emerald-500" : "bg-gray-300"}
+                />
                 <input type="checkbox" className="sr-only" {...register("available")} />
               </Button>
 

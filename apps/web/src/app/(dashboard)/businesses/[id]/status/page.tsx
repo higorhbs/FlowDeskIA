@@ -50,7 +50,7 @@ import { panelHref } from "@/lib/business-nav";
 const STATUS_LABEL: Record<ScheduledStatus["status"], string> = {
   scheduled: "Agendado",
   publishing: "Publicando…",
-  published: "Publicado",
+  published: "Enviado ao WhatsApp",
   failed: "Falhou",
   cancelled: "Cancelado",
 };
@@ -235,6 +235,9 @@ export default function StatusSchedulePage() {
             <h1 className="text-2xl font-bold text-white">Stories do WhatsApp</h1>
             <p className="text-white/75 text-sm mt-0.5">
               Agende imagens e vídeos para publicar no status do WhatsApp
+            </p>
+            <p className="text-white/60 text-xs mt-1 max-w-xl">
+              Publicação via WhatsApp Web: pode aparecer primeiro no computador vinculado. Quem já conversou com seu número vê no celular; confira privacidade de status no app.
             </p>
           </div>
         </div>

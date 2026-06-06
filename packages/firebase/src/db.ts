@@ -26,7 +26,7 @@ import {
   type PlanTier,
 } from "@flowdesk/shared";
 import { buildBusinessCreateRecord, normalizeBusiness } from "./business-record.js";
-import { getBusinessSchedule } from "./schedule.js";
+import { getBusinessSchedule, resolveBotOperatingContext } from "./schedule.js";
 import { resolveStoryScheduledAts } from "./schedule-status-dates.js";
 import type { Query, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { FieldValue as AdminFieldValue } from "firebase-admin/firestore";
@@ -259,18 +259,10 @@ export async function getBusinessForBot(id: string): Promise<BusinessWithRelatio
     getBusinessSchedule(id),
   ]);
   const tenant = await getTenant(business.tenantId);
-  const withSchedule = schedule
-    ? {
-        ...business,
-        timezone: schedule.timezone,
-        workingHours: schedule.workingHours,
-        specialHours: schedule.specialHours,
-        lunchBreak: schedule.lunchBreak,
-        lunchMsg: schedule.lunchMsg,
-      }
-    : business;
+  const operating = resolveBotOperatingContext(business, schedule);
   return {
-    ...withSchedule,
+    ...business,
+    ...operating,
     catalog,
     faqs,
     tenantPlan: tenant?.plan,
@@ -1033,7 +1025,7 @@ export async function listStatusAudienceJids(businessId: string, max = 400): Pro
     const raw = c.replyJid?.trim() || c.customerPhone?.trim() || "";
     if (!raw) continue;
     const jid = raw.includes("@") ? raw : phoneToJid(raw);
-    if (jid?.endsWith("@s.whatsapp.net")) jids.add(jid);
+    if (jid?.endsWith("@s.whatsapp.net") || jid?.endsWith("@lid")) jids.add(jid);
   }
   if (!jids.size) {
     const business = await getBusiness(businessId);

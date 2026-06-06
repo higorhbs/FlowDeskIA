@@ -1,4 +1,4 @@
-import type { BusinessSchedule, TimeSlot } from "./types.js";
+import type { Business, BusinessSchedule, TimeSlot } from "./types.js";
 import { getDb, nowIso } from "./admin.js";
 import { stripUndefined } from "./business-record.js";
 
@@ -81,6 +81,29 @@ export function normalizeBusinessSchedule(
     lunchMsg: typeof raw.lunchMsg === "string" ? raw.lunchMsg : undefined,
     createdAt: String(raw.createdAt ?? nowIso()),
     updatedAt: String(raw.updatedAt ?? nowIso()),
+  };
+}
+
+export function resolveBotOperatingContext(
+  business: Pick<
+    Business,
+    "timezone" | "workingHours" | "specialHours" | "lunchBreak" | "lunchMsg"
+  >,
+  schedule: BusinessSchedule | null
+): Pick<Business, "timezone" | "workingHours" | "specialHours" | "lunchBreak" | "lunchMsg"> {
+  const businessHours = normalizeWorkingHours(business.workingHours);
+  const hasBusinessHours = Object.values(businessHours).some((slot) => slot !== null);
+  const scheduleHours = schedule?.workingHours ?? defaultWorkingHours();
+
+  return {
+    timezone: schedule?.timezone ?? business.timezone ?? "America/Sao_Paulo",
+    workingHours: hasBusinessHours ? businessHours : scheduleHours,
+    specialHours: {
+      ...(schedule?.specialHours ?? {}),
+      ...(business.specialHours ?? {}),
+    },
+    lunchBreak: business.lunchBreak ?? schedule?.lunchBreak ?? null,
+    lunchMsg: business.lunchMsg ?? schedule?.lunchMsg,
   };
 }
 

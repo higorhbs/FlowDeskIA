@@ -620,7 +620,7 @@ export class WhatsAppClient extends EventEmitter {
     if (own) audience.add(own);
     for (const j of opts.statusJidList) {
       const jid = j.includes("@") ? jidNormalizedUser(j) || j : toSendJid(j);
-      if (jid.endsWith("@s.whatsapp.net")) audience.add(jid);
+      if (jid.endsWith("@s.whatsapp.net") || jid.endsWith("@lid")) audience.add(jid);
     }
     const statusJidList = [...audience].slice(0, 500);
     if (!statusJidList.length) {
