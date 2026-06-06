@@ -105,6 +105,8 @@ async function publishOne(post: { businessId: string; id: string }) {
     const storedMedia = await readStatusMediaBuffer(claimed.mediaUrl, claimed.mediaStoragePath);
     const audience = await listStatusAudienceJids(post.businessId);
 
+    await readyClient.prepareStatusAudience(audience);
+
     const msgId = await readyClient.publishStatus({
       mediaUrl: storedMedia ? undefined : claimed.mediaUrl,
       mediaBuffer: storedMedia?.buffer,
@@ -120,7 +122,7 @@ async function publishOne(post: { businessId: string; id: string }) {
   } catch (err) {
     const message = storyPublishError(err);
     await finishScheduledStatus(post.businessId, post.id, { status: "failed", error: message });
-    console.error(`[status] failed business=${post.businessId} id=${post.id}:`, message);
+    console.error(`[status] failed business=${post.businessId} id=${post.id}:`, message, err);
   }
 }
 

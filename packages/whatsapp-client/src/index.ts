@@ -164,6 +164,7 @@ export class WhatsAppClient extends EventEmitter {
   private connecting = false;
   private allowReconnect = true;
   private reconnectTimer?: ReturnType<typeof setTimeout>;
+  private connectedAt = 0;
 
   constructor(
     private businessId: string,
@@ -255,6 +256,7 @@ export class WhatsAppClient extends EventEmitter {
 
       if (connection === "open") {
         this.status = "open";
+        this.connectedAt = Date.now();
         this.lastQrDataUrl = undefined;
         this.connecting = false;
         console.log(`[wa:${this.businessId}] connected`);
@@ -382,7 +384,7 @@ export class WhatsAppClient extends EventEmitter {
         printQRInTerminal: false,
         generateHighQualityLinkPreview: false,
         markOnlineOnConnect: false,
-        fireInitQueries: false,
+        fireInitQueries: true,
         connectTimeoutMs: 30_000,
         defaultQueryTimeoutMs: 120_000,
         shouldSyncHistoryMessage: () => false,
@@ -419,6 +421,51 @@ export class WhatsAppClient extends EventEmitter {
     if (result?.message && result.key?.id) {
       this.messageStore.set(messageStoreKey(result.key), result.message);
     }
+  }
+
+  private normalizeAudienceJid(j: string): string | undefined {
+    const jid = j.includes("@") ? jidNormalizedUser(j) || j : toSendJid(j);
+    if (isLidUser(jid)) {
+      const phone = this.lidToPhone.get(jid);
+      if (phone?.endsWith("@s.whatsapp.net")) return phone;
+    }
+    if (jid.endsWith("@s.whatsapp.net") || jid.endsWith("@lid")) return jid;
+    return undefined;
+  }
+
+  private async assertAudienceSessions(jids: string[]): Promise<void> {
+    const fn = (this.sock as { assertSessions?: (j: string[], force: boolean) => Promise<boolean> })
+      ?.assertSessions;
+    if (typeof fn !== "function" || !jids.length) return;
+    await this.ensurePreKeys();
+    const batchSize = 35;
+    for (let i = 0; i < jids.length; i += batchSize) {
+      const batch = jids.slice(i, i + batchSize);
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          await fn.call(this.sock, batch, true);
+          break;
+        } catch (err) {
+          if (!isSignalSessionError(err) || attempt >= 4) throw err;
+          await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+        }
+      }
+      await new Promise((r) => setTimeout(r, 250));
+    }
+  }
+
+  async prepareStatusAudience(jids: string[]): Promise<void> {
+    if (!this.sock) throw new Error("Socket not connected");
+    const audience = new Set<string>();
+    const own = this.getOwnJid();
+    if (own) audience.add(own);
+    for (const j of jids) {
+      const jid = this.normalizeAudienceJid(j);
+      if (jid) audience.add(jid);
+    }
+    const list = [...audience];
+    if (!list.length) return;
+    await this.assertAudienceSessions(list);
   }
 
   private async ensurePreKeys() {
@@ -633,13 +680,15 @@ export class WhatsAppClient extends EventEmitter {
     const audience = new Set<string>();
     if (own) audience.add(own);
     for (const j of opts.statusJidList) {
-      const jid = j.includes("@") ? jidNormalizedUser(j) || j : toSendJid(j);
-      if (jid.endsWith("@s.whatsapp.net") || jid.endsWith("@lid")) audience.add(jid);
+      const jid = this.normalizeAudienceJid(j);
+      if (jid) audience.add(jid);
     }
     const statusJidList = [...audience].slice(0, 500);
     if (!statusJidList.length) {
       throw new Error("Nenhum contato na audiência do status.");
     }
+
+    await this.prepareStatusAudience(statusJidList);
 
     const { buffer, mimetype } = opts.mediaBuffer
       ? await this.normalizeStatusBuffer(
@@ -656,10 +705,14 @@ export class WhatsAppClient extends EventEmitter {
         : { image: buffer, mimetype, caption: opts.caption };
 
     let lastErr: unknown;
-    for (let attempt = 0; attempt < 4; attempt++) {
+    for (let attempt = 0; attempt < 6; attempt++) {
       if (attempt > 0) {
-        await new Promise((r) => setTimeout(r, 1500 * attempt));
-        await this.ensurePreKeys();
+        await new Promise((r) => setTimeout(r, 2500 * attempt));
+        try {
+          await this.prepareStatusAudience(statusJidList);
+        } catch (warmErr) {
+          console.warn(`[wa:${this.businessId}] prepareStatusAudience retry ${attempt}:`, warmErr);
+        }
       } else {
         await this.ensurePreKeys();
       }
@@ -674,7 +727,7 @@ export class WhatsAppClient extends EventEmitter {
         return result?.key?.id ?? undefined;
       } catch (err) {
         lastErr = err;
-        if (!isSignalSessionError(err) || attempt >= 3) throw err;
+        if (!isSignalSessionError(err) || attempt >= 5) throw err;
         console.warn(`[wa:${this.businessId}] publishStatus retry ${attempt + 1}:`, err);
       }
     }
@@ -776,7 +829,9 @@ export class WhatsAppClient extends EventEmitter {
   }
 
   isPublishReady(): boolean {
-    return this.isConnected() && !!this.getOwnJid();
+    if (!this.isConnected() || !this.getOwnJid()) return false;
+    if (this.connectedAt > 0 && Date.now() - this.connectedAt < 12_000) return false;
+    return true;
   }
 
   getDebugInfo() {
