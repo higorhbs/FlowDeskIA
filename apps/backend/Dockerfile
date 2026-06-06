@@ -7,7 +7,7 @@ RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
 
 FROM base AS builder
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git \
+    && apt-get install -y --no-install-recommends ca-certificates git \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
@@ -21,10 +21,9 @@ RUN mkdir -p apps/backend \
 ENV NODE_OPTIONS="--max-old-space-size=768"
 
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm install --frozen-lockfile --filter @flowdesk/backend...
-
-RUN pnpm --filter @flowdesk/backend run build:docker
-RUN pnpm deploy --filter=@flowdesk/backend --prod --legacy /prod/backend
+    pnpm install --frozen-lockfile --filter @flowdesk/backend... \
+    && pnpm --filter @flowdesk/backend run build:docker \
+    && pnpm deploy --filter=@flowdesk/backend --prod --legacy --offline /prod/backend
 
 FROM base AS runner
 WORKDIR /app
