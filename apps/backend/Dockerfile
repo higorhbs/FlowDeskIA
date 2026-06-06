@@ -6,20 +6,39 @@ ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
 
 FROM base AS builder
+WORKDIR /ctx
+COPY . .
+RUN set -eux; \
+  mkdir -p /app/apps/backend /app/packages; \
+  if [ -f pnpm-lock.yaml ] && [ -d apps/backend ] && [ -f apps/backend/package.json ]; then \
+    cp pnpm-lock.yaml /app/; \
+    cp pnpm-workspace.yaml package.json /app/; \
+    cp -a packages/. /app/packages/; \
+    cp -a apps/backend/. /app/apps/backend/; \
+  elif [ -f package.json ] && [ -d src ] && [ -f pnpm-lock.yaml ] && [ -d packages ]; then \
+    cp pnpm-lock.yaml /app/; \
+    cp docker/pnpm-workspace.yaml /app/pnpm-workspace.yaml; \
+    cp docker/root.package.json /app/package.json; \
+    cp package.json /app/apps/backend/package.json; \
+    cp -a packages/. /app/packages/; \
+    find . -mindepth 1 -maxdepth 1 \
+      ! -name packages \
+      ! -name pnpm-lock.yaml \
+      ! -name pnpm-workspace.yaml \
+      ! -name docker \
+      ! -name node_modules \
+      ! -name .git \
+      -exec cp -a {} /app/apps/backend/ \; ; \
+  else \
+    echo "Docker: inclua pnpm-lock.yaml e packages/ no contexto, ou use Docker Context Path = . na raiz do repo." >&2; \
+    exit 1; \
+  fi
+
 WORKDIR /app
 ENV NODE_OPTIONS="--max-old-space-size=768"
 
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY apps/backend/package.json ./apps/backend/
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/firebase/package.json ./packages/firebase/
-COPY packages/whatsapp-client/package.json ./packages/whatsapp-client/
-
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @flowdesk/backend...
-
-COPY packages ./packages
-COPY apps/backend ./apps/backend
 
 RUN pnpm --filter @flowdesk/backend build
 RUN pnpm deploy --filter=@flowdesk/backend --prod /prod/backend

@@ -1,0 +1,11 @@
+{
+  "name": "flowdesk",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.12.4",
+  "pnpm": {
+    "overrides": {
+      "firebase": "^11.6.0"
+    }
+  }
+}
