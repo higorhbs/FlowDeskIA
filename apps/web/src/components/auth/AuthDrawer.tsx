@@ -23,7 +23,25 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { MessageSquare, Loader2, ShieldCheck, MailCheck, RefreshCw, X } from "lucide-react";
+
+function authTabClass(active: boolean) {
+  return cn(
+    "relative flex-1 rounded-none border-0 py-3 h-auto text-sm font-medium shadow-none",
+    "focus-visible:border-transparent focus-visible:ring-0",
+    active ? "text-brand-600" : "text-gray-400 hover:text-gray-600"
+  );
+}
+
+function AuthTabIndicator() {
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-brand-600"
+    />
+  );
+}
 
 function AuthLegalNotice() {
   return (
@@ -376,25 +394,19 @@ export function AuthDrawer({
             type="button"
             variant="ghost"
             onClick={() => onModeChange("login")}
-            className={`flex-1 py-3 h-auto rounded-none text-sm font-medium ${
-              mode === "login"
-                ? "text-brand-600 border-b-2 border-brand-600"
-                : "text-gray-400 hover:text-gray-600"
-            }`}
+            className={authTabClass(mode === "login")}
           >
             Entrar
+            {mode === "login" && <AuthTabIndicator />}
           </Button>
           <Button
             type="button"
             variant="ghost"
             onClick={() => onModeChange("register")}
-            className={`flex-1 py-3 h-auto rounded-none text-sm font-medium ${
-              mode === "register"
-                ? "text-brand-600 border-b-2 border-brand-600"
-                : "text-gray-400 hover:text-gray-600"
-            }`}
+            className={authTabClass(mode === "register")}
           >
             Criar conta
+            {mode === "register" && <AuthTabIndicator />}
           </Button>
         </div>
 
