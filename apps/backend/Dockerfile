@@ -6,6 +6,9 @@ ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
 
 FROM base AS builder
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 COPY docker/monorepo/pnpm-lock.yaml docker/monorepo/pnpm-workspace.yaml docker/monorepo/package.json ./
