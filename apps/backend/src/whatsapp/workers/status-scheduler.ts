@@ -17,9 +17,11 @@ import { waManager } from "../wa-manager.js";
 
 const TICK_MS = 10_000;
 const GAP_BETWEEN_POSTS_MS = 8_000;
-const IMMEDIATE_PUBLISH_DELAY_MS = 8_000;
-const FIRST_TICK_DELAY_MS = 15_000;
-const READY_WAIT_MS = 60_000;
+const IMMEDIATE_PUBLISH_DELAY_MS = 25_000;
+const FIRST_TICK_DELAY_MS = 20_000;
+const READY_WAIT_MS = 90_000;
+
+const publishInFlight = new Map<string, Promise<void>>();
 
 function isSignalSessionError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
@@ -32,6 +34,9 @@ function storyPublishError(err: unknown): string {
     return "Sessão WhatsApp ainda sincronizando. Aguarde ~1 min após conectar e use Reagendar.";
   }
   const msg = err instanceof Error ? err.message : String(err);
+  if (/timed out|time-out|408/i.test(msg)) {
+    return "WhatsApp lento para responder. Aguarde 1 min com celular online e use Reagendar.";
+  }
   if (/socket not connected|desconectado/i.test(msg)) {
     return "WhatsApp desconectado. Abra o menu WhatsApp e reconecte.";
   }
@@ -56,6 +61,26 @@ async function checkPublishQuota(businessId: string): Promise<string | null> {
 }
 
 async function publishOne(post: { businessId: string; id: string }) {
+  const prev = publishInFlight.get(post.businessId);
+  if (prev) await prev.catch(() => undefined);
+
+  let release!: () => void;
+  const gate = new Promise<void>((r) => {
+    release = r;
+  });
+  publishInFlight.set(post.businessId, gate);
+
+  try {
+    await publishOneInner(post);
+  } finally {
+    release();
+    if (publishInFlight.get(post.businessId) === gate) {
+      publishInFlight.delete(post.businessId);
+    }
+  }
+}
+
+async function publishOneInner(post: { businessId: string; id: string }) {
   const claimed = await claimScheduledStatus(post.businessId, post.id);
   if (!claimed) return;
 
@@ -105,8 +130,6 @@ async function publishOne(post: { businessId: string; id: string }) {
 
     const storedMedia = await readStatusMediaBuffer(claimed.mediaUrl, claimed.mediaStoragePath);
     const audience = await listStatusAudienceJids(post.businessId);
-
-    await readyClient.prepareStatusAudience(audience);
 
     const msgId = await readyClient.publishStatus({
       mediaUrl: storedMedia ? undefined : claimed.mediaUrl,

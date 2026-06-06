@@ -8,7 +8,6 @@ import {
   enqueueWhatsappInboundJob,
   hasWhatsAppAuth,
   listBusinessIdsWithWhatsAppAuth,
-  listStatusAudienceJids,
   setBusinessConnected,
 } from '@flowdesk/firebase'
 import { saveChatMedia } from './chat-media.js'
@@ -33,18 +32,6 @@ export function attachWhatsAppLifecycle(businessId: string, client: WhatsAppClie
     try {
       await setBusinessConnected(businessId, true)
       attachWhatsAppMessageHandler(businessId, client)
-      setTimeout(() => {
-        void (async () => {
-          try {
-            const jids = await listStatusAudienceJids(businessId)
-            if (!jids.length || !client.isConnected()) return
-            await client.prepareStatusAudience(jids)
-            console.log(`[whatsapp] status audience warmed business=${businessId} count=${jids.length}`)
-          } catch (err) {
-            console.warn(`[whatsapp] status audience warmup failed business=${businessId}:`, err)
-          }
-        })()
-      }, 15_000)
     } catch (err) {
       console.error(`[whatsapp] failed to mark connected for ${businessId}:`, err)
     }

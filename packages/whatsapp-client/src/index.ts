@@ -165,6 +165,9 @@ export class WhatsAppClient extends EventEmitter {
   private allowReconnect = true;
   private reconnectTimer?: ReturnType<typeof setTimeout>;
   private connectedAt = 0;
+  private statusChannelReady = false;
+  private audiencePreparedAt = 0;
+  private publishQueue: Promise<void> = Promise.resolve();
 
   constructor(
     private businessId: string,
@@ -267,6 +270,8 @@ export class WhatsAppClient extends EventEmitter {
         this.status = "close";
         this.connecting = false;
         this.boundSock = null;
+        this.statusChannelReady = false;
+        this.audiencePreparedAt = 0;
         const code = (lastDisconnect?.error as Boom)?.output?.statusCode;
         const shouldReconnect = code !== DisconnectReason.loggedOut && this.allowReconnect;
         console.log(`[wa:${this.businessId}] disconnected code=${code ?? "-"} reconnect=${shouldReconnect}`);
@@ -434,81 +439,7 @@ export class WhatsAppClient extends EventEmitter {
     return undefined;
   }
 
-  private sockSendApi() {
-    return this.sock as {
-      assertSessions?: (jids: string[], force: boolean) => Promise<boolean>;
-      getUSyncDevices?: (
-        jids: string[],
-        useCache: boolean,
-        ignoreZero: boolean
-      ) => Promise<Array<{ jid: string; user: string; device: number }>>;
-      getPrivacyTokens?: (jids: string[]) => Promise<unknown>;
-    } | null;
-  }
-
-  private async resolveStatusDeviceJids(userJids: string[]): Promise<string[]> {
-    const getUSync = this.sockSendApi()?.getUSyncDevices;
-    const normalized = [
-      ...new Set(
-        userJids
-          .map((j) => this.normalizeAudienceJid(j))
-          .filter((j): j is string => !!j)
-      ),
-    ];
-    if (!getUSync || !normalized.length) return normalized;
-
-    const out = new Set<string>();
-    const devices = await getUSync.call(this.sock, normalized, false, false);
-    for (const d of devices) {
-      if (d.jid) out.add(d.jid);
-    }
-    const meId = this.sock?.user?.id;
-    if (meId) {
-      const meNorm = jidNormalizedUser(meId);
-      if (meNorm) {
-        const meDevices = await getUSync.call(this.sock, [meNorm], false, false);
-        for (const d of meDevices) {
-          if (d.jid) out.add(d.jid);
-        }
-      }
-    }
-    return out.size ? [...out] : normalized;
-  }
-
-  private async ensurePrivacyTokens(userJids: string[]): Promise<void> {
-    const fn = this.sockSendApi()?.getPrivacyTokens;
-    const normalized = userJids.filter((j) => j.endsWith("@s.whatsapp.net"));
-    if (typeof fn !== "function" || !normalized.length) return;
-    try {
-      await fn.call(this.sock, normalized.slice(0, 100));
-    } catch (err) {
-      console.warn(`[wa:${this.businessId}] getPrivacyTokens:`, err);
-    }
-  }
-
-  private async assertAudienceSessions(jids: string[]): Promise<void> {
-    const fn = (this.sock as { assertSessions?: (j: string[], force: boolean) => Promise<boolean> })
-      ?.assertSessions;
-    if (typeof fn !== "function" || !jids.length) return;
-    await this.ensurePreKeys();
-    const batchSize = 35;
-    for (let i = 0; i < jids.length; i += batchSize) {
-      const batch = jids.slice(i, i + batchSize);
-      for (let attempt = 0; attempt < 5; attempt++) {
-        try {
-          await fn.call(this.sock, batch, true);
-          break;
-        } catch (err) {
-          if (!isSignalSessionError(err) || attempt >= 4) throw err;
-          await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
-        }
-      }
-      await new Promise((r) => setTimeout(r, 250));
-    }
-  }
-
-  async prepareStatusAudience(jids: string[]): Promise<void> {
-    if (!this.sock) throw new Error("Socket not connected");
+  private buildAudienceList(jids: string[]): string[] {
     const audience = new Set<string>();
     const own = this.getOwnJid();
     if (own) audience.add(own);
@@ -516,13 +447,76 @@ export class WhatsAppClient extends EventEmitter {
       const jid = this.normalizeAudienceJid(j);
       if (jid) audience.add(jid);
     }
-    const userList = [...audience];
+    return [...audience];
+  }
+
+  private runExclusive<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.publishQueue.then(fn, fn);
+    this.publishQueue = run.then(
+      () => undefined,
+      () => undefined
+    );
+    return run;
+  }
+
+  private async ensureStatusChannelReady(ownJid: string): Promise<void> {
+    if (this.statusChannelReady || !this.sock) return;
+    await this.ensurePreKeys();
+    const assertFn = this.sockSendApi()?.assertSessions;
+    if (typeof assertFn === "function") {
+      await assertFn.call(this.sock, [ownJid], false);
+    }
+    try {
+      await this.sock.sendMessage(
+        "status@broadcast",
+        { text: "\u200c" },
+        { broadcast: true, statusJidList: [ownJid] }
+      );
+      this.statusChannelReady = true;
+      console.log(`[wa:${this.businessId}] status channel bootstrapped`);
+      await new Promise((r) => setTimeout(r, 4000));
+    } catch (err) {
+      console.warn(`[wa:${this.businessId}] status channel bootstrap:`, err);
+      if (!isSignalSessionError(err)) throw err;
+    }
+  }
+
+  private sockSendApi() {
+    return this.sock as {
+      assertSessions?: (jids: string[], force: boolean) => Promise<boolean>;
+    } | null;
+  }
+
+  private async assertAudienceSessions(jids: string[], force = false): Promise<void> {
+    const fn = this.sockSendApi()?.assertSessions;
+    if (typeof fn !== "function" || !jids.length) return;
+    const batchSize = 20;
+    for (let i = 0; i < jids.length; i += batchSize) {
+      const batch = jids.slice(i, i + batchSize);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await fn.call(this.sock, batch, force);
+          break;
+        } catch (err) {
+          if (!isSignalSessionError(err) || attempt >= 2) throw err;
+          await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+        }
+      }
+      if (i + batchSize < jids.length) await new Promise((r) => setTimeout(r, 500));
+    }
+  }
+
+  async prepareStatusAudience(jids: string[], opts?: { force?: boolean }): Promise<void> {
+    if (!this.sock) throw new Error("Socket not connected");
+    const now = Date.now();
+    if (!opts?.force && this.audiencePreparedAt > 0 && now - this.audiencePreparedAt < 300_000) {
+      return;
+    }
+    const userList = this.buildAudienceList(jids);
     if (!userList.length) return;
     await this.ensurePreKeys();
-    await this.ensurePrivacyTokens(userList);
-    const deviceJids = await this.resolveStatusDeviceJids(userList);
-    await this.assertAudienceSessions(deviceJids);
-    await new Promise((r) => setTimeout(r, 2000));
+    await this.assertAudienceSessions(userList, false);
+    this.audiencePreparedAt = now;
   }
 
   private async ensurePreKeys() {
@@ -723,9 +717,20 @@ export class WhatsAppClient extends EventEmitter {
     caption?: string;
     statusJidList: string[];
   }): Promise<string | undefined> {
+    return this.runExclusive(() => this.publishStatusInner(opts));
+  }
+
+  private async publishStatusInner(opts: {
+    mediaUrl?: string;
+    mediaBuffer?: Buffer;
+    mediaMimetype?: string;
+    mediaType: "image" | "video";
+    caption?: string;
+    statusJidList: string[];
+  }): Promise<string | undefined> {
     if (!this.sock) throw new Error("Socket not connected");
 
-    const deadline = Date.now() + 20_000;
+    const deadline = Date.now() + 45_000;
     while (!this.isPublishReady() && Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 500));
     }
@@ -734,18 +739,15 @@ export class WhatsAppClient extends EventEmitter {
     }
 
     const own = this.getOwnJid();
-    const audience = new Set<string>();
-    if (own) audience.add(own);
-    for (const j of opts.statusJidList) {
-      const jid = this.normalizeAudienceJid(j);
-      if (jid) audience.add(jid);
-    }
-    const statusJidList = [...audience].slice(0, 500);
+    if (!own) throw new Error("WhatsApp sem identidade. Reconecte.");
+
+    const statusJidList = this.buildAudienceList(opts.statusJidList).slice(0, 500);
     if (!statusJidList.length) {
       throw new Error("Nenhum contato na audiência do status.");
     }
 
-    await this.prepareStatusAudience(statusJidList);
+    await this.ensureStatusChannelReady(own);
+    await this.prepareStatusAudience(statusJidList, { force: true });
 
     const { buffer, mimetype } = opts.mediaBuffer
       ? await this.normalizeStatusBuffer(
@@ -762,16 +764,10 @@ export class WhatsAppClient extends EventEmitter {
         : { image: buffer, mimetype, caption: opts.caption };
 
     let lastErr: unknown;
-    for (let attempt = 0; attempt < 6; attempt++) {
+    for (let attempt = 0; attempt < 4; attempt++) {
       if (attempt > 0) {
-        await new Promise((r) => setTimeout(r, 2500 * attempt));
-        try {
-          await this.prepareStatusAudience(statusJidList);
-        } catch (warmErr) {
-          console.warn(`[wa:${this.businessId}] prepareStatusAudience retry ${attempt}:`, warmErr);
-        }
-      } else {
-        await this.ensurePreKeys();
+        await new Promise((r) => setTimeout(r, 4000 * attempt));
+        await this.assertAudienceSessions(statusJidList, true);
       }
       try {
         const result = await this.sock!.sendMessage("status@broadcast", content, {
@@ -780,11 +776,13 @@ export class WhatsAppClient extends EventEmitter {
           mediaUploadTimeoutMs: 180_000,
         });
         this.stashSentMessage(result);
-        await new Promise((r) => setTimeout(r, 8_000));
+        console.log(
+          `[wa:${this.businessId}] publishStatus ok audience=${statusJidList.length} attempt=${attempt + 1}`
+        );
         return result?.key?.id ?? undefined;
       } catch (err) {
         lastErr = err;
-        if (!isSignalSessionError(err) || attempt >= 5) throw err;
+        if (!isSignalSessionError(err) || attempt >= 3) throw err;
         console.warn(`[wa:${this.businessId}] publishStatus retry ${attempt + 1}:`, err);
       }
     }
@@ -860,6 +858,8 @@ export class WhatsAppClient extends EventEmitter {
     this.messageStore.clear();
     this.lidToPhone.clear();
     this.replyJidByContact.clear();
+    this.statusChannelReady = false;
+    this.audiencePreparedAt = 0;
     if (this.clearAuthStore) {
       try {
         await this.clearAuthStore();
@@ -887,7 +887,7 @@ export class WhatsAppClient extends EventEmitter {
 
   isPublishReady(): boolean {
     if (!this.isConnected() || !this.getOwnJid()) return false;
-    if (this.connectedAt > 0 && Date.now() - this.connectedAt < 12_000) return false;
+    if (this.connectedAt > 0 && Date.now() - this.connectedAt < 8_000) return false;
     return true;
   }
 

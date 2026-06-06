@@ -22,15 +22,6 @@ const STEPS: { phase: WhatsAppRunnerPhase; icon: typeof Server; label: string }[
   { phase: "connected", icon: Check, label: "Online" },
 ];
 
-const PHASE_PROGRESS: Record<WhatsAppRunnerPhase, number> = {
-  idle: 0,
-  checking: 0.12,
-  linking: 0.38,
-  qr: 0.58,
-  scan: 0.78,
-  connected: 1,
-};
-
 const PHASE_CAPTION: Record<WhatsAppRunnerPhase, string> = {
   idle: "Pronto para conectar",
   checking: "Alcançando o agente WhatsApp",
@@ -43,6 +34,16 @@ const PHASE_CAPTION: Record<WhatsAppRunnerPhase, string> = {
 function phaseIndex(phase: WhatsAppRunnerPhase) {
   if (phase === "idle") return -1;
   return STEPS.findIndex((s) => s.phase === phase);
+}
+
+function trackLeft(index: number) {
+  return `${8 + (index / (STEPS.length - 1)) * 84}%`;
+}
+
+function runnerLeftForPhase(phase: WhatsAppRunnerPhase, activeIdx: number) {
+  if (phase === "connected") return trackLeft(STEPS.length - 1);
+  if (activeIdx >= 0) return trackLeft(activeIdx);
+  return trackLeft(0);
 }
 
 export function resolveWhatsAppRunnerPhase(opts: {
@@ -73,12 +74,13 @@ type Props = {
 
 export function WhatsAppConnectionRunner({ phase, compact }: Props) {
   const reduced = useReducedMotion();
-  const progress = PHASE_PROGRESS[phase];
   const activeIdx = phaseIndex(phase);
   const running = phase !== "idle" && phase !== "connected";
   const caption = PHASE_CAPTION[phase];
-
-  const runnerLeft = useMemo(() => `calc(${Math.max(4, progress * 100)}% - 1.25rem)`, [progress]);
+  const runnerLeft = useMemo(
+    () => runnerLeftForPhase(phase, activeIdx),
+    [phase, activeIdx],
+  );
 
   return (
     <div
@@ -87,8 +89,8 @@ export function WhatsAppConnectionRunner({ phase, compact }: Props) {
       aria-live="polite"
       aria-label={caption}
     >
-      <div className="relative mx-auto max-w-sm px-2">
-        <div className="relative h-16 overflow-hidden rounded-2xl bg-gradient-to-b from-brand-50 to-brand-100/80 border border-brand-200/60">
+      <div className="relative mx-auto max-w-sm px-2 pt-4 pb-1">
+        <div className="relative h-14 overflow-hidden rounded-2xl bg-gradient-to-b from-brand-50 to-brand-100/80 border border-brand-200/60">
           <div
             className={cn(
               "absolute inset-x-0 bottom-3 h-px border-t border-dashed border-brand-300/70",
@@ -98,14 +100,14 @@ export function WhatsAppConnectionRunner({ phase, compact }: Props) {
           <div className="absolute inset-x-0 bottom-0 h-3 bg-brand-200/40 rounded-b-2xl" />
 
           {STEPS.map((step, i) => {
-            const left = `${8 + (i / (STEPS.length - 1)) * 84}%`;
+            const left = trackLeft(i);
             const done = activeIdx >= i;
             const current = activeIdx === i;
             const Icon = step.icon;
             return (
               <div
                 key={step.phase}
-                className="absolute bottom-4 flex flex-col items-center -translate-x-1/2"
+                className="absolute bottom-3 flex flex-col items-center -translate-x-1/2"
                 style={{ left }}
               >
                 <div
@@ -114,7 +116,7 @@ export function WhatsAppConnectionRunner({ phase, compact }: Props) {
                     done
                       ? "border-brand-500 bg-brand-500 text-white"
                       : "border-brand-200 bg-white text-brand-300",
-                    current && running && "ring-2 ring-brand-400/50 ring-offset-1",
+                    current && running && "ring-2 ring-brand-400/50",
                   )}
                 >
                   <Icon className="size-3" aria-hidden />
@@ -132,34 +134,34 @@ export function WhatsAppConnectionRunner({ phase, compact }: Props) {
               </div>
             );
           })}
-
-          <motion.div
-            className="absolute bottom-5 z-10 flex size-10 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg shadow-brand-600/30"
-            style={{ left: runnerLeft }}
-            animate={
-              reduced
-                ? { y: 0 }
-                : phase === "connected"
-                  ? { y: 0, scale: [1, 1.08, 1] }
-                  : running
-                    ? { y: [0, -5, 0, -3, 0] }
-                    : { y: 0 }
-            }
-            transition={
-              phase === "connected"
-                ? { duration: 0.5 }
-                : running
-                  ? { duration: 0.45, repeat: Infinity, ease: "easeInOut" }
-                  : { duration: 0.3 }
-            }
-          >
-            {phase === "connected" ? (
-              <Check className="size-5" strokeWidth={2.5} aria-hidden />
-            ) : (
-              <MessageSquare className="size-5" aria-hidden />
-            )}
-          </motion.div>
         </div>
+
+        <motion.div
+          className="absolute top-0 z-10 flex size-10 -translate-x-1/2 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg shadow-brand-600/30"
+          style={{ left: runnerLeft }}
+          animate={
+            reduced
+              ? { y: 0 }
+              : phase === "connected"
+                ? { y: 0, scale: [1, 1.08, 1] }
+                : running
+                  ? { y: [0, -4, 0, -2, 0] }
+                  : { y: 0 }
+          }
+          transition={
+            phase === "connected"
+              ? { duration: 0.5 }
+              : running
+                ? { duration: 0.45, repeat: Infinity, ease: "easeInOut" }
+                : { duration: 0.3 }
+          }
+        >
+          {phase === "connected" ? (
+            <Check className="size-5" strokeWidth={2.5} aria-hidden />
+          ) : (
+            <MessageSquare className="size-5" aria-hidden />
+          )}
+        </motion.div>
 
         <motion.div
           initial={reduced ? false : { opacity: 0, y: 4 }}
