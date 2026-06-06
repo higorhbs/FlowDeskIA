@@ -89,8 +89,8 @@ export function WhatsAppConnectionRunner({ phase, compact }: Props) {
       aria-live="polite"
       aria-label={caption}
     >
-      <div className="relative mx-auto max-w-sm px-2 pt-4 pb-1">
-        <div className="relative h-14 overflow-hidden rounded-2xl bg-gradient-to-b from-brand-50 to-brand-100/80 border border-brand-200/60">
+      <div className="relative mx-auto max-w-sm px-2">
+        <div className="relative min-h-[5.25rem] overflow-visible rounded-2xl bg-gradient-to-b from-brand-50 to-brand-100/80 border border-brand-200/60 pt-2 pb-1">
           <div
             className={cn(
               "absolute inset-x-0 bottom-3 h-px border-t border-dashed border-brand-300/70",
@@ -104,23 +104,29 @@ export function WhatsAppConnectionRunner({ phase, compact }: Props) {
             const done = activeIdx >= i;
             const current = activeIdx === i;
             const Icon = step.icon;
+            const runnerHere =
+              phase !== "idle" &&
+              (phase === "connected" ? i === STEPS.length - 1 : i === activeIdx);
             return (
               <div
                 key={step.phase}
                 className="absolute bottom-3 flex flex-col items-center -translate-x-1/2"
                 style={{ left }}
               >
-                <div
-                  className={cn(
-                    "flex size-6 items-center justify-center rounded-full border-2 transition-colors duration-500",
-                    done
-                      ? "border-brand-500 bg-brand-500 text-white"
-                      : "border-brand-200 bg-white text-brand-300",
-                    current && running && "ring-2 ring-brand-400/50",
-                  )}
-                >
-                  <Icon className="size-3" aria-hidden />
-                </div>
+                {!runnerHere && (
+                  <div
+                    className={cn(
+                      "flex size-6 items-center justify-center rounded-full border-2 transition-colors duration-500",
+                      done
+                        ? "border-brand-500 bg-brand-500 text-white"
+                        : "border-brand-200 bg-white text-brand-300",
+                      current && running && "ring-2 ring-brand-400/50",
+                    )}
+                  >
+                    <Icon className="size-3" aria-hidden />
+                  </div>
+                )}
+                {runnerHere && <div className="size-6" aria-hidden />}
                 {!compact && (
                   <span
                     className={cn(
@@ -134,34 +140,36 @@ export function WhatsAppConnectionRunner({ phase, compact }: Props) {
               </div>
             );
           })}
-        </div>
 
-        <motion.div
-          className="absolute top-0 z-10 flex size-10 -translate-x-1/2 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg shadow-brand-600/30"
-          style={{ left: runnerLeft }}
-          animate={
-            reduced
-              ? { y: 0 }
-              : phase === "connected"
-                ? { y: 0, scale: [1, 1.08, 1] }
-                : running
-                  ? { y: [0, -4, 0, -2, 0] }
-                  : { y: 0 }
-          }
-          transition={
-            phase === "connected"
-              ? { duration: 0.5 }
-              : running
-                ? { duration: 0.45, repeat: Infinity, ease: "easeInOut" }
-                : { duration: 0.3 }
-          }
-        >
-          {phase === "connected" ? (
-            <Check className="size-5" strokeWidth={2.5} aria-hidden />
-          ) : (
-            <MessageSquare className="size-5" aria-hidden />
+          {phase !== "idle" && (
+            <motion.div
+              className="absolute bottom-[2.5rem] z-10 flex size-6 -translate-x-1/2 items-center justify-center rounded-full border-2 border-brand-600 bg-brand-600 text-white shadow-sm shadow-brand-600/25"
+              style={{ left: runnerLeft }}
+              animate={
+                reduced
+                  ? { y: 0 }
+                  : phase === "connected"
+                    ? { y: 0, scale: [1, 1.06, 1] }
+                    : running
+                      ? { y: [0, -2, 0, -1, 0] }
+                      : { y: 0 }
+              }
+              transition={
+                phase === "connected"
+                  ? { duration: 0.5 }
+                  : running
+                    ? { duration: 0.45, repeat: Infinity, ease: "easeInOut" }
+                    : { duration: 0.3 }
+              }
+            >
+              {phase === "connected" ? (
+                <Check className="size-3" strokeWidth={2.5} aria-hidden />
+              ) : (
+                <MessageSquare className="size-3" aria-hidden />
+              )}
+            </motion.div>
           )}
-        </motion.div>
+        </div>
 
         <motion.div
           initial={reduced ? false : { opacity: 0, y: 4 }}
