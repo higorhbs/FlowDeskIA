@@ -22,7 +22,7 @@ export function buildBusinessCreateRecord(
     workingHours: data.workingHours ?? {},
     timezone: data.timezone ?? "America/Sao_Paulo",
     greetingMsg: data.greetingMsg ?? "Olá! Como posso ajudar?",
-    awayMsg: data.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
+    awayMsg: data.awayMsg ?? "Olá! No momento estamos fechados, mas logo retornamos. Deixe sua mensagem!",
     thanksEnabled: true,
     attendantEnabled: true,
     manualAttendantPrefixEnabled: true,
@@ -57,7 +57,7 @@ export function normalizeBusiness(id: string, raw: Record<string, unknown>): Bus
     awayMsg:
       typeof raw.awayMsg === "string"
         ? raw.awayMsg
-        : "No momento estamos fechados. Em breve retornaremos!",
+        : "Olá! No momento estamos fechados, mas logo retornamos. Deixe sua mensagem!",
     botMenu: raw.botMenu as Business["botMenu"],
     botMenuEnabled: raw.botMenuEnabled === true,
     greetingEnabled: raw.greetingEnabled !== false,

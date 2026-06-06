@@ -21,7 +21,13 @@ function normPath(path: string): string {
 export function isActivePanelRoute(pathname: string, href: string): boolean {
   const p = normPath(pathname);
   const h = normPath(href);
-  if (p !== h && !p.startsWith(`${h}/`)) return false;
+  if (isBusinessPanelHref(h)) {
+    if (p !== h && !p.startsWith(`${h}/`)) return false;
+  } else if (h === "/businesses") {
+    if (p !== h && p !== "/businesses/new") return false;
+  } else if (p !== h) {
+    return false;
+  }
   if (typeof window === "undefined") return true;
   const current = new URLSearchParams(window.location.search);
   if (href.includes("?")) {

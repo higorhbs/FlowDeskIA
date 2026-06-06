@@ -463,35 +463,34 @@ export default function ConversationsPage() {
             <div className="text-center text-gray-400 text-sm py-12">Nenhuma conversa</div>
           ) : (
             filtered.map((conv) => (
-              <Button
+              <button
                 key={conv.id}
                 type="button"
-                variant="ghost"
                 onClick={() => setSelected(conv.id)}
                 className={cn(
-                  "w-full h-auto justify-start rounded-none px-4 py-4 border-b border-gray-50 hover:bg-gray-50",
+                  "flex w-full items-start px-4 py-4 border-b border-gray-50 text-left hover:bg-gray-50 transition-colors",
                   selected === conv.id && "bg-brand-50 border-brand-100"
                 )}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm text-gray-900 truncate">
+                <div className="flex w-full min-w-0 items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 text-left">
+                    <p className="font-medium text-sm text-gray-900 truncate text-left">
                       {formatCustomerLabel(conv.customerPhone, conv.customerName)}
                     </p>
                     {!conv.customerName && conv.customerPhone.includes("@lid") ? (
-                      <p className="text-xs text-gray-400 truncate">WhatsApp</p>
+                      <p className="text-xs text-gray-400 truncate text-left">WhatsApp</p>
                     ) : null}
                   </div>
-                  <div className="flex-shrink-0 text-right">
+                  <div className="flex shrink-0 flex-col items-end gap-1">
                     <Badge variant="secondary" className={cn("text-xs", STATUS_LABELS[conv.status]?.color)}>
                       {STATUS_LABELS[conv.status]?.label}
                     </Badge>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-gray-400 whitespace-nowrap">
                       {formatDistanceToNow(new Date(conv.lastMessageAt), { locale: ptBR, addSuffix: true })}
                     </p>
                   </div>
                 </div>
-              </Button>
+              </button>
             ))
           )}
         </div>

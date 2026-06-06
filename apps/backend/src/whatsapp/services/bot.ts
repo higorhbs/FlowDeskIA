@@ -72,7 +72,9 @@ function awayReply(
     business.lunchBreak ?? undefined
   );
   const raw =
-    resolveAutoAwayMessage(availability, business.awayMsg, business.lunchMsg) ?? business.awayMsg;
+    resolveAutoAwayMessage(availability, business.awayMsg, business.lunchMsg) ??
+    business.awayMsg ??
+    "Olá! No momento estamos fechados, mas logo retornamos. Deixe sua mensagem!";
   return renderTemplate(raw, { nome: customerName ?? "cliente", negocio: business.name });
 }
 
@@ -98,6 +100,22 @@ const conversationState = new Map<
   { step: string; data: Record<string, string> }
 >();
 const botPausedSessions = new Set<string>();
+const awayNotifiedWhileClosed = new Set<string>();
+
+function replyWhenClosed(
+  business: { id: string; name: string; awayMsg?: string; lunchMsg?: string; workingHours?: Record<string, unknown>; timezone?: string; specialHours?: Record<string, [string, string] | null>; lunchBreak?: [string, string] | null },
+  conversation: Conversation,
+  customerName: string | undefined,
+  sessionKey: string
+): Promise<BotResponse[]> {
+  conversationState.delete(sessionKey);
+  if (awayNotifiedWhileClosed.has(sessionKey)) return Promise.resolve([]);
+  const response = awayReply(business, customerName);
+  awayNotifiedWhileClosed.add(sessionKey);
+  return saveAndReturn(business.id, conversation.id, [{ text: response }]).then(() => [
+    { text: response },
+  ]);
+}
 
 export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   const { businessId, customerPhone, customerName, messageBody, replyJid, mediaUrl, mediaType } = ctx;
@@ -138,20 +156,14 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
     return handleBotExit(business, conversation, sessionKey);
   }
 
+  if (open) {
+    awayNotifiedWhileClosed.delete(sessionKey);
+  } else {
+    return replyWhenClosed(business, conversation, customerName, sessionKey);
+  }
+
   if (botPausedSessions.has(sessionKey)) {
     botPausedSessions.delete(sessionKey);
-    if (!open) {
-      const faqWhenPaused = matchFaq(messageBody, business.faqs);
-      if (faqWhenPaused) {
-        await saveAndReturn(business.id, conversation.id, [
-          { text: faqWhenPaused.answer },
-        ]);
-        return [{ text: faqWhenPaused.answer }];
-      }
-      const response = awayReply(business, customerName);
-      await saveAndReturn(business.id, conversation.id, [{ text: response }]);
-      return [{ text: response }];
-    }
     return sendPresentation(business, conversation, customerName);
   }
 
@@ -170,12 +182,6 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
 
   if (!state && isGreeting(messageBody)) {
     return sendPresentation(business, conversation, customerName);
-  }
-
-  if (!open) {
-    const response = awayReply(business, customerName);
-    await saveAndReturn(business.id, conversation.id, [{ text: response }]);
-    return [{ text: response }];
   }
 
   const intent = detectIntent(messageBody, business.type);
