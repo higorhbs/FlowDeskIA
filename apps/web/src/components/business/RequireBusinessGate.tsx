@@ -57,7 +57,7 @@ export function RequireBusinessGate({ children }: { children: React.ReactNode })
     );
   }
 
-  if (mustRedirect || shouldLeaveCreatePage) {
+  if ((mustRedirect || shouldLeaveCreatePage) && !onDashboardPage) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Loader2 className="w-8 h-8 animate-spin text-brand-600" />

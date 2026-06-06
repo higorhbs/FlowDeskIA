@@ -10,9 +10,14 @@ import { AuthContext } from "@/contexts/auth-context";
 import { removeToken, setToken } from "@/lib/auth";
 import { syncServerSession } from "@/lib/server/session-client";
 
-function isDashboardPath(path: string) {
+function isDashboardShellPath(path: string) {
   const base = path.split("?")[0]?.replace(/\/$/, "") ?? "";
-  return base === "/dashboard";
+  return (
+    base === "/dashboard" ||
+    base === "/profile" ||
+    base === "/plan" ||
+    base.startsWith("/businesses")
+  );
 }
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -58,7 +63,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   if (!ready) {
-    if (isDashboardPath(pathname)) {
+    if (isDashboardShellPath(pathname)) {
       return (
         <AuthContext.Provider value={{ ready: false, uid: null }}>
           {children}

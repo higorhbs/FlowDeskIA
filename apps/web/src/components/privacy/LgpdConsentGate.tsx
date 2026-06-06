@@ -34,15 +34,7 @@ export function LgpdConsentGate() {
   const mustAccept =
     !tenant?.lgpdAcceptedAt || tenant.lgpdPolicyVersion !== LGPD_POLICY_VERSION;
 
-  if (!isLoading && !mustAccept) return null;
-
-  if (isLoading) {
-    return (
-      <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <Loader2 className="w-8 h-8 animate-spin text-white" aria-label="Carregando" />
-      </div>
-    );
-  }
+  if (isLoading || !mustAccept) return null;
 
   return (
     <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
