@@ -611,12 +611,22 @@ export async function clearOutsideHoursNotice(
   });
 }
 
-export async function markOutsideHoursNotice(
+export async function tryClaimOutsideHoursNotice(
   businessId: string,
-  conversationId: string,
-  at = nowIso()
-): Promise<void> {
-  await conversationsCol(businessId).doc(conversationId).update({ outsideHoursNoticeAt: at });
+  conversationId: string
+): Promise<boolean> {
+  const ref = conversationsCol(businessId).doc(conversationId);
+  try {
+    return await getDb().runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) return false;
+      if (snap.data()?.outsideHoursNoticeAt) return false;
+      tx.update(ref, { outsideHoursNoticeAt: nowIso() });
+      return true;
+    });
+  } catch {
+    return false;
+  }
 }
 
 export async function createMessage(

@@ -17,8 +17,8 @@ import {
   listCustomerAppointments,
   getBusinessAsaasIntegration,
   type Conversation,
-  markOutsideHoursNotice,
   clearOutsideHoursNotice,
+  tryClaimOutsideHoursNotice,
 } from "@flowdesk/firebase";
 import {
   APP_DISPLAY_NAME,
@@ -102,6 +102,19 @@ const conversationState = new Map<
   { step: string; data: Record<string, string> }
 >();
 const botPausedSessions = new Set<string>();
+const closedNoticeClaims = new Map<string, Promise<boolean>>();
+
+async function claimClosedNotice(businessId: string, conversationId: string): Promise<boolean> {
+  const key = `${businessId}:${conversationId}`;
+  const pending = closedNoticeClaims.get(key);
+  if (pending) return pending;
+
+  const claim = tryClaimOutsideHoursNotice(businessId, conversationId).finally(() => {
+    if (closedNoticeClaims.get(key) === claim) closedNoticeClaims.delete(key);
+  });
+  closedNoticeClaims.set(key, claim);
+  return claim;
+}
 
 async function replyWhenClosed(
   business: { id: string; name: string; awayMsg?: string; lunchMsg?: string; workingHours?: Record<string, unknown>; timezone?: string; specialHours?: Record<string, [string, string] | null>; lunchBreak?: [string, string] | null },
@@ -110,10 +123,9 @@ async function replyWhenClosed(
   sessionKey: string
 ): Promise<BotResponse[]> {
   conversationState.delete(sessionKey);
-  if (conversation.outsideHoursNoticeAt) return [];
+  const claimed = await claimClosedNotice(business.id, conversation.id);
+  if (!claimed) return [];
   const response = awayReply(business, customerName);
-  await markOutsideHoursNotice(business.id, conversation.id);
-  conversation.outsideHoursNoticeAt = new Date().toISOString();
   await saveAndReturn(business.id, conversation.id, [{ text: response }]);
   return [{ text: response }];
 }
