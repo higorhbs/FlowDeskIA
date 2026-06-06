@@ -136,6 +136,12 @@ function socketIsOpen(sock: WASocket | null): boolean {
   return true;
 }
 
+function isSignalSessionError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  const name = err instanceof Error ? err.name : "";
+  return name === "SessionError" || /no matching sessions|no sessions|bad mac/i.test(msg);
+}
+
 function linkedDeviceBrowser(): [string, string, string] {
   const name = process.env.WA_LINKED_DEVICE_NAME?.trim() || "FlowDesk";
   return [name, "Chrome", "120.0.0"];
@@ -615,6 +621,14 @@ export class WhatsAppClient extends EventEmitter {
   }): Promise<string | undefined> {
     if (!this.sock) throw new Error("Socket not connected");
 
+    const deadline = Date.now() + 20_000;
+    while (!this.isPublishReady() && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    if (!this.isPublishReady()) {
+      throw new Error("Sessão WhatsApp ainda sincronizando.");
+    }
+
     const own = this.getOwnJid();
     const audience = new Set<string>();
     if (own) audience.add(own);
@@ -641,16 +655,30 @@ export class WhatsAppClient extends EventEmitter {
         ? { video: buffer, mimetype, caption: opts.caption }
         : { image: buffer, mimetype, caption: opts.caption };
 
-    await this.ensurePreKeys();
-    const result = await this.sock.sendMessage("status@broadcast", content, {
-      broadcast: true,
-      statusJidList,
-      mediaUploadTimeoutMs: 180_000,
-    });
-    this.stashSentMessage(result);
-
-    await new Promise((r) => setTimeout(r, 8_000));
-    return result?.key?.id ?? undefined;
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, 1500 * attempt));
+        await this.ensurePreKeys();
+      } else {
+        await this.ensurePreKeys();
+      }
+      try {
+        const result = await this.sock!.sendMessage("status@broadcast", content, {
+          broadcast: true,
+          statusJidList,
+          mediaUploadTimeoutMs: 180_000,
+        });
+        this.stashSentMessage(result);
+        await new Promise((r) => setTimeout(r, 8_000));
+        return result?.key?.id ?? undefined;
+      } catch (err) {
+        lastErr = err;
+        if (!isSignalSessionError(err) || attempt >= 3) throw err;
+        console.warn(`[wa:${this.businessId}] publishStatus retry ${attempt + 1}:`, err);
+      }
+    }
+    throw lastErr;
   }
 
   async logout() {
@@ -695,6 +723,10 @@ export class WhatsAppClient extends EventEmitter {
 
   isReadyToSend(): boolean {
     return this.status === "open" && !!this.sock;
+  }
+
+  isPublishReady(): boolean {
+    return this.isConnected() && !!this.getOwnJid();
   }
 
   getDebugInfo() {

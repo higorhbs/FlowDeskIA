@@ -224,10 +224,13 @@ export async function resolveWhatsAppClient(
 
 export async function waitForWhatsAppReady(
   businessId: string,
-  timeoutMs = 30_000
+  timeoutMs = 30_000,
+  opts?: { forPublish?: boolean }
 ): Promise<WhatsAppClient | null> {
   const client = ensureWhatsAppClient(businessId)
-  if (client.isConnected() || client.isReadyToSend()) return client
+  const ready = () =>
+    opts?.forPublish ? client.isPublishReady() : client.isConnected() || client.isReadyToSend()
+  if (ready()) return client
 
   return new Promise((resolve) => {
     const deadline = Date.now() + timeoutMs
@@ -238,11 +241,11 @@ export async function waitForWhatsAppReady(
     }
 
     const onConnected = () => {
-      if (client.isConnected() || client.isReadyToSend()) done(client)
+      if (ready()) done(client)
     }
 
     const timer = setInterval(() => {
-      if (client.isConnected() || client.isReadyToSend()) {
+      if (ready()) {
         done(client)
         return
       }

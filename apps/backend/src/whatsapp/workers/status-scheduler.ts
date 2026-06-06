@@ -4,6 +4,7 @@ import {
   getBusiness,
   getTenant,
   getTenantStoriesPublished,
+  hasWhatsAppAuth,
   listDueScheduledStatuses,
   listStatusAudienceJids,
   reclaimStuckPublishingStatuses,
@@ -15,9 +16,29 @@ import { waManager } from "../wa-manager.js";
 
 const TICK_MS = 10_000;
 const GAP_BETWEEN_POSTS_MS = 8_000;
-const IMMEDIATE_PUBLISH_DELAY_MS = 2_000;
+const IMMEDIATE_PUBLISH_DELAY_MS = 8_000;
 const FIRST_TICK_DELAY_MS = 15_000;
-const READY_WAIT_MS = 30_000;
+const READY_WAIT_MS = 60_000;
+
+function isSignalSessionError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  const name = err instanceof Error ? err.name : "";
+  return name === "SessionError" || /no matching sessions|no sessions|bad mac/i.test(msg);
+}
+
+function storyPublishError(err: unknown): string {
+  if (isSignalSessionError(err)) {
+    return "Sessão WhatsApp ainda sincronizando. Aguarde ~1 min após conectar e use Reagendar.";
+  }
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/socket not connected|desconectado/i.test(msg)) {
+    return "WhatsApp desconectado. Abra o menu WhatsApp e reconecte.";
+  }
+  if (/audiência|Nenhum contato/i.test(msg)) {
+    return msg;
+  }
+  return msg || "Falha ao publicar status";
+}
 
 async function checkPublishQuota(businessId: string): Promise<string | null> {
   const business = await getBusiness(businessId);
@@ -40,6 +61,14 @@ async function publishOne(post: { businessId: string; id: string }) {
   const quotaErr = await checkPublishQuota(post.businessId);
   if (quotaErr) {
     await finishScheduledStatus(post.businessId, post.id, { status: "failed", error: quotaErr });
+    return;
+  }
+
+  if (!(await hasWhatsAppAuth(post.businessId))) {
+    await finishScheduledStatus(post.businessId, post.id, {
+      status: "failed",
+      error: "WhatsApp não conectado. Abra o menu WhatsApp e escaneie o QR.",
+    });
     return;
   }
 
@@ -66,10 +95,17 @@ async function publishOne(post: { businessId: string; id: string }) {
       `[status] attempt business=${post.businessId} id=${post.id} status=${debug.status} socketOpen=${debug.socketOpen}`
     );
 
+    const readyClient = await waitForWhatsAppReady(post.businessId, READY_WAIT_MS, {
+      forPublish: true,
+    });
+    if (!readyClient?.isPublishReady()) {
+      throw new Error("Sessão WhatsApp ainda sincronizando. Aguarde e tente Reagendar.");
+    }
+
     const storedMedia = await readStatusMediaBuffer(claimed.mediaUrl, claimed.mediaStoragePath);
     const audience = await listStatusAudienceJids(post.businessId);
 
-    const msgId = await client.publishStatus({
+    const msgId = await readyClient.publishStatus({
       mediaUrl: storedMedia ? undefined : claimed.mediaUrl,
       mediaBuffer: storedMedia?.buffer,
       mediaMimetype: storedMedia?.mimetype,
@@ -82,7 +118,7 @@ async function publishOne(post: { businessId: string; id: string }) {
       `[status] published business=${post.businessId} id=${post.id} waMsg=${msgId ?? "-"} audience=${audience.length}`
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Falha ao publicar status";
+    const message = storyPublishError(err);
     await finishScheduledStatus(post.businessId, post.id, { status: "failed", error: message });
     console.error(`[status] failed business=${post.businessId} id=${post.id}:`, message);
   }
@@ -91,7 +127,7 @@ async function publishOne(post: { businessId: string; id: string }) {
 export function enqueueImmediateStatusPublish(post: { businessId: string; id: string }) {
   setTimeout(() => {
     void (async () => {
-      await waitForWhatsAppReady(post.businessId, READY_WAIT_MS);
+      await waitForWhatsAppReady(post.businessId, READY_WAIT_MS, { forPublish: true });
       await publishOne(post);
     })().catch((err) => console.error("[status-scheduler] immediate publish error:", err));
   }, IMMEDIATE_PUBLISH_DELAY_MS);
