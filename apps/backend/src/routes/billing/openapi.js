@@ -72,18 +72,4 @@ export const billingPaths = {
       },
     },
   },
-  '/billing/prices': {
-    get: {
-      tags: ['Billing'],
-      summary: 'Preços dos planos',
-      security: [{ bearerAuth: [] }],
-      responses: {
-        200: {
-          description: 'Mapa de preços',
-          content: { 'application/json': { schema: { type: 'object', additionalProperties: true } } },
-        },
-        401: responses.unauthorized,
-      },
-    },
-  },
 }

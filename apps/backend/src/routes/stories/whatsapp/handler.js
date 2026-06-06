@@ -13,7 +13,7 @@ import {
 import { json, requireBearerUser } from '../../../lib/auth-guard.js'
 import { saveStatusMedia } from '../../../whatsapp/status-media.js'
 import { isWhatsAppRuntime } from '../../../whatsapp/wa-manager.js'
-import { resolveWhatsAppClient } from '../../../whatsapp/wa-lifecycle.js'
+import { resolveWhatsAppClient } from '../../../whatsapp/wa-lifecycle.runtime.js'
 
 function requireAdmin(c) {
   if (!hasAdminCredential()) {

@@ -49,7 +49,7 @@ export function RequireBusinessGate({ children }: { children: React.ReactNode })
     router.replace(CREATE_BUSINESS_PATH);
   }, [mustRedirect, router]);
 
-  if (loading && active && !onCreatePage) {
+  if (loading && active && !onCreatePage && !onDashboardPage) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Loader2 className="w-8 h-8 animate-spin text-brand-600" />

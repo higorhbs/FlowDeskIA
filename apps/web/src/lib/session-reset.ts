@@ -1,7 +1,8 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { clearAuthSessionMarkers, readLastAuthUid, writeLastAuthUid } from "./business-route";
+import { clearAuthSessionMarkers } from "./business-route";
 import { removeToken } from "./auth";
 import { logoutFirebase } from "./firebase-auth";
+import { clearServerSession } from "./server/session-client";
 
 export function resetClientSession(queryClient?: QueryClient) {
   clearAuthSessionMarkers();
@@ -10,6 +11,7 @@ export function resetClientSession(queryClient?: QueryClient) {
 
 export async function signOutAndReset(queryClient?: QueryClient) {
   await logoutFirebase();
+  await clearServerSession().catch(() => {});
   removeToken();
   resetClientSession(queryClient);
 }

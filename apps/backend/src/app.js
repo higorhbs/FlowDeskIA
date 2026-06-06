@@ -1,7 +1,7 @@
-import { swaggerUI } from '@hono/swagger-ui'
 import { Hono } from 'hono'
+import { env } from './config/env.js'
 import { corsMiddleware } from './middleware/cors.js'
-import { getOpenApiDocument } from './openapi/index.js'
+import { registerDocs } from './routes/docs/index.js'
 import { registerRoutes } from './routes/index.js'
 
 export function createApp() {
@@ -11,8 +11,9 @@ export function createApp() {
 
   registerRoutes(app)
 
-  app.get('/doc', (c) => c.json(getOpenApiDocument()))
-  app.get('/swagger', swaggerUI({ url: '/doc' }))
+  if (!env.isProduction) {
+    registerDocs(app)
+  }
 
   return app
 }

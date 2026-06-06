@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import { watchAuth, completeGoogleRedirect, authErrorMessage } from "@/lib/firebase-auth";
 import { authApi } from "@/lib/api";
 import { setToken, removeToken } from "@/lib/auth";
+import { syncServerSession } from "@/lib/server/session-client";
 import { readLastAuthUid, writeLastAuthUid, clearAuthSessionMarkers } from "@/lib/business-route";
 import { AuthDrawerProvider } from "@/contexts/auth-drawer-context";
 import { HostingRouteGuard } from "@/components/HostingRouteGuard";
@@ -25,9 +26,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     let active = true;
 
     completeGoogleRedirect()
-      .then((res) => {
+      .then(async (res) => {
         if (!active || !res || res.status !== "VERIFIED") return;
         setToken(res.token);
+        await syncServerSession(res.token).catch(() => {});
         const dest = isFirebaseHostingClient() ? hostingHref("/dashboard") : "/dashboard";
         window.location.replace(dest);
       })
@@ -58,6 +60,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         }
         const token = await user.getIdToken(true);
         setToken(token);
+        await syncServerSession(token).catch(() => {});
         void authApi.sync().catch(() => undefined);
       } else {
         removeToken();

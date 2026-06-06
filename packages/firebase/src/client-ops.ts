@@ -194,13 +194,36 @@ export async function getClientAnalytics(businessId: string, tenantId: string) {
   const appointments = aptSnap.docs.map((d) => d.data());
   const payments = paySnap.docs.map((d) => d.data());
 
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay());
+  weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  weekEnd.setHours(23, 59, 59, 999);
+  const weekStartIso = weekStart.toISOString();
+  const weekEndIso = weekEnd.toISOString();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+
+  const thisWeekByDaySets = Array.from({ length: 7 }, () => new Set<string>());
+  const thisMonthByDaySets = Array.from({ length: daysInMonth }, () => new Set<string>());
   let totalMessages = 0;
   let monthMessages = 0;
   for (const c of convSnap.docs) {
     const msgs = await getDocs(messagesCol(businessId, c.id));
     totalMessages += msgs.size;
-    monthMessages += msgs.docs.filter((m) => (m.data().createdAt as string) >= monthStart).length;
+    for (const m of msgs.docs) {
+      const created = m.data().createdAt as string;
+      if (created >= monthStart && created <= monthEnd) {
+        monthMessages++;
+        thisMonthByDaySets[new Date(created).getDate() - 1]!.add(c.id);
+      }
+      if (created >= weekStartIso && created <= weekEndIso) {
+        thisWeekByDaySets[new Date(created).getDay()]!.add(c.id);
+      }
+    }
   }
+  const thisWeekByDay = thisWeekByDaySets.map((s) => s.size);
+  const thisMonthByDay = thisMonthByDaySets.map((s) => s.size);
 
   const monthConversations = conversations.filter(
     (c) => c.createdAt >= monthStart && c.createdAt <= monthEnd
@@ -224,6 +247,8 @@ export async function getClientAnalytics(businessId: string, tenantId: string) {
       open: conversations.filter((c) => c.status === "OPEN").length,
       thisMonth: monthConversations,
       growth: conversationGrowth,
+      thisWeekByDay,
+      thisMonthByDay,
     },
     messages: { total: totalMessages, thisMonth: monthMessages },
     appointments: {

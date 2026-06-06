@@ -1,6 +1,7 @@
 import './load-env.js'
 
 export const env = {
+  isProduction: process.env.NODE_ENV === 'production',
   port: Number(process.env.PORT ?? 3001),
   firebaseWebApiKey:
     process.env.FIREBASE_WEB_API_KEY?.trim() ||

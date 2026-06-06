@@ -133,9 +133,8 @@ export function Sidebar() {
     : "–";
 
   return (
-    <aside className="hidden lg:flex w-64 flex-shrink-0 bg-white border-r border-gray-200 flex-col h-screen sticky top-0">
-      {/* Logo */}
-      <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
+    <aside className="hidden lg:flex sticky top-0 z-30 w-64 shrink-0 self-start h-dvh max-h-dvh flex-col overflow-hidden bg-white border-r border-gray-200">
+      <div className="shrink-0 flex items-center gap-2 px-5 py-4 border-b border-gray-100">
         <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
           <MessageSquare className="w-5 h-5 text-white" />
         </div>
@@ -144,7 +143,7 @@ export function Sidebar() {
 
       {/* Business context card */}
       {businessId && (
-        <div className="mx-3 mt-3 mb-1 rounded-xl bg-brand-50 border border-brand-100 p-3">
+        <div className="shrink-0 mx-3 mt-3 mb-1 rounded-xl bg-brand-50 border border-brand-100 p-3">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-lg bg-brand-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
               {businessInitials}
@@ -239,7 +238,7 @@ export function Sidebar() {
       )}
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-3 overflow-y-auto">
+      <nav className="flex-1 min-h-0 px-3 py-3 overflow-y-auto overscroll-contain">
         <>
           <p className="px-3 mb-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
             Painel do negócio
@@ -299,7 +298,7 @@ export function Sidebar() {
         </div>
       </nav>
 
-      <div className="px-3 py-3 border-t border-gray-100">
+      <div className="shrink-0 px-3 py-3 border-t border-gray-100 bg-white">
         <a
           href={getSupportMailtoUrl("Suporte FlowDesk")}
           target="_blank"

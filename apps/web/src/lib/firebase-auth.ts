@@ -18,6 +18,7 @@ import {
   backendUpdateProfileName,
   backendUpdateProfilePassword,
 } from "./backend-auth";
+import { syncServerSession } from "./server/session-client";
 
 type GoogleTokenResponse = {
   access_token?: string;
@@ -81,6 +82,7 @@ async function establishSession(
   const auth = getClientAuth();
   const cred = await signInWithCustomToken(auth, customToken);
   const token = await cred.user.getIdToken(true);
+  await syncServerSession(token).catch(() => {});
   return { token, user: cred.user };
 }
 

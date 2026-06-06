@@ -47,7 +47,8 @@ serve(
   },
   (info) => {
     console.log(`Backend listening on http://localhost:${info.port}`)
-    console.log(`OpenAPI: http://localhost:${info.port}/doc`)
-    console.log(`Swagger UI: http://localhost:${info.port}/swagger`)
+    if (!env.isProduction) {
+      console.log(`API docs: http://localhost:${info.port}/docs`)
+    }
   },
 )

@@ -8,8 +8,10 @@ import {
   useMemo,
   useState,
 } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { waitForAuthReady } from "@flowdesk/firebase/client";
 import { AuthDrawer, type AuthMode } from "@/components/auth/AuthDrawer";
+import { useAppRouter } from "@/lib/app-navigation";
 import { hostingHref } from "@/lib/hosting-href";
 
 type AuthDrawerContextValue = {
@@ -27,11 +29,20 @@ function parseAuthParam(value: string | null): AuthMode | null {
 }
 
 export function AuthDrawerProvider({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
+  const router = useAppRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [isOpen, setIsOpen] = useState(false);
+
+  const redirectIfVerified = useCallback(async () => {
+    const auth = await waitForAuthReady();
+    if (auth.currentUser?.emailVerified) {
+      router.replace("/dashboard");
+      return true;
+    }
+    return false;
+  }, [router]);
 
   const syncUrl = useCallback(
     (mode: AuthMode | null) => {
@@ -47,13 +58,16 @@ export function AuthDrawerProvider({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     const param = parseAuthParam(searchParams.get("auth"));
-    if (param) {
+    if (!param) {
+      setIsOpen(false);
+      return;
+    }
+    void redirectIfVerified().then((redirected) => {
+      if (redirected) return;
       setAuthMode(param);
       setIsOpen(true);
-    } else {
-      setIsOpen(false);
-    }
-  }, [searchParams]);
+    });
+  }, [searchParams, redirectIfVerified]);
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? "hidden" : "";
@@ -64,11 +78,14 @@ export function AuthDrawerProvider({ children }: { children: React.ReactNode }) 
 
   const openAuth = useCallback(
     (mode: AuthMode) => {
-      setAuthMode(mode);
-      setIsOpen(true);
-      syncUrl(mode);
+      void redirectIfVerified().then((redirected) => {
+        if (redirected) return;
+        setAuthMode(mode);
+        setIsOpen(true);
+        syncUrl(mode);
+      });
     },
-    [syncUrl],
+    [syncUrl, redirectIfVerified],
   );
 
   const closeAuth = useCallback(() => {

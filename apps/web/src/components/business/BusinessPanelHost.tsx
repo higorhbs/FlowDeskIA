@@ -8,14 +8,14 @@ import { BusinessPanelLoader } from "./BusinessPanelLoader";
 import { RequireWhatsAppConnection } from "./RequireWhatsAppConnection";
 
 const panels = {
-  conversations: lazy(() => import("@/app/(dashboard)/businesses/[id]/conversations/page")),
-  appointments: lazy(() => import("@/app/(dashboard)/businesses/[id]/appointments/page")),
-  catalog: lazy(() => import("@/app/(dashboard)/businesses/[id]/catalog/page")),
-  status: lazy(() => import("@/app/(dashboard)/businesses/[id]/status/page")),
-  payments: lazy(() => import("@/app/(dashboard)/businesses/[id]/payments/page")),
-  faqs: lazy(() => import("@/app/(dashboard)/businesses/[id]/faqs/page")),
-  whatsapp: lazy(() => import("@/app/(dashboard)/businesses/[id]/whatsapp/page")),
-  settings: lazy(() => import("@/app/(dashboard)/businesses/[id]/settings/page")),
+  conversations: lazy(() => import("@/app/(dashboard)/(shell)/businesses/[id]/conversations/page")),
+  appointments: lazy(() => import("@/app/(dashboard)/(shell)/businesses/[id]/appointments/page")),
+  catalog: lazy(() => import("@/app/(dashboard)/(shell)/businesses/[id]/catalog/page")),
+  status: lazy(() => import("@/app/(dashboard)/(shell)/businesses/[id]/status/page")),
+  payments: lazy(() => import("@/app/(dashboard)/(shell)/businesses/[id]/payments/page")),
+  faqs: lazy(() => import("@/app/(dashboard)/(shell)/businesses/[id]/faqs/page")),
+  whatsapp: lazy(() => import("@/app/(dashboard)/(shell)/businesses/[id]/whatsapp/page")),
+  settings: lazy(() => import("@/app/(dashboard)/(shell)/businesses/[id]/settings/page")),
 } as const;
 
 export function BusinessPanelHost() {

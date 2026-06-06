@@ -332,17 +332,3 @@ export async function billingPortalHandler(c) {
     return sendBillingError(c, err)
   }
 }
-
-export async function billingPricesHandler(c) {
-  const auth = await requireBillingAuth(c)
-  if (auth.error) return auth.error
-
-  return c.json({
-    STARTER: { amount: PLAN_PRICES.STARTER.brl, priceId: process.env.STRIPE_PRICE_STARTER ?? null },
-    PRO: { amount: PLAN_PRICES.PRO.brl, priceId: process.env.STRIPE_PRICE_PRO ?? null },
-    UNLIMITED: {
-      amount: PLAN_PRICES.UNLIMITED.brl,
-      priceId: process.env.STRIPE_PRICE_UNLIMITED ?? null,
-    },
-  })
-}
