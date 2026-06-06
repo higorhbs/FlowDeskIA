@@ -1,4 +1,7 @@
 import { authFetch } from "./backend-auth";
+import { getWaApiBaseUrl } from "./backend-url";
+
+const waBase = () => ({ baseUrl: getWaApiBaseUrl() });
 
 export type WhatsAppStatus = {
   connected: boolean;
@@ -14,7 +17,7 @@ export type WhatsAppConnectResult = {
 };
 
 export async function backendGetWhatsAppQr(businessId: string): Promise<WhatsAppStatus> {
-  return authFetch(`/chat/whatsapp/qr-code/${businessId}`, { method: "GET" }) as Promise<WhatsAppStatus>;
+  return authFetch(`/chat/whatsapp/qr-code/${businessId}`, { method: "GET", ...waBase() }) as Promise<WhatsAppStatus>;
 }
 
 export async function backendPostWhatsAppQr(
@@ -25,6 +28,7 @@ export async function backendPostWhatsAppQr(
   return authFetch(`/chat/whatsapp/qr-code/${businessId}${q}`, {
     method: "POST",
     timeoutMs: 50_000,
+    ...waBase(),
   }) as Promise<WhatsAppConnectResult>;
 }
 
@@ -33,6 +37,7 @@ export async function backendDeleteWhatsAppConnection(
 ): Promise<{ status: string }> {
   return authFetch(`/chat/whatsapp/connection/${businessId}`, {
     method: "DELETE",
+    ...waBase(),
   }) as Promise<{ status: string }>;
 }
 
@@ -57,6 +62,7 @@ export async function backendSendWhatsAppMessage(
   return authFetch(`/chat/whatsapp/messages/${businessId}`, {
     method: "POST",
     body: JSON.stringify(body),
+    ...waBase(),
   }) as Promise<WhatsAppSendResult>;
 }
 
@@ -74,5 +80,6 @@ export async function backendSendWhatsAppMedia(
     method: "POST",
     body: form,
     timeoutMs: 120_000,
+    ...waBase(),
   }) as Promise<WhatsAppSendResult>;
 }

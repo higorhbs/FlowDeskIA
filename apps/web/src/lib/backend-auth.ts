@@ -11,9 +11,9 @@ export async function getAuthBearer(): Promise<string> {
 
 export async function authFetch(
   path: string,
-  init: RequestInit & { timeoutMs?: number } = {},
+  init: RequestInit & { timeoutMs?: number; baseUrl?: string } = {},
 ) {
-  const { timeoutMs, ...rest } = init;
+  const { timeoutMs, baseUrl, ...rest } = init;
   const token = await getAuthBearer();
   const headers = new Headers(rest.headers);
   headers.set("Authorization", `Bearer ${token}`);
@@ -25,7 +25,7 @@ export async function authFetch(
     controller && timeoutMs
       ? setTimeout(() => controller.abort(), timeoutMs)
       : undefined;
-  const res = await fetch(`${getBackendBaseUrl()}${path}`, {
+  const res = await fetch(`${baseUrl ?? getBackendBaseUrl()}${path}`, {
     ...rest,
     headers,
     credentials: "include",

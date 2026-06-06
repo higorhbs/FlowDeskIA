@@ -1,10 +1,13 @@
 import { authFetch } from "./backend-auth";
+import { getWaApiBaseUrl } from "./backend-url";
 import type { ScheduledStatus, ScheduledStatusMediaType } from "@flowdesk/firebase/client";
 
 export type { ScheduledStatus, ScheduledStatusMediaType };
 
+const waBase = () => ({ baseUrl: getWaApiBaseUrl() });
+
 export async function backendListStories(businessId: string): Promise<ScheduledStatus[]> {
-  return authFetch(`/stories/whatsapp/${businessId}`, { method: "GET" }) as Promise<
+  return authFetch(`/stories/whatsapp/${businessId}`, { method: "GET", ...waBase() }) as Promise<
     ScheduledStatus[]
   >;
 }
@@ -35,6 +38,7 @@ export async function backendCreateStories(
     method: "POST",
     body: form,
     timeoutMs: 120_000,
+    ...waBase(),
   }) as Promise<ScheduledStatus[]>;
 }
 
@@ -46,6 +50,7 @@ export async function backendRepostStory(
   return authFetch(`/stories/whatsapp/${businessId}/${statusId}/repost`, {
     method: "POST",
     body: JSON.stringify(data),
+    ...waBase(),
   }) as Promise<ScheduledStatus[]>;
 }
 
@@ -55,6 +60,7 @@ export async function backendCancelStory(
 ): Promise<{ ok: boolean }> {
   return authFetch(`/stories/whatsapp/${businessId}/${statusId}`, {
     method: "DELETE",
+    ...waBase(),
   }) as Promise<{ ok: boolean }>;
 }
 
@@ -64,5 +70,6 @@ export async function backendCancelStorySeries(
 ): Promise<{ ok: boolean }> {
   return authFetch(`/stories/whatsapp/${businessId}/series/${seriesId}`, {
     method: "DELETE",
+    ...waBase(),
   }) as Promise<{ ok: boolean }>;
 }

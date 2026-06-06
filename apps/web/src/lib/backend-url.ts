@@ -20,9 +20,21 @@ export function resolveBackendBaseUrl() {
   throw new Error("NEXT_PUBLIC_BACKEND_URL não configurada.");
 }
 
+export function resolveWaApiBaseUrl() {
+  const wa = process.env.NEXT_PUBLIC_WA_API_URL?.trim();
+  if (wa) return wa.replace(/\/$/, "");
+  return resolveBackendBaseUrl();
+}
+
 let cached: string | undefined;
+let waCached: string | undefined;
 
 export function getBackendBaseUrl() {
   if (!cached) cached = resolveBackendBaseUrl();
   return cached;
+}
+
+export function getWaApiBaseUrl() {
+  if (!waCached) waCached = resolveWaApiBaseUrl();
+  return waCached;
 }

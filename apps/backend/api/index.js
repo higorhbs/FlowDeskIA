@@ -14,11 +14,32 @@ async function readBody(req) {
   if (req.body != null && typeof req.body === 'object') {
     return Buffer.from(JSON.stringify(req.body))
   }
+  const contentLength = Number(req.headers['content-length'] || 0)
+  if (contentLength === 0) return Buffer.alloc(0)
   return new Promise((resolve, reject) => {
     const chunks = []
-    req.on('data', (chunk) => chunks.push(chunk))
-    req.on('end', () => resolve(Buffer.concat(chunks)))
-    req.on('error', reject)
+    const timer = setTimeout(() => {
+      cleanup()
+      reject(new Error('Request body read timeout'))
+    }, 10_000)
+    const cleanup = () => {
+      clearTimeout(timer)
+      req.off('data', onData)
+      req.off('end', onEnd)
+      req.off('error', onError)
+    }
+    const onData = (chunk) => chunks.push(chunk)
+    const onEnd = () => {
+      cleanup()
+      resolve(Buffer.concat(chunks))
+    }
+    const onError = (err) => {
+      cleanup()
+      reject(err)
+    }
+    req.on('data', onData)
+    req.on('end', onEnd)
+    req.on('error', onError)
     req.resume()
   })
 }

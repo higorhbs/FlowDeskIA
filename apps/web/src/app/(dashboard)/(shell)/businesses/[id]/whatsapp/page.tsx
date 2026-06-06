@@ -206,8 +206,9 @@ export default function WhatsAppPage() {
           <div>
             <p className="font-medium">WhatsApp indisponível neste ambiente</p>
             <p className="mt-0.5 text-amber-800 text-xs">
-              Rode <strong>pnpm dev</strong> e acesse <strong>http://localhost:3000</strong> (API
-              porta 3001 com <code>ENABLE_WORKERS=true</code>).
+              WhatsApp exige backend com processo contínuo (<code>ENABLE_WORKERS=true</code>).
+              Em produção, configure <code>NEXT_PUBLIC_WA_API_URL</code> no front apontando para
+              sua VM (não use a URL serverless da Vercel).
             </p>
           </div>
         </div>
