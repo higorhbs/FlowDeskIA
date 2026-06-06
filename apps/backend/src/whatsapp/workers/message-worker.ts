@@ -39,7 +39,7 @@ async function processInboundJob(job: WhatsappJob): Promise<void> {
     }
     await new Promise((r) => setTimeout(r, 800));
   }
-  console.log(`[worker] replied business=${businessId} to=${dest} count=${responses.length}`);
+  console.log(`[worker] replied business=${businessId} count=${responses.length}`);
 }
 
 async function runClaimedJob(job: WhatsappJob): Promise<void> {

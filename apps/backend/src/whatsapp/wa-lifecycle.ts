@@ -63,7 +63,7 @@ async function deliverBotReplies(
   })
 
   if (responses.length === 0) {
-    console.log(`[whatsapp] no bot reply business=${businessId} from=${msg.from}`)
+    console.log(`[whatsapp] no bot reply business=${businessId}`)
     return
   }
 
@@ -76,7 +76,7 @@ async function deliverBotReplies(
     }
     await new Promise((r) => setTimeout(r, 800))
   }
-  console.log(`[whatsapp] replied business=${businessId} to=${dest} count=${responses.length}`)
+  console.log(`[whatsapp] replied business=${businessId} count=${responses.length}`)
 }
 
 async function resolveInboundMedia(
@@ -99,9 +99,7 @@ async function resolveInboundMedia(
     downloaded.mimetype,
     downloaded.mediaType
   )
-  console.log(
-    `[whatsapp] media saved business=${businessId} type=${saved.mediaType} url=${saved.mediaUrl}`
-  )
+  console.log(`[whatsapp] media saved business=${businessId} type=${saved.mediaType}`)
   return { mediaUrl: saved.mediaUrl, mediaType: saved.mediaType }
 }
 
@@ -132,9 +130,6 @@ export function attachWhatsAppMessageHandler(businessId: string, client: WhatsAp
 
   client.on('message', (msg: WhatsAppMessage, raw: WAMessage) => {
     void (async () => {
-      console.log(
-        `[whatsapp] inbound business=${businessId} from=${msg.from} reply=${msg.replyJid} body=${msg.body.slice(0, 60)}`
-      )
       let media: { mediaUrl?: string; mediaType?: WhatsAppMessage['mediaType'] } = {}
       try {
         media = await resolveInboundMedia(businessId, client, msg, raw)

@@ -236,9 +236,6 @@ export class WhatsAppClient extends EventEmitter {
       mediaType,
     };
 
-    console.log(
-      `[wa:${this.businessId}] inbound from=${parsed.from} reply=${parsed.replyJid} text=${parsed.body.slice(0, 80)} media=${mediaType ?? "-"}`
-    );
     this.emit("message", parsed, msg);
   }
 
@@ -253,7 +250,6 @@ export class WhatsAppClient extends EventEmitter {
       const phoneJid = pnToJid(jid);
       if (lidJid && phoneJid) {
         this.lidToPhone.set(lidJid, phoneJid);
-        console.log(`[wa:${this.businessId}] lid_map ${lidJid} -> ${phoneJid}`);
       }
     });
 
