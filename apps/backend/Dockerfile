@@ -7,7 +7,7 @@ RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
 
 FROM base AS builder
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates git \
+    && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
@@ -23,10 +23,14 @@ ENV NODE_OPTIONS="--max-old-space-size=768"
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @flowdesk/backend... \
     && pnpm --filter @flowdesk/backend run build:docker \
-    && pnpm deploy --filter=@flowdesk/backend --prod --legacy --offline /prod/backend
+    && mkdir -p /prod/apps/backend /prod/packages /prod/node_modules \
+    && cp -a node_modules/.pnpm /prod/node_modules/ \
+    && cp -a packages/. /prod/packages/ \
+    && cp -a apps/backend/package.json apps/backend/src apps/backend/dist /prod/apps/backend/ \
+    && cp -a apps/backend/node_modules /prod/apps/backend/node_modules
 
 FROM base AS runner
-WORKDIR /app
+WORKDIR /app/apps/backend
 
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=512"
@@ -40,7 +44,9 @@ RUN apt-get update \
     && mkdir -p /app/data \
     && chown flowdesk:flowdesk /app/data
 
-COPY --from=builder --chown=flowdesk:flowdesk /prod/backend ./
+COPY --from=builder --chown=flowdesk:flowdesk /prod/apps /app/apps
+COPY --from=builder --chown=flowdesk:flowdesk /prod/packages /app/packages
+COPY --from=builder --chown=flowdesk:flowdesk /prod/node_modules /app/node_modules
 
 USER flowdesk
 EXPOSE 3001
