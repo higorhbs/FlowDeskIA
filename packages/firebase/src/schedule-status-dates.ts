@@ -1,11 +1,54 @@
 const MIN_LEAD_MS = 60_000;
 export const IMMEDIATE_LEAD_MS = 0;
 export const MAX_SCHEDULE_DAYS = 62;
+export const DEFAULT_SCHEDULE_TZ = "America/Sao_Paulo";
 
 export type RecurrenceMode = "none" | "interval" | "weekdays";
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
+}
+
+function timezoneOffsetMs(date: Date, timeZone: string): number {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  const parts = dtf.formatToParts(date);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  const asUtc = Date.UTC(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    get("hour"),
+    get("minute"),
+    get("second")
+  );
+  return asUtc - date.getTime();
+}
+
+export function localScheduleToUtc(
+  dayKey: string,
+  hour: number,
+  minute: number,
+  timeZone = DEFAULT_SCHEDULE_TZ
+): Date {
+  const parts = dayKey.split("-").map(Number);
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) {
+    throw new Error("dayKey inválido.");
+  }
+  const [y, mo, d] = parts;
+  let utc = Date.UTC(y!, mo! - 1, d!, hour, minute, 0);
+  for (let i = 0; i < 4; i++) {
+    utc = Date.UTC(y!, mo! - 1, d!, hour, minute, 0) - timezoneOffsetMs(new Date(utc), timeZone);
+  }
+  return new Date(utc);
 }
 
 export function dateDayKey(d: Date) {
@@ -21,7 +64,8 @@ export function buildScheduledAtsFromDayKeys(
   dayKeys: string[],
   hour: number,
   minute: number,
-  minLeadMs = MIN_LEAD_MS
+  minLeadMs = MIN_LEAD_MS,
+  timeZone = DEFAULT_SCHEDULE_TZ
 ): string[] {
   const unique = [...new Set(dayKeys)].sort();
   if (unique.length === 0) throw new Error("Selecione pelo menos um dia no calendário.");
@@ -33,10 +77,12 @@ export function buildScheduledAtsFromDayKeys(
   const out: string[] = [];
 
   for (const key of unique) {
-    const parts = key.split("-").map(Number);
-    if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) continue;
-    const [y, m, d] = parts;
-    const dt = new Date(y!, m! - 1, d!, hour, minute, 0, 0);
+    let dt: Date;
+    try {
+      dt = localScheduleToUtc(key, hour, minute, timeZone);
+    } catch {
+      continue;
+    }
     if (dt.getTime() >= minAt) out.push(dt.toISOString());
   }
 
@@ -56,9 +102,16 @@ export function resolveStoryScheduledAts(input: {
   scheduledDays: string[];
   hour: number;
   minute: number;
+  timezone?: string;
 }): string[] {
   if (input.publishNow) return [buildImmediateScheduledAt()];
-  return buildScheduledAtsFromDayKeys(input.scheduledDays, input.hour, input.minute);
+  return buildScheduledAtsFromDayKeys(
+    input.scheduledDays,
+    input.hour,
+    input.minute,
+    MIN_LEAD_MS,
+    input.timezone?.trim() || DEFAULT_SCHEDULE_TZ
+  );
 }
 
 export function addDaysToDayKey(dayKey: string, days: number): string {

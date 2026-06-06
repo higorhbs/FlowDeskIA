@@ -979,7 +979,11 @@ export async function createScheduledStatus(
     publishNow?: boolean;
   }
 ): Promise<ScheduledStatus[]> {
-  const scheduledAts = resolveStoryScheduledAts(input);
+  const business = await getBusiness(businessId);
+  const scheduledAts = resolveStoryScheduledAts({
+    ...input,
+    timezone: business?.timezone ?? "America/Sao_Paulo",
+  });
   return createScheduledStatuses(businessId, tenantId, {
     mediaUrl: input.mediaUrl,
     mediaStoragePath: input.mediaStoragePath,
@@ -1005,7 +1009,11 @@ export async function repostScheduledStatus(
   }
   if (!source.mediaUrl) throw new Error("Arte original indisponível para reagendar.");
 
-  const scheduledAts = resolveStoryScheduledAts(input);
+  const business = await getBusiness(businessId);
+  const scheduledAts = resolveStoryScheduledAts({
+    ...input,
+    timezone: business?.timezone ?? "America/Sao_Paulo",
+  });
 
   return createScheduledStatuses(businessId, tenantId, {
     mediaUrl: source.mediaUrl,
