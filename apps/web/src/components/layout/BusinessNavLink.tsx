@@ -1,13 +1,10 @@
 "use client";
 
-import type { MouseEvent } from "react";
+import type { LucideIcon } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { AppLink as Link } from "@/components/AppLink";
 import { cn } from "@/lib/utils";
-import { isActivePanelRoute, isBusinessPanelHref } from "@/lib/business-nav";
-import { useEffectivePathname } from "@/lib/use-effective-pathname";
-import { navigateBusinessPanel } from "@/lib/use-business-panel-nav";
-import { isStaticHostingClient } from "@/lib/static-hosting";
-import type { LucideIcon } from "lucide-react";
+import { isActivePanelRoute } from "@/lib/business-nav";
 
 type BusinessNavLinkProps = {
   href: string;
@@ -24,21 +21,13 @@ export function BusinessNavLink({
   badge,
   layout = "sidebar",
 }: BusinessNavLinkProps) {
-  const pathname = useEffectivePathname();
+  const pathname = usePathname() ?? "";
   const active = isActivePanelRoute(pathname, href);
-
-  const onPanelClickCapture = (e: MouseEvent<HTMLAnchorElement>) => {
-    if (!isStaticHostingClient() || !isBusinessPanelHref(href)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    navigateBusinessPanel(href);
-  };
 
   if (layout === "mobile") {
     return (
       <Link
         href={href}
-        onClickCapture={onPanelClickCapture}
         className={cn(
           "relative flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium transition-colors duration-200",
           active ? "text-brand-700" : "text-gray-500 hover:text-gray-700"
@@ -64,7 +53,6 @@ export function BusinessNavLink({
   return (
     <Link
       href={href}
-      onClickCapture={onPanelClickCapture}
       className={cn(
         "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
         active

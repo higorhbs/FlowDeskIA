@@ -1,18 +1,10 @@
 import axios from "axios";
 import { reload } from "firebase/auth";
 import {
-  backendSync,
   backendUpdateProfileEmail,
   backendUpdateProfileName,
   backendUpdateProfilePassword,
 } from "./backend-auth";
-import { backendCreateBusiness, backendListBusinesses } from "./backend-business";
-import {
-  backendGetSchedule,
-  backendListSchedules,
-  backendPutSchedule,
-} from "./backend-schedule";
-import type { SchedulePayload } from "./backend-schedule";
 import {
   backendDeleteWhatsAppConnection,
   backendGetWhatsAppQr,
@@ -29,36 +21,19 @@ import {
   type ScheduledStatus,
 } from "./backend-stories-whatsapp";
 import { getBackendBaseUrl } from "./backend-url";
-import type { CreateBusinessInput } from "./backend-business";
 import { setToken } from "./auth";
 import { getClientAuth } from "@flowdesk/firebase/client";
-import {
-  getClientBusiness,
-  updateClientBusiness,
-  listClientCatalog,
-  createClientCatalogItem,
-  updateClientCatalogItem,
-  deleteClientCatalogItem,
-  listClientFaqs,
-  createClientFaq,
-  updateClientFaq,
-  deleteClientFaq,
-  submitClientCancellationFeedback,
-  listClientConversations,
-  getClientConversation,
-  updateClientConversationStatus,
-  deleteClientConversation,
-  listClientAppointments,
-  updateClientAppointment,
-  listClientPayments,
-  getClientAnalytics,
-
-} from "@flowdesk/firebase/client";
+import { webApi } from "./web-api";
 import type {
   ConversationStatus,
   AppointmentStatus,
   Tenant,
+  Business,
 } from "@flowdesk/firebase/client";
+import type { CreateBusinessInput } from "./web-api/businesses";
+import type { SchedulePayload } from "./web-api/schedules";
+
+export type { CreateBusinessInput, SchedulePayload, ScheduledStatus };
 
 function isLocalDevHost() {
   if (typeof window === "undefined") return false;
@@ -116,22 +91,12 @@ export const api = axios.create({
   timeout: 90_000,
 });
 
-function requireUid(): string {
-  const uid = getClientAuth().currentUser?.uid;
-  if (!uid) throw new Error("Faça login para continuar.");
-  return uid;
-}
-
-async function ensureTenantRecord() {
+async function ensureTenantRecord(name?: string) {
   const user = getClientAuth().currentUser;
   if (!user?.email) throw new Error("E-mail não encontrado na conta.");
-  await backendSync(user.displayName ?? user.email.split("@")[0] ?? "Usuário");
-}
-
-async function fetchTenantFromBackend(): Promise<Tenant> {
-  const user = getClientAuth().currentUser;
-  if (!user?.email) throw new Error("E-mail não encontrado na conta.");
-  return backendSync(user.displayName ?? user.email.split("@")[0] ?? "Usuário") as Promise<Tenant>;
+  await webApi.tenants.syncTenant(
+    name ?? user.displayName ?? user.email.split("@")[0] ?? "Usuário",
+  );
 }
 
 api.interceptors.request.use(async (config) => {
@@ -215,35 +180,25 @@ export const authApi = {
   sync: async (name?: string) => {
     const user = getClientAuth().currentUser;
     if (!user?.email) return null;
-    return backendSync(
+    return webApi.tenants.syncTenant(
       name ?? user.displayName ?? user.email.split("@")[0] ?? "Usuário",
     );
   },
 };
 
 export const tenantApi = {
-  get: () => fetchTenantFromBackend(),
+  get: () => webApi.tenants.getTenant(),
   completeOnboarding: async () => {
     await ensureTenantRecord();
-    return api.post("/auth/onboarding/complete").then((r) => r.data);
+    return webApi.tenants.completeOnboarding();
   },
   acceptLgpd: async (policyVersion: string) => {
     await ensureTenantRecord();
-    const base: Tenant = await fetchTenantFromBackend();
-    const { data } = await api.post<{ ok: true; acceptedAt: string; policyVersion: string }>(
-      "/privacy/consent",
-      { policyVersion },
-    );
-    return {
-      ...base,
-      lgpdAcceptedAt: data.acceptedAt,
-      lgpdPolicyVersion: data.policyVersion,
-      updatedAt: data.acceptedAt,
-    };
+    return webApi.tenants.acceptLgpd(policyVersion);
   },
   submitCancellationFeedback: async (data: { rating: number; text?: string }) => {
     await ensureTenantRecord();
-    return submitClientCancellationFeedback(requireUid(), data);
+    return webApi.tenants.submitCancellationFeedback(data);
   },
 };
 
@@ -268,76 +223,71 @@ export const profileApi = {
 };
 
 export const businessApi = {
-  list: () => backendListBusinesses(),
-  get: (id: string) => getClientBusiness(id, requireUid()),
-  create: async (data: CreateBusinessInput) => {
-    const existing = await backendListBusinesses();
-    if (existing.length > 0) throw new Error("Sua conta já possui um negócio cadastrado.");
-    return backendCreateBusiness(data);
-  },
-  update: (id: string, data: Parameters<typeof updateClientBusiness>[2]) =>
-    updateClientBusiness(id, requireUid(), data),
+  list: () => webApi.businesses.listBusinesses(),
+  get: (id: string) => webApi.businesses.getBusiness(id),
+  create: (data: CreateBusinessInput) => webApi.businesses.createBusiness(data),
+  update: (id: string, data: Partial<Business>) =>
+    webApi.businesses.updateBusiness(id, data),
   setConnected: (id: string, isConnected: boolean) =>
-    updateClientBusiness(id, requireUid(), { isConnected }),
+    webApi.businesses.updateBusiness(id, { isConnected }),
 };
 
 export const scheduleApi = {
-  list: (businessId?: string) => backendListSchedules(businessId),
-  get: (businessId: string) => backendGetSchedule(businessId),
-  put: (businessId: string, data: SchedulePayload) => backendPutSchedule(businessId, data),
+  list: (businessId?: string) => webApi.schedules.listSchedules(businessId),
+  get: (businessId: string) => webApi.schedules.getSchedule(businessId),
+  put: (businessId: string, data: SchedulePayload) =>
+    webApi.schedules.putSchedule(businessId, data),
 };
 
-async function assertBusinessAccess(businessId: string) {
-  const tenantId = requireUid();
-  const biz = await getClientBusiness(businessId, tenantId);
-  if (!biz) throw new Error("Negócio não encontrado ou sem acesso.");
-  return biz;
-}
-
 export const catalogApi = {
-  list: async (businessId: string) => {
-    requireUid();
-    return listClientCatalog(businessId);
-  },
-  create: async (businessId: string, data: Record<string, unknown>) => {
-    await assertBusinessAccess(businessId);
-    return createClientCatalogItem(businessId, data as Parameters<typeof createClientCatalogItem>[1]);
-  },
-  update: async (businessId: string, itemId: string, data: Record<string, unknown>) => {
-    await assertBusinessAccess(businessId);
-    return updateClientCatalogItem(businessId, itemId, data);
-  },
-  remove: async (businessId: string, itemId: string) => {
-    await assertBusinessAccess(businessId);
-    return deleteClientCatalogItem(businessId, itemId);
-  },
+  list: (businessId: string) => webApi.catalog.listCatalog(businessId),
+  create: (businessId: string, data: Record<string, unknown>) =>
+    webApi.catalog.createCatalogItem(
+      businessId,
+      data as Parameters<typeof webApi.catalog.createCatalogItem>[1],
+    ),
+  update: (businessId: string, itemId: string, data: Record<string, unknown>) =>
+    webApi.catalog.updateCatalogItem(
+      businessId,
+      itemId,
+      data as Parameters<typeof webApi.catalog.updateCatalogItem>[2],
+    ),
+  remove: (businessId: string, itemId: string) =>
+    webApi.catalog.deleteCatalogItem(businessId, itemId),
 };
 
 export const faqApi = {
-  list: (businessId: string) => listClientFaqs(businessId),
+  list: (businessId: string) => webApi.faqs.listFaqs(businessId),
   create: (businessId: string, data: Record<string, unknown>) =>
-    createClientFaq(businessId, data as Parameters<typeof createClientFaq>[1]),
+    webApi.faqs.createFaq(
+      businessId,
+      data as Parameters<typeof webApi.faqs.createFaq>[1],
+    ),
   update: (businessId: string, faqId: string, data: Record<string, unknown>) =>
-    updateClientFaq(businessId, faqId, data as Parameters<typeof updateClientFaq>[2]),
-  remove: (businessId: string, faqId: string) => deleteClientFaq(businessId, faqId),
+    webApi.faqs.updateFaq(
+      businessId,
+      faqId,
+      data as Parameters<typeof webApi.faqs.updateFaq>[2],
+    ),
+  remove: (businessId: string, faqId: string) => webApi.faqs.deleteFaq(businessId, faqId),
 };
 
 export const conversationApi = {
   list: (businessId: string, params?: { status?: string; page?: number }) =>
-    listClientConversations(businessId, requireUid(), {
+    webApi.conversations.listConversations(businessId, {
       status: params?.status as ConversationStatus | undefined,
       page: params?.page,
     }),
   get: (businessId: string, conversationId: string) =>
-    getClientConversation(businessId, requireUid(), conversationId),
+    webApi.conversations.getConversation(businessId, conversationId),
   attend: (businessId: string, conversationId: string) =>
-    updateClientConversationStatus(businessId, requireUid(), conversationId, "ATTENDING"),
+    webApi.conversations.updateConversationStatus(businessId, conversationId, "ATTENDING"),
   release: (businessId: string, conversationId: string) =>
-    updateClientConversationStatus(businessId, requireUid(), conversationId, "OPEN"),
+    webApi.conversations.updateConversationStatus(businessId, conversationId, "OPEN"),
   close: (businessId: string, conversationId: string) =>
-    updateClientConversationStatus(businessId, requireUid(), conversationId, "CLOSED"),
+    webApi.conversations.updateConversationStatus(businessId, conversationId, "CLOSED"),
   remove: (businessId: string, conversationId: string) =>
-    deleteClientConversation(businessId, requireUid(), conversationId),
+    webApi.conversations.deleteConversation(businessId, conversationId),
 };
 
 export const whatsappApi = {
@@ -373,17 +323,25 @@ export const scheduledStatusApi = {
     backendCancelStorySeries(businessId, seriesId),
 };
 
-export type { ScheduledStatus };
+const emptyAnalytics = {
+  conversations: { thisMonth: 0, growth: 0 },
+  appointments: { pending: 0 },
+  payments: { revenueThisMonth: 0 },
+};
 
 export const appointmentApi = {
   list: (businessId: string, params?: { from?: string; to?: string; status?: string }) =>
-    listClientAppointments(businessId, requireUid(), {
+    webApi.appointments.listAppointments(businessId, {
       from: params?.from,
       to: params?.to,
       status: params?.status as AppointmentStatus | undefined,
     }),
   patch: (businessId: string, appointmentId: string, data: Record<string, unknown>) =>
-    updateClientAppointment(businessId, requireUid(), appointmentId, data as Parameters<typeof updateClientAppointment>[3]),
+    webApi.appointments.updateAppointment(
+      businessId,
+      appointmentId,
+      data as Parameters<typeof webApi.appointments.updateAppointment>[2],
+    ),
 };
 
 export const billingApi = {
@@ -431,19 +389,13 @@ export const billingApi = {
   },
 };
 
-const emptyAnalytics = {
-  conversations: { thisMonth: 0, growth: 0 },
-  appointments: { pending: 0 },
-  payments: { revenueThisMonth: 0 },
-};
-
 export const analyticsApi = {
   get: (businessId: string) =>
-    getClientAnalytics(businessId, requireUid()).catch(() => emptyAnalytics),
+    webApi.analytics.getAnalytics(businessId).catch(() => emptyAnalytics),
 };
 
 export const paymentApi = {
-  list: (businessId: string) => listClientPayments(businessId, requireUid()),
+  list: (businessId: string) => webApi.payments.listPayments(businessId),
 };
 
 export const asaasApi = {
@@ -461,3 +413,5 @@ export const privacyApi = {
   exportMyData: () => api.get("/privacy/export").then((r) => r.data),
   deleteAccount: () => api.post("/privacy/delete-account").then((r) => r.data),
 };
+
+export type { Tenant };

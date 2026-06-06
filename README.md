@@ -80,7 +80,7 @@ O monorepo é dividido em três camadas em produção:
 | Pagamentos assinatura | Stripe |
 | Pagamentos PIX | Asaas |
 | WhatsApp | Baileys (agente externo `flowdesk-wa`) |
-| Deploy web | Firebase Hosting (console ou upload de `apps/web/out`) |
+| Deploy web | Vercel (Next.js SSR, Root Directory `apps/web`) |
 | Deploy backend | Node.js na VM/servidor (`pnpm build` + `node src/index.js`) |
 
 ---
@@ -164,23 +164,28 @@ Sincronizar preços Stripe: `pnpm stripe:sync-prices`
 
 ## Deploy
 
-Firebase (Hosting, Firestore rules, índices, Auth domains) é configurado no **Firebase Console**, não neste repositório.
+Firebase (Auth, Firestore rules, índices) é configurado no **Firebase Console**. O front roda na **Vercel** com Next.js SSR.
 
 | Componente | Onde | Como |
 | --- | --- | --- |
-| **Web** | Firebase Hosting | `pnpm setup:billing-env` → `pnpm build:hosting` → publicar `apps/web/out` no console |
+| **Web** | Vercel | Root Directory `apps/web` + Git ou `vercel deploy` |
 | **Firestore** | Firebase Console | Rules e índices no painel |
 | **Backend** | VM/servidor | `pnpm --filter @flowdesk/backend build` + processo Node na porta 3001 |
 
-### Front de produção
+### Front de produção (Vercel)
+
+1. Conecte o repositório na Vercel com **Root Directory** = `apps/web`.
+2. Configure env vars (ver `apps/web/.env.example`), incluindo Admin SDK server-side:
+   - `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`
+3. Build: `pnpm turbo run build --filter=@flowdesk/web` (já em `vercel.json` na raiz).
+4. Domínio `flowdesk.ia.br`: DNS na Vercel; adicione domínio autorizado no Firebase Auth.
 
 ```bash
-pnpm setup:billing-env    # gera apps/web/.env.production a partir de apps/web/.env
-pnpm build:hosting        # gera apps/web/out
-# Publique o conteúdo de apps/web/out no Firebase Hosting (console)
+pnpm setup:billing-env    # gera apps/web/.env.production a partir de apps/web/.env (referência local)
+vercel deploy             # preview ou produção
 ```
 
-Variáveis essenciais em `apps/web/.env.production`:
+Variáveis essenciais no painel Vercel:
 
 | Variável | Uso |
 | --- | --- |
@@ -188,6 +193,7 @@ Variáveis essenciais em `apps/web/.env.production`:
 | `NEXT_PUBLIC_WA_API_URL` | Backend WhatsApp (ex.: `https://wa.seudominio.com`) |
 | `NEXT_PUBLIC_FIREBASE_*` | Config do projeto Firebase |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Login Google |
+| `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | SSR (Admin SDK) |
 
 Deixe os Payment Links Stripe vazios em produção — checkout passa pela API para ativar o plano.
 
@@ -199,7 +205,7 @@ Deixe os Payment Links Stripe vazios em produção — checkout passa pela API p
 | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | Admin SDK |
 | `STRIPE_*` | Assinaturas e webhooks |
 | `ASAAS_*` | PIX (global ou por negócio via painel) |
-| `CORS_ORIGIN` | URL(s) do Hosting |
+| `CORS_ORIGIN` | URL(s) do front Vercel (ex.: `https://flowdesk.ia.br`) |
 | `PRIVACY_RETENTION_INTERVAL_HOURS` | Job de retenção LGPD (0 = desligado) |
 | `FIREBASE_STORAGE_BUCKET` | Mídia de chat (Firebase Storage) |
 | `WA_API_PUBLIC_URL` | URL pública do backend na VM |
@@ -219,9 +225,7 @@ Deixe os Payment Links Stripe vazios em produção — checkout passa pela API p
 | Script | Descrição |
 | --- | --- |
 | `pnpm google:oauth-setup` | URLs de redirect OAuth |
-| `pnpm prepare:hosting` | Copia packages para `apps/web/vendor` |
-| `pnpm build:hosting` | Build estático (`apps/web/out`) |
-| `pnpm setup:billing-env` | Gera `.env.production` do web |
+| `pnpm setup:billing-env` | Gera `.env.production` do web (referência local) |
 
 ---
 

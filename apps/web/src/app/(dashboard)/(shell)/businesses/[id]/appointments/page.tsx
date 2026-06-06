@@ -198,7 +198,7 @@ export default function AppointmentsPage() {
                             disabled={patchMutation.isPending}
                             onClick={() => patchMutation.mutate({ id: apt.id, status: "CONFIRMED" })}
                           >
-                            Aceitar
+                            {v.bookingAcceptLabel}
                           </Button>
                           <Button
                             type="button"
@@ -208,7 +208,7 @@ export default function AppointmentsPage() {
                             disabled={patchMutation.isPending}
                             onClick={() => patchMutation.mutate({ id: apt.id, status: "CANCELLED" })}
                           >
-                            Recusar
+                            {v.bookingRejectLabel}
                           </Button>
                         </div>
                       )}

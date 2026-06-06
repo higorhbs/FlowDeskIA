@@ -10,8 +10,8 @@ import {
   formatPlanLimit,
   type PlanTier,
 } from "@flowdesk/shared";
-import { getClientTenantStoriesPublished } from "@flowdesk/firebase/client";
 import { scheduledStatusApi, businessApi, tenantApi, type ScheduledStatus } from "@/lib/api";
+import { webApi } from "@/lib/web-api";
 import { useBusinessId } from "@/lib/use-business-id";
 import { useAuth } from "@/contexts/auth-context";
 import { useSyncWhatsAppBusiness } from "@/lib/use-sync-wa-business";
@@ -111,7 +111,7 @@ export default function StatusSchedulePage() {
 
   const { data: storiesPublished = 0 } = useQuery({
     queryKey: ["tenant-stories-published", uid],
-    queryFn: () => getClientTenantStoriesPublished(uid!),
+    queryFn: () => webApi.tenants.getStoriesPublished(),
     enabled: ready && !!uid,
     refetchInterval: 20_000,
   });

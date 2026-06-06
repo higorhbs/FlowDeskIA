@@ -141,17 +141,3 @@ export function fixPlaceholderBusinessPath(pathname: string, realId: string): st
   if (!pathname.includes(`/businesses/${HOSTING_PLACEHOLDER_BUSINESS_ID}`)) return null;
   return pathname.replace(`/businesses/${HOSTING_PLACEHOLDER_BUSINESS_ID}`, `/businesses/${realId}`);
 }
-
-const HOSTING_PANEL_SEGMENTS =
-  "conversations|faqs|appointments|catalog|status|payments|whatsapp|settings";
-
-export function normalizeHostingBusinessPath(pathname: string): string | null {
-  const m = pathname.match(
-    new RegExp(`^(/businesses/)([^/]+)(/(${HOSTING_PANEL_SEGMENTS}))/?(.*)$`)
-  );
-  if (!m) return null;
-  const [, prefix, id, segmentPath, , rest = ""] = m;
-  if (id === HOSTING_PLACEHOLDER_BUSINESS_ID || id === "new") return null;
-  const tail = rest ? `/${rest}` : "/";
-  return `${prefix}${HOSTING_PLACEHOLDER_BUSINESS_ID}${segmentPath}${tail}`;
-}

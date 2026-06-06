@@ -12,7 +12,6 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { waitForAuthReady } from "@flowdesk/firebase/client";
 import { AuthDrawer, type AuthMode } from "@/components/auth/AuthDrawer";
 import { useAppRouter } from "@/lib/app-navigation";
-import { hostingHref } from "@/lib/hosting-href";
 
 type AuthDrawerContextValue = {
   openAuth: (mode: AuthMode) => void;
@@ -51,7 +50,7 @@ export function AuthDrawerProvider({ children }: { children: React.ReactNode }) 
       else params.delete("auth");
       const query = params.toString();
       const target = query ? `${pathname}?${query}` : pathname;
-      router.replace(hostingHref(target), { scroll: false });
+      router.replace(target, { scroll: false });
     },
     [pathname, router, searchParams],
   );

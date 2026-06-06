@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   getBusinessVocabulary,
@@ -19,6 +20,8 @@ import { useAuth } from "@/contexts/auth-context";
 import {
   persistBusinessSnapshot,
   clearBusinessSession,
+  inBusinessArea,
+  resolveBusinessId,
 } from "@/lib/business-route";
 
 type VocabularyContextValue = {
@@ -39,6 +42,8 @@ function readInitialType(): BusinessType | null {
 }
 
 export function BusinessVocabularyProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname() ?? "";
+  const onBusinessRoute = inBusinessArea(pathname);
   const { uid, ready: authReady } = useAuth();
   const [type, setType] = useState<BusinessType | null>(readInitialType);
 
@@ -49,7 +54,21 @@ export function BusinessVocabularyProvider({ children }: { children: ReactNode }
     staleTime: 10 * 60 * 1000,
   });
 
-  const tenant = businesses?.[0];
+  const routeBusinessId = useMemo(() => {
+    if (!onBusinessRoute) return "";
+    return resolveBusinessId(pathname, businesses) ?? "";
+  }, [onBusinessRoute, pathname, businesses]);
+
+  const activeBusinessId = routeBusinessId || businesses?.[0]?.id || "";
+
+  const { data: routeBusiness, isFetched: routeBusinessFetched } = useQuery({
+    queryKey: ["business", activeBusinessId],
+    queryFn: () => businessApi.get(activeBusinessId),
+    enabled: authReady && !!uid && !!activeBusinessId,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const tenant = routeBusiness ?? businesses?.[0];
 
   useEffect(() => {
     if (!uid) {
@@ -74,12 +93,12 @@ export function BusinessVocabularyProvider({ children }: { children: ReactNode }
 
   const value = useMemo<VocabularyContextValue>(
     () => ({
-      ready: vocabReady || (listFetched && !tenant),
+      ready: vocabReady || ((listFetched || routeBusinessFetched) && !tenant),
       businessType: type ?? undefined,
       vocabulary,
       tenantBusinessId,
     }),
-    [vocabReady, listFetched, tenant, type, vocabulary, tenantBusinessId]
+    [vocabReady, listFetched, routeBusinessFetched, tenant, type, vocabulary, tenantBusinessId]
   );
 
   return (

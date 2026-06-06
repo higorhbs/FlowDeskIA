@@ -6,7 +6,7 @@ import { formatCurrency, cn } from "@/lib/utils";
 import {
   MessageSquare, Calendar, DollarSign, TrendingUp,
 } from "lucide-react";
-import { getBusinessVocabulary } from "@/lib/use-business-vocabulary";
+import { getBusinessVocabulary } from "@flowdesk/shared";
 import type { DashboardAnalytics } from "@/lib/server/data/dashboard";
 import {
   Card,

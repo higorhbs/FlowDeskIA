@@ -107,4 +107,4 @@ console.log(`   NEXT_PUBLIC_API_URL=${apiUrl}`);
 if (waApiUrl) console.log(`   NEXT_PUBLIC_WA_API_URL=${waApiUrl}`);
 if (swetrixId) console.log(`   NEXT_PUBLIC_SWETRIX_PROJECT_ID=${swetrixId}`);
 else console.warn("   ⚠️  NEXT_PUBLIC_SWETRIX_PROJECT_ID vazio — Swetrix não grava visitas no build.");
-console.log("\nPróximo: pnpm deploy:hosting (ou pnpm build:hosting + firebase deploy --only hosting).\n");
+console.log("\nPróximo: configure env vars na Vercel e faça deploy (vercel deploy ou Git integration).\n");

@@ -43,12 +43,8 @@ database-debug.log
 storage-debug.log
 .firebaserc.local
 
-# Front estático (gerado no build:hosting)
-apps/web/vendor/
-apps/web/out/
 apps/web/.env.production
 
-# Vercel (legado)
 .vercel/
 
 # WhatsApp / Baileys (sessões locais)

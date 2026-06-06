@@ -23,7 +23,6 @@ import { PLAN_LABELS, cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { CreditCard, Loader2, Mail, Lock, User, Shield, Sparkles, Chrome, FileDown, ChevronRight, Trash2, Crown, Zap, AlertTriangle } from "lucide-react";
 import { resetClientSession, signOutAndReset } from "@/lib/session-reset";
-import { hostingHref } from "@/lib/hosting-href";
 
 const nameSchema = z.object({
   name: z.string().min(2, "Nome muito curto"),
@@ -137,7 +136,7 @@ export default function ProfilePage() {
         resetClientSession(queryClient);
       }
       toast.success("Sua conta foi excluída permanentemente.");
-      window.location.href = hostingHref("/");
+      window.location.href = "/";
     },
     onError: (err: unknown) =>
       toast.error(authErrorMessage(err, "Não foi possível excluir a conta. Tente novamente.")),

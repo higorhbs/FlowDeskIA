@@ -173,8 +173,8 @@ export default function PlanPage() {
           {/* Right: usage stats */}
           <div className="flex gap-3 flex-wrap sm:flex-nowrap">
             {[
-              { icon: BookOpen, label: "Catálogo", value: `até ${formatPlanLimit(limits.catalogItems)}` },
-              { icon: CalendarDays, label: "Agendamentos", value: `${formatPlanLimit(limits.appointmentsPerMonth)}/mês` },
+              { icon: BookOpen, label: "Produtos", value: `até ${formatPlanLimit(limits.catalogItems)}` },
+              { icon: CalendarDays, label: "Agendamentos/Pedidos", value: `${formatPlanLimit(limits.appointmentsPerMonth)}/mês` },
             ].map(({ icon: Icon, label, value }) => (
               <div
                 key={label}

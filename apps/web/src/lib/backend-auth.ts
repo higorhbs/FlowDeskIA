@@ -148,13 +148,6 @@ export async function backendConfirmVerificationSession(idToken: string) {
   return data as VerifiedPayload;
 }
 
-export async function backendSync(name?: string) {
-  return authFetch("/auth/sync", {
-    method: "POST",
-    body: JSON.stringify(name ? { name } : {}),
-  });
-}
-
 export async function backendUpdateProfileName(name: string) {
   return authFetch("/auth/profile/name", {
     method: "PATCH",

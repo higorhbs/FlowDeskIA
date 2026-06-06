@@ -2,17 +2,10 @@
 
 import { BusinessPageTransition } from "./BusinessPageTransition";
 import { BusinessRouteSync } from "./BusinessRouteSync";
-import { BusinessPanelHost } from "./BusinessPanelHost";
 import { useBusinessId } from "@/lib/use-business-id";
 import { BusinessPanelLoader } from "./BusinessPanelLoader";
 
-export function BusinessShell({
-  children,
-  usePanelHost = false,
-}: {
-  children: React.ReactNode;
-  usePanelHost?: boolean;
-}) {
+export function BusinessShell({ children }: { children: React.ReactNode }) {
   const id = useBusinessId({ required: false });
 
   if (!id) {
@@ -27,10 +20,7 @@ export function BusinessShell({
   return (
     <div className="flex flex-col h-full">
       <BusinessRouteSync />
-      {usePanelHost
-        ? <div className="flex-1 min-h-0 flex flex-col overflow-y-auto"><BusinessPanelHost /></div>
-        : <BusinessPageTransition>{children}</BusinessPageTransition>
-      }
+      <BusinessPageTransition>{children}</BusinessPageTransition>
     </div>
   );
 }

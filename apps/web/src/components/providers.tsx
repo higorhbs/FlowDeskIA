@@ -8,8 +8,6 @@ import { setToken, removeToken } from "@/lib/auth";
 import { syncServerSession } from "@/lib/server/session-client";
 import { readLastAuthUid, writeLastAuthUid, clearAuthSessionMarkers } from "@/lib/business-route";
 import { AuthDrawerProvider } from "@/contexts/auth-drawer-context";
-import { HostingRouteGuard } from "@/components/HostingRouteGuard";
-import { hostingHref, isFirebaseHostingClient } from "@/lib/hosting-href";
 import { toast } from "sonner";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -30,8 +28,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         if (!active || !res || res.status !== "VERIFIED") return;
         setToken(res.token);
         await syncServerSession(res.token).catch(() => {});
-        const dest = isFirebaseHostingClient() ? hostingHref("/dashboard") : "/dashboard";
-        window.location.replace(dest);
+        window.location.replace("/dashboard");
       })
       .catch((err: unknown) => {
         if (!active) return;
@@ -71,14 +68,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
       active = false;
       unsub();
     };
-  }, []);
+  }, [queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
       <Suspense fallback={null}>
-        <HostingRouteGuard>
-          <AuthDrawerProvider>{children}</AuthDrawerProvider>
-        </HostingRouteGuard>
+        <AuthDrawerProvider>{children}</AuthDrawerProvider>
       </Suspense>
     </QueryClientProvider>
   );

@@ -5,8 +5,7 @@ import { Loader2, Smartphone, WifiOff } from "lucide-react";
 import { useBusinessId } from "@/lib/use-business-id";
 import { useSyncWhatsAppBusiness } from "@/lib/use-sync-wa-business";
 import { useAppRouter } from "@/lib/app-navigation";
-import { canUseBusinessPanelSpa, panelHref } from "@/lib/business-nav";
-import { navigateBusinessPanel } from "@/lib/use-business-panel-nav";
+import { panelHref } from "@/lib/business-nav";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -17,14 +16,6 @@ export function RequireWhatsAppConnection({ children }: { children: React.ReactN
   const whatsappPath = panelHref(businessId, "whatsapp");
 
   const goWhatsApp = useCallback(() => {
-    if (
-      typeof window !== "undefined" &&
-      canUseBusinessPanelSpa(window.location.pathname) &&
-      canUseBusinessPanelSpa(whatsappPath)
-    ) {
-      navigateBusinessPanel(whatsappPath);
-      return;
-    }
     router.replace(whatsappPath);
   }, [whatsappPath, router]);
 

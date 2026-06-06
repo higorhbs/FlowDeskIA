@@ -67,29 +67,26 @@ export function getClientDb(): Firestore {
   return db;
 }
 
-export {
-  ensureClientTenant,
-  getClientTenant,
-  getClientTenantStoriesPublished,
-  updateClientTenantProfile,
-  completeClientOnboarding,
-  acceptClientLgpd,
-  submitClientCancellationFeedback,
-} from "./client-tenant.js";
-export * from "./client-data.js";
-export * from "./client-ops.js";
-export * from "./schedule-status-dates.js";
 export type {
   Plan,
   PlanStatus,
   Tenant,
   Business,
   BusinessType,
+  BusinessCreateInput,
   BusinessSchedule,
   BotMenuItemConfig,
+  CatalogItem,
+  FAQ,
+  Conversation,
   ConversationStatus,
+  Message,
+  Appointment,
   AppointmentStatus,
+  Payment,
+  PaymentStatus,
   ScheduledStatus,
   ScheduledStatusState,
   ScheduledStatusMediaType,
 } from "./types.js";
+export * from "./schedule-status-dates.js";

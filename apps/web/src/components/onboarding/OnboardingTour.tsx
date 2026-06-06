@@ -53,7 +53,7 @@ const STEPS: StepDef[] = [
         { from: "customer", text: "Oi, boa noite! Vocês ainda atendem?", time: "21:42" },
         {
           from: "ia",
-          text: `Olá! 👋 Sou o assistente da *${DEMO_BUSINESS}*\n\nComo posso ajudar?\n\n*1* — 📅 Agendamentos\n*2* — 🛍️ Catálogo\n*3* — ❓ Dúvidas\n*0* — 👤 Falar com atendente`,
+          text: `Olá! 👋 Sou o assistente da *${DEMO_BUSINESS}*\n\nComo posso ajudar?\n\n*1* — 📅 Agendamentos/Pedidos\n*2* — 🛍️ Produtos\n*3* — ❓ Dúvidas\n*0* — 👤 Falar com atendente`,
           time: "21:42",
         },
       ],
@@ -83,13 +83,13 @@ const STEPS: StepDef[] = [
     },
   },
   {
-    badge: "Catálogo digital",
-    title: "Seu catálogo sempre atualizado no chat",
-    subtitle: "Serviços, produtos e preços apresentados direto no WhatsApp. O cliente vê tudo e já agenda em seguida.",
+    badge: "Produtos",
+    title: "Seus produtos sempre atualizados no chat",
+    subtitle: "Produtos e preços apresentados direto no WhatsApp. O cliente vê tudo e já agenda ou pede em seguida.",
     color: "from-purple-500 to-purple-700",
     accentColor: "bg-purple-600",
     features: [
-      { icon: BookOpen, text: "Catálogo sincronizado com o painel" },
+      { icon: BookOpen, text: "Produtos sincronizados com o painel" },
       { icon: TrendingUp, text: "Clientes visualizam e já agendam" },
       { icon: Star, text: "Fotos, descrições e preços" },
     ],
@@ -99,7 +99,7 @@ const STEPS: StepDef[] = [
         { from: "customer", text: "2", time: "14:30" },
         {
           from: "ia",
-          text: "🛍️ *Nosso Catálogo*\n\n📋 *Serviço Básico*\nAtendimento rápido e objetivo\n💰 R$ 40,00\n\n⭐ *Serviço Padrão*\nMais tempo e atenção ao detalhe\n💰 R$ 55,00\n\n✨ *Pacote Completo*\nExperiência completa com desconto\n💰 R$ 80,00\n\nDigite *1* para agendar!",
+          text: "🛍️ *Nossos Produtos*\n\n📋 *Produto Básico*\nAtendimento rápido e objetivo\n💰 R$ 40,00\n\n⭐ *Produto Padrão*\nMais tempo e atenção ao detalhe\n💰 R$ 55,00\n\n✨ *Pacote Completo*\nExperiência completa com desconto\n💰 R$ 80,00\n\nDigite *1* para agendar!",
           time: "14:30",
         },
       ],

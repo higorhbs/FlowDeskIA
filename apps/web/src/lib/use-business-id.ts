@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { useEffectivePathname } from "@/lib/use-effective-pathname";
 import { businessApi } from "./api";
 import { useAuth } from "@/contexts/auth-context";
 import {
@@ -17,15 +17,9 @@ export { HOSTING_PLACEHOLDER_BUSINESS_ID, persistBusinessId, persistBusinessSnap
 
 type UseBusinessIdOptions = { required?: boolean };
 
-function clientPathname(fallback: string): string {
-  if (typeof window === "undefined") return fallback;
-  return window.location.pathname || fallback;
-}
-
 export function useBusinessId(opts: UseBusinessIdOptions = { required: true }): string {
-  const pathname = useEffectivePathname();
-  const routePath = clientPathname(pathname);
-  const onBusinessRoute = inBusinessArea(routePath);
+  const pathname = usePathname() ?? "";
+  const onBusinessRoute = inBusinessArea(pathname);
 
   const { uid, ready } = useAuth();
 
@@ -43,7 +37,7 @@ export function useBusinessId(opts: UseBusinessIdOptions = { required: true }): 
 
   if (!onBusinessRoute) return "";
 
-  const id = resolveBusinessId(routePath, businesses);
+  const id = resolveBusinessId(pathname, businesses);
 
   if (id && id !== HOSTING_PLACEHOLDER_BUSINESS_ID) {
     return id;

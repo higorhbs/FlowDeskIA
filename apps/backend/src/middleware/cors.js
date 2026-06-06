@@ -22,7 +22,7 @@ export const corsMiddleware = cors({
       !env.corsOrigin &&
       (/^https?:\/\/localhost(:\d+)?$/.test(origin) ||
         /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
-        /^https:\/\/[a-z0-9-]+\.(web\.app|firebaseapp\.com)$/.test(origin))
+        /^https:\/\/[a-z0-9-]+\.(web\.app|firebaseapp\.com|vercel\.app)$/.test(origin))
     ) {
       return origin
     }
