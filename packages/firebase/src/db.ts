@@ -1178,16 +1178,6 @@ export async function getAnalytics(businessId: string) {
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
   const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).toISOString();
 
-  const [convSnap, aptSnap, paySnap] = await Promise.all([
-    conversationsCol(businessId).get(),
-    appointmentsCol(businessId).get(),
-    paymentsCol(businessId).get(),
-  ]);
-
-  const conversations = convSnap.docs.map((d) => d.data());
-  const appointments = aptSnap.docs.map((d) => d.data());
-  const payments = paySnap.docs.map((d) => d.data());
-
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - now.getDay());
   weekStart.setHours(0, 0, 0, 0);
@@ -1198,37 +1188,77 @@ export async function getAnalytics(businessId: string) {
   const weekEndIso = weekEnd.toISOString();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
+  const convCol = conversationsCol(businessId);
+  const aptCol = appointmentsCol(businessId);
+  const payCol = paymentsCol(businessId);
+
+  const [
+    convTotalSnap,
+    convOpenSnap,
+    monthConvSnap,
+    lastMonthConvSnap,
+    activeConvSnap,
+    aptPendingSnap,
+    aptMonthSnap,
+    payPendingSnap,
+    payMonthSnap,
+  ] = await Promise.all([
+    convCol.count().get(),
+    convCol.where("status", "==", "OPEN").count().get(),
+    convCol.where("createdAt", ">=", monthStart).where("createdAt", "<=", monthEnd).get(),
+    convCol.where("createdAt", ">=", lastMonthStart).where("createdAt", "<=", lastMonthEnd).get(),
+    convCol.where("lastMessageAt", ">=", monthStart).get(),
+    aptCol.where("status", "in", ["PENDING", "CONFIRMED"]).get(),
+    aptCol.where("scheduledAt", ">=", monthStart).where("scheduledAt", "<=", monthEnd).get(),
+    payCol.where("status", "==", "PENDING").get(),
+    payCol.where("status", "==", "PAID").get(),
+  ]);
+
+  const monthConversations = monthConvSnap.size;
+  const lastMonthConversations = lastMonthConvSnap.size;
+  const activeIds = new Set(activeConvSnap.docs.map((d) => d.id));
+  const inactiveConvRefs = (await convCol.listDocuments()).filter((ref) => !activeIds.has(ref.id));
+
   const thisWeekByDaySets = Array.from({ length: 7 }, () => new Set<string>());
   const thisMonthByDaySets = Array.from({ length: daysInMonth }, () => new Set<string>());
-  let totalMessages = 0;
+
+  const [inactiveMsgCounts, activeMsgSnaps] = await Promise.all([
+    Promise.all(
+      inactiveConvRefs.map((ref) => messagesCol(businessId, ref.id).count().get())
+    ),
+    Promise.all(
+      activeConvSnap.docs.map((c) =>
+        messagesCol(businessId, c.id)
+          .where("createdAt", ">=", monthStart)
+          .where("createdAt", "<=", monthEnd)
+          .get()
+      )
+    ),
+  ]);
+
+  let totalMessages = inactiveMsgCounts.reduce((sum, snap) => sum + snap.data().count, 0);
   let monthMessages = 0;
-  for (const c of convSnap.docs) {
-    const msgs = await messagesCol(businessId, c.id).get();
+
+  for (let i = 0; i < activeConvSnap.docs.length; i++) {
+    const convId = activeConvSnap.docs[i]!.id;
+    const msgs = activeMsgSnaps[i]!;
     totalMessages += msgs.size;
     for (const m of msgs.docs) {
       const created = m.data().createdAt as string;
-      if (created >= monthStart && created <= monthEnd) {
-        monthMessages++;
-        thisMonthByDaySets[new Date(created).getDate() - 1]!.add(c.id);
-      }
+      monthMessages++;
+      thisMonthByDaySets[new Date(created).getDate() - 1]!.add(convId);
       if (created >= weekStartIso && created <= weekEndIso) {
-        thisWeekByDaySets[new Date(created).getDay()]!.add(c.id);
+        thisWeekByDaySets[new Date(created).getDay()]!.add(convId);
       }
     }
   }
-  const thisWeekByDay = thisWeekByDaySets.map((s) => s.size);
-  const thisMonthByDay = thisMonthByDaySets.map((s) => s.size);
 
-  const monthConversations = conversations.filter(
-    (c) => c.createdAt >= monthStart && c.createdAt <= monthEnd
-  ).length;
-  const lastMonthConversations = conversations.filter(
-    (c) => c.createdAt >= lastMonthStart && c.createdAt <= lastMonthEnd
-  ).length;
-
-  const revenueThisMonth = payments
-    .filter((p) => p.status === "PAID" && p.paidAt && p.paidAt >= monthStart && p.paidAt <= monthEnd)
-    .reduce((s, p) => s + Number(p.amount ?? 0), 0);
+  const revenueThisMonth = payMonthSnap.docs.reduce((sum, d) => {
+    const p = d.data();
+    const paidAt = p.paidAt as string | undefined;
+    if (!paidAt || paidAt < monthStart || paidAt > monthEnd) return sum;
+    return sum + Number(p.amount ?? 0);
+  }, 0);
 
   const conversationGrowth =
     lastMonthConversations > 0
@@ -1237,22 +1267,20 @@ export async function getAnalytics(businessId: string) {
 
   return {
     conversations: {
-      total: conversations.length,
-      open: conversations.filter((c) => c.status === "OPEN").length,
+      total: convTotalSnap.data().count,
+      open: convOpenSnap.data().count,
       thisMonth: monthConversations,
       growth: conversationGrowth,
-      thisWeekByDay,
-      thisMonthByDay,
+      thisWeekByDay: thisWeekByDaySets.map((s) => s.size),
+      thisMonthByDay: thisMonthByDaySets.map((s) => s.size),
     },
     messages: { total: totalMessages, thisMonth: monthMessages },
     appointments: {
-      pending: appointments.filter((a) => a.status === "PENDING" || a.status === "CONFIRMED").length,
-      thisMonth: appointments.filter(
-        (a) => a.scheduledAt >= monthStart && a.scheduledAt <= monthEnd
-      ).length,
+      pending: aptPendingSnap.size,
+      thisMonth: aptMonthSnap.size,
     },
     payments: {
-      pending: payments.filter((p) => p.status === "PENDING").length,
+      pending: payPendingSnap.size,
       revenueThisMonth,
     },
   };

@@ -8,6 +8,9 @@ if (!firebaseHost) {
 const nextConfig: NextConfig = {
   transpilePackages: ["@flowdesk/shared", "@flowdesk/firebase"],
   serverExternalPackages: ["firebase-admin"],
+  experimental: {
+    optimizePackageImports: ["lucide-react", "recharts", "date-fns"],
+  },
   redirects: async () => [],
   rewrites: async () => [
     {

@@ -8,22 +8,7 @@ import {
 } from "lucide-react";
 import { getBusinessVocabulary } from "@flowdesk/shared";
 import type { DashboardAnalytics } from "@/lib/server/data/dashboard";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  conversationsTotal,
-  monthConversationsData,
-  monthTitle,
-  weekConversationsData,
-} from "@/components/dashboard/chart-data";
-import { MonthConversationsChart } from "@/components/dashboard/MonthConversationsChart";
-import { WeekConversationsChart } from "@/components/dashboard/WeekConversationsChart";
+import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 
 function useCountUp(target: number, duration = 900) {
   const [val, setVal] = useState(0);
@@ -89,10 +74,6 @@ export function DashboardView({ business, analytics }: DashboardViewProps) {
   const growth = analytics?.conversations.growth ?? 0;
 
   const now = new Date();
-  const weekData = weekConversationsData(analytics?.conversations.thisWeekByDay);
-  const weekTotal = conversationsTotal(weekData);
-  const monthData = monthConversationsData(analytics?.conversations.thisMonthByDay, now);
-  const monthTotal = conversationsTotal(monthData);
 
   const growthLabel = analytics
     ? `${growth > 0 ? "+" : growth < 0 ? "−" : ""}${Math.abs(growth)}%`
@@ -133,43 +114,11 @@ export function DashboardView({ business, analytics }: DashboardViewProps) {
         />
       </section>
 
-      <section className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card className="min-w-0 ring-gray-200">
-          <CardHeader>
-            <CardTitle>Conversas esta semana</CardTitle>
-            <CardDescription>Domingo a sábado · {weekTotal} conversas</CardDescription>
-            {weekTotal > 0 && (
-              <CardAction>
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-sm bg-[hsl(var(--chart-1))]" />
-                    Hoje
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-sm bg-[color-mix(in_oklab,hsl(var(--chart-1))_35%,transparent)]" />
-                    Outros dias
-                  </span>
-                </div>
-              </CardAction>
-            )}
-          </CardHeader>
-          <CardContent className="min-w-0">
-            <WeekConversationsChart byDay={analytics?.conversations.thisWeekByDay} />
-          </CardContent>
-        </Card>
-
-        <Card className="min-w-0 ring-gray-200">
-          <CardHeader>
-            <CardTitle>Mês atual</CardTitle>
-            <CardDescription className="capitalize">
-              {monthTitle(now)} · {monthTotal} conversas
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="min-w-0">
-            <MonthConversationsChart byDay={analytics?.conversations.thisMonthByDay} refDate={now} />
-          </CardContent>
-        </Card>
-      </section>
+      <DashboardCharts
+        weekByDay={analytics?.conversations.thisWeekByDay}
+        monthByDay={analytics?.conversations.thisMonthByDay}
+        refDate={now}
+      />
     </div>
   );
 }

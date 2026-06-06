@@ -1,8 +1,6 @@
 import { RequireAuth } from "@/components/auth/RequireAuth";
-import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
-import { TrialGate } from "@/components/trial/TrialGate";
-import { LgpdConsentGate } from "@/components/privacy/LgpdConsentGate";
 import { RequireBusinessGate } from "@/components/business/RequireBusinessGate";
+import { DashboardDeferredGates } from "@/components/dashboard/DashboardDeferredGates";
 import { BusinessVocabularyProvider } from "@/contexts/business-vocabulary-context";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -10,9 +8,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <RequireAuth>
       <BusinessVocabularyProvider>
         <RequireBusinessGate>{children}</RequireBusinessGate>
-        <OnboardingTour />
-        <LgpdConsentGate />
-        <TrialGate />
+        <DashboardDeferredGates />
       </BusinessVocabularyProvider>
     </RequireAuth>
   );

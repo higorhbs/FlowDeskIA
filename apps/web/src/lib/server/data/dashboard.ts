@@ -16,9 +16,10 @@ export async function loadDashboardData(uid: string): Promise<DashboardData> {
   if (!business) return { business: null, analytics: null };
 
   try {
-    const analytics = await getAnalyticsForUser(uid, business.id);
+    const analytics = await getAnalyticsForUser(uid, business.id, { trusted: true });
     return { business, analytics };
-  } catch {
+  } catch (err) {
+    console.error("[dashboard] analytics failed:", err);
     return { business, analytics: null };
   }
 }

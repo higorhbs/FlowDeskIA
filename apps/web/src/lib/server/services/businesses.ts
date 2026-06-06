@@ -1,3 +1,4 @@
+import { cache } from "react";
 import {
   createBusiness,
   getBusiness,
@@ -114,7 +115,7 @@ export async function updateBusinessForUser(
   return updated;
 }
 
-export async function getPrimaryBusiness(uid: string): Promise<Business | null> {
+export const getPrimaryBusiness = cache(async (uid: string): Promise<Business | null> => {
   const items = await listBusinessesForUser(uid);
   return items[0] ?? null;
-}
+});
