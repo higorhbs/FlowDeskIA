@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$TARGETPLATFORM node:20-bookworm-slim AS base
+FROM node:20-bookworm-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
@@ -20,7 +20,6 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 
 COPY packages ./packages
 COPY apps/backend ./apps/backend
-COPY scripts ./scripts
 
 RUN pnpm --filter @flowdesk/backend build
 RUN pnpm deploy --filter=@flowdesk/backend --prod /prod/backend
