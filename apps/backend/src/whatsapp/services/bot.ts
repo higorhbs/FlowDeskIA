@@ -104,12 +104,12 @@ const conversationState = new Map<
 const botPausedSessions = new Set<string>();
 const closedNoticeClaims = new Map<string, Promise<boolean>>();
 
-async function claimClosedNotice(businessId: string, conversationId: string): Promise<boolean> {
-  const key = `${businessId}:${conversationId}`;
+async function claimClosedNotice(businessId: string, customerPhone: string): Promise<boolean> {
+  const key = `${businessId}:${customerPhone}`;
   const pending = closedNoticeClaims.get(key);
   if (pending) return pending;
 
-  const claim = tryClaimOutsideHoursNotice(businessId, conversationId).finally(() => {
+  const claim = tryClaimOutsideHoursNotice(businessId, customerPhone).finally(() => {
     if (closedNoticeClaims.get(key) === claim) closedNoticeClaims.delete(key);
   });
   closedNoticeClaims.set(key, claim);
@@ -123,7 +123,7 @@ async function replyWhenClosed(
   sessionKey: string
 ): Promise<BotResponse[]> {
   conversationState.delete(sessionKey);
-  const claimed = await claimClosedNotice(business.id, conversation.id);
+  const claimed = await claimClosedNotice(business.id, conversation.customerPhone);
   if (!claimed) return [];
   const response = awayReply(business, customerName);
   await saveAndReturn(business.id, conversation.id, [{ text: response }]);
@@ -170,10 +170,7 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   }
 
   if (open) {
-    if (conversation.outsideHoursNoticeAt) {
-      await clearOutsideHoursNotice(businessId, conversation.id);
-      conversation.outsideHoursNoticeAt = undefined;
-    }
+    await clearOutsideHoursNotice(businessId, customerPhone);
   } else {
     return replyWhenClosed(business, conversation, customerName, sessionKey);
   }

@@ -556,11 +556,12 @@ export async function upsertConversation(
   customerName?: string,
   replyJid?: string
 ): Promise<Conversation> {
-  const existing = await findConversationDoc(businessId, customerPhone);
   const key = customerConversationKey(customerPhone);
   const ts = nowIso();
   const dest = replyJid?.trim() || customerPhone;
+  const stableId = `c_${key.replace(/[^a-zA-Z0-9]/g, "_")}`;
 
+  const existing = await findConversationDoc(businessId, customerPhone);
   if (existing) {
     const patch: Record<string, unknown> = {
       customerName: customerName ?? existing.data().customerName,
@@ -574,20 +575,37 @@ export async function upsertConversation(
     return { id: existing.id, businessId, ...existing.data(), ...patch } as Conversation;
   }
 
-  const id = newId();
-  const conversation: Conversation = {
-    id,
-    businessId,
-    customerPhone,
-    customerKey: key,
-    replyJid: dest.includes("@") ? dest : undefined,
-    customerName,
-    status: "OPEN",
-    lastMessageAt: ts,
-    createdAt: ts,
-  };
-  await conversationsCol(businessId).doc(id).set(conversation);
-  return conversation;
+  const ref = conversationsCol(businessId).doc(stableId);
+  return getDb().runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists) {
+      const data = snap.data() as Conversation;
+      const patch: Record<string, unknown> = {
+        customerName: customerName ?? data.customerName,
+        lastMessageAt: ts,
+        customerKey: key,
+      };
+      const prevReply = String(data.replyJid ?? "").trim();
+      if (dest.includes("@lid")) patch.replyJid = dest;
+      else if (dest.includes("@") && !prevReply.includes("@lid")) patch.replyJid = dest;
+      tx.update(ref, patch);
+      return { ...data, ...patch, id: stableId, businessId } as Conversation;
+    }
+
+    const conversation: Conversation = {
+      id: stableId,
+      businessId,
+      customerPhone,
+      customerKey: key,
+      replyJid: dest.includes("@") ? dest : undefined,
+      customerName,
+      status: "OPEN",
+      lastMessageAt: ts,
+      createdAt: ts,
+    };
+    tx.set(ref, conversation);
+    return conversation;
+  });
 }
 
 export async function updateConversationStatus(
@@ -602,26 +620,34 @@ export async function updateConversationStatus(
   return { id: conversationId, businessId, ...snap.data(), status } as Conversation;
 }
 
+function botClosedLockRef(businessId: string, customerKey: string) {
+  const safe = customerKey.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
+  return businessRef(businessId).collection("botLocks").doc(`closed_${safe}`);
+}
+
 export async function clearOutsideHoursNotice(
   businessId: string,
-  conversationId: string
+  customerPhone: string
 ): Promise<void> {
-  await conversationsCol(businessId).doc(conversationId).update({
-    outsideHoursNoticeAt: AdminFieldValue.delete(),
-  });
+  const customerKey = customerConversationKey(customerPhone);
+  await botClosedLockRef(businessId, customerKey).delete().catch(() => undefined);
+  const existing = await findConversationDoc(businessId, customerPhone);
+  if (existing?.data()?.outsideHoursNoticeAt) {
+    await existing.ref.update({ outsideHoursNoticeAt: AdminFieldValue.delete() });
+  }
 }
 
 export async function tryClaimOutsideHoursNotice(
   businessId: string,
-  conversationId: string
+  customerPhone: string
 ): Promise<boolean> {
-  const ref = conversationsCol(businessId).doc(conversationId);
+  const customerKey = customerConversationKey(customerPhone);
+  const ref = botClosedLockRef(businessId, customerKey);
   try {
     return await getDb().runTransaction(async (tx) => {
       const snap = await tx.get(ref);
-      if (!snap.exists) return false;
-      if (snap.data()?.outsideHoursNoticeAt) return false;
-      tx.update(ref, { outsideHoursNoticeAt: nowIso() });
+      if (snap.exists && snap.data()?.active === true) return false;
+      tx.set(ref, { active: true, customerKey, at: nowIso() }, { merge: true });
       return true;
     });
   } catch {
