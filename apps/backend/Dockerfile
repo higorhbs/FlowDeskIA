@@ -21,7 +21,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @flowdesk/backend...
 
 RUN pnpm --filter @flowdesk/backend build
-RUN pnpm deploy --filter=@flowdesk/backend --prod /prod/backend
+RUN pnpm deploy --filter=@flowdesk/backend --prod --legacy /prod/backend
 
 FROM base AS runner
 WORKDIR /app
