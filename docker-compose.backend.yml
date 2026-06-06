@@ -7,7 +7,7 @@ x-logging: &default-logging
 services:
   backend:
     build:
-      context: ../..
+      context: .
       dockerfile: apps/backend/Dockerfile
     platform: linux/arm64
     container_name: flowdesk-backend
