@@ -16,9 +16,10 @@ services:
     restart: unless-stopped
     logging: *default-logging
     ports:
-      - "${PORT:-9031}:3001"
+      - "${HOST_PORT:-9031}:3001"
     environment:
       NODE_ENV: production
+      PORT: "3001"
     volumes:
       - backend-data:/app/data
     healthcheck:

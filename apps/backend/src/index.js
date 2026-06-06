@@ -44,9 +44,10 @@ serve(
   {
     fetch: app.fetch,
     port: env.port,
+    hostname: env.host,
   },
   (info) => {
-    console.log(`Backend listening on http://localhost:${info.port}`)
+    console.log(`Backend listening on http://${env.host}:${info.port}`)
     if (!env.isProduction) {
       console.log(`API docs: http://localhost:${info.port}/docs`)
     }
