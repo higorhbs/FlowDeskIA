@@ -149,7 +149,10 @@ async function publishOneInner(post: { businessId: string; id: string }) {
       caption: claimed.caption,
       statusJidList: audience,
     });
-    await finishScheduledStatus(post.businessId, post.id, { status: "published" });
+    await finishScheduledStatus(post.businessId, post.id, {
+      status: "published",
+      waMessageId: msgId,
+    });
     console.log(
       `[status] published business=${post.businessId} id=${post.id} waMsg=${msgId ?? "-"} audience=${audience.length}`
     );

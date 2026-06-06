@@ -866,11 +866,16 @@ export async function claimScheduledStatus(
 export async function finishScheduledStatus(
   businessId: string,
   id: string,
-  outcome: { status: "published" } | { status: "failed"; error: string }
+  outcome:
+    | { status: "published"; waMessageId?: string }
+    | { status: "failed"; error: string }
 ) {
   const ts = nowIso();
   const patch: Record<string, unknown> = { status: outcome.status, updatedAt: ts };
-  if (outcome.status === "published") patch.publishedAt = ts;
+  if (outcome.status === "published") {
+    patch.publishedAt = ts;
+    if (outcome.waMessageId) patch.waMessageId = outcome.waMessageId;
+  }
   if (outcome.status === "failed") patch.error = outcome.error.slice(0, 500);
   await scheduledStatusesCol(businessId).doc(id).update(patch);
   if (outcome.status === "published") {
@@ -1038,6 +1043,21 @@ export async function cancelScheduledStatus(
     throw new Error("Só é possível cancelar publicações ainda não enviadas.");
   }
   await ref.update({ status: "cancelled", updatedAt: nowIso() });
+}
+
+export async function revokePublishedScheduledStatus(
+  businessId: string,
+  statusId: string
+): Promise<void> {
+  const ref = scheduledStatusesCol(businessId).doc(statusId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new Error("Agendamento não encontrado.");
+  const row = snap.data() as ScheduledStatus;
+  if (row.status !== "published") {
+    throw new Error("Só é possível apagar stories já publicados.");
+  }
+  const ts = nowIso();
+  await ref.update({ status: "cancelled", updatedAt: ts, revokedAt: ts });
 }
 
 export async function cancelScheduledStatusSeries(

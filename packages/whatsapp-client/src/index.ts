@@ -803,6 +803,24 @@ export class WhatsAppClient extends EventEmitter {
     throw lastErr;
   }
 
+  async deleteStatus(messageId: string): Promise<void> {
+    return this.runExclusive(async () => {
+      if (!this.sock) throw new Error("Socket not connected");
+      const own = this.getOwnJid();
+      if (!own) throw new Error("WhatsApp sem identidade");
+      await this.ensurePreKeys();
+      await this.sock.sendMessage("status@broadcast", {
+        delete: {
+          remoteJid: "status@broadcast",
+          fromMe: true,
+          id: messageId,
+          participant: own,
+        },
+      });
+      console.log(`[wa:${this.businessId}] deleteStatus ok id=${messageId}`);
+    });
+  }
+
   private waitForOpen(timeoutMs: number): Promise<boolean> {
     if (this.isConnected()) return Promise.resolve(true);
     return new Promise((resolve) => {

@@ -4,13 +4,16 @@ import {
   createScheduledStatus,
   expandRecurrenceToDayKeys,
   getBusiness,
+  getScheduledStatus,
   hasAdminCredential,
   listScheduledStatuses,
   repostScheduledStatus,
+  revokePublishedScheduledStatus,
 } from '@flowdesk/firebase'
 import { json, requireBearerUser } from '../../../lib/auth-guard.js'
 import { saveStatusMedia } from '../../../whatsapp/status-media.js'
 import { isWhatsAppRuntime } from '../../../whatsapp/wa-manager.js'
+import { resolveWhatsAppClient } from '../../../whatsapp/wa-lifecycle.js'
 
 function requireAdmin(c) {
   if (!hasAdminCredential()) {
@@ -293,9 +296,44 @@ export async function deleteStoryHandler(c) {
   const ctx = await resolveOwnedBusiness(c, businessId)
   if (ctx.error) return ctx.error
 
+  const status = await getScheduledStatus(businessId, statusId)
+  if (!status) {
+    return json(c, 404, { error: 'Agendamento não encontrado.' })
+  }
+
   try {
-    await cancelScheduledStatus(businessId, statusId)
-    return json(c, 200, { ok: true })
+    if (status.status === 'scheduled') {
+      await cancelScheduledStatus(businessId, statusId)
+      return json(c, 200, { ok: true })
+    }
+
+    if (status.status === 'published') {
+      if (!isWhatsAppRuntime()) {
+        return json(c, 503, { error: 'WhatsApp indisponível para apagar status publicado.' })
+      }
+      if (!status.waMessageId) {
+        return json(c, 400, {
+          error:
+            'Story antigo sem registro no WhatsApp. Some sozinho em até 24h; apagar no celular não remove para contatos.',
+        })
+      }
+      const client = await resolveWhatsAppClient(businessId, { waitMs: 30_000 })
+      if (!client?.isConnected()) {
+        return json(c, 503, { error: 'WhatsApp desconectado. Reconecte e tente novamente.' })
+      }
+      try {
+        await client.deleteStatus(status.waMessageId)
+      } catch (err) {
+        console.error('[stories] revoke failed:', err)
+        return json(c, 502, {
+          error: 'Não foi possível apagar no WhatsApp. Verifique a conexão e tente de novo.',
+        })
+      }
+      await revokePublishedScheduledStatus(businessId, statusId)
+      return json(c, 200, { ok: true, revoked: true })
+    }
+
+    return json(c, 400, { error: 'Este status não pode ser apagado.' })
   } catch (err) {
     return handleStoryError(c, err)
   }

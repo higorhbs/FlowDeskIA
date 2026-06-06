@@ -220,6 +220,8 @@ export interface ScheduledStatus {
   error?: string;
   retryCount?: number;
   publishedAt?: string;
+  waMessageId?: string;
+  revokedAt?: string;
   seriesId?: string;
   sourceStatusId?: string;
   createdAt: string;

@@ -178,13 +178,14 @@ export default function StatusSchedulePage() {
     onError: (err: Error) => toast.error(err.message ?? "Erro ao agendar"),
   });
 
-  const cancelMutation = useMutation({
-    mutationFn: (id: string) => scheduledStatusApi.cancel(businessId, id),
-    onSuccess: () => {
+  const deleteMutation = useMutation({
+    mutationFn: ({ id }: { id: string; published?: boolean }) =>
+      scheduledStatusApi.cancel(businessId, id),
+    onSuccess: (_, { published }) => {
       void queryClient.invalidateQueries({ queryKey: ["scheduled-status", businessId] });
-      toast.success("Agendamento cancelado");
+      toast.success(published ? "Story apagado do WhatsApp" : "Agendamento cancelado");
     },
-    onError: (err: Error) => toast.error(err.message ?? "Erro ao cancelar"),
+    onError: (err: Error) => toast.error(err.message ?? "Erro ao apagar"),
   });
 
   const cancelSeriesMutation = useMutation({
@@ -387,8 +388,8 @@ export default function StatusSchedulePage() {
             No <strong className="font-medium text-gray-700">iPhone</strong>, deixe o WhatsApp aberto no celular
             por 1–2 min após o horário agendado; se aparecer &quot;Aguardando a atualização de status&quot;, feche e
             reabra o app ou toque em &quot;Saiba mais&quot; e aguarde a sincronização com o dispositivo vinculado.
-            Status publicados pela API costumam não poder ser apagados pelo celular; cancele aqui na fila
-            antes do horário se precisar desistir.
+            Status publicados pela API não somem ao apagar no celular — use &quot;Apagar do WhatsApp&quot; no histórico.
+            Stories antigos (antes desta atualização) somem sozinhos em até 24h. Cancele na fila antes do horário se desistir.
           </p>
 
           <Button
@@ -444,13 +445,13 @@ export default function StatusSchedulePage() {
                 businessId={businessId}
                 businessName={business?.name ?? ""}
                 seriesPendingCount={row.seriesId ? seriesPendingCount.get(row.seriesId) : undefined}
-                onCancel={() => cancelMutation.mutate(row.id)}
+                onCancel={() => deleteMutation.mutate({ id: row.id })}
                 onCancelSeries={
                   row.seriesId && (seriesPendingCount.get(row.seriesId) ?? 0) > 1
                     ? () => cancelSeriesMutation.mutate(row.seriesId!)
                     : undefined
                 }
-                cancelling={cancelMutation.isPending || cancelSeriesMutation.isPending}
+                deleting={deleteMutation.isPending || cancelSeriesMutation.isPending}
                 onReposted={() =>
                   void queryClient.invalidateQueries({ queryKey: ["scheduled-status", businessId] })
                 }
@@ -471,6 +472,12 @@ export default function StatusSchedulePage() {
                 row={row}
                 businessId={businessId}
                 businessName={business?.name ?? ""}
+                onRevoke={
+                  row.status === "published"
+                    ? () => deleteMutation.mutate({ id: row.id, published: true })
+                    : undefined
+                }
+                deleting={deleteMutation.isPending}
                 onReposted={() =>
                   void queryClient.invalidateQueries({ queryKey: ["scheduled-status", businessId] })
                 }
@@ -492,7 +499,8 @@ function StatusRow({
   seriesPendingCount,
   onCancel,
   onCancelSeries,
-  cancelling,
+  onRevoke,
+  deleting,
   onReposted,
 }: {
   row: ScheduledStatus;
@@ -501,7 +509,8 @@ function StatusRow({
   seriesPendingCount?: number;
   onCancel?: () => void;
   onCancelSeries?: () => void;
-  cancelling?: boolean;
+  onRevoke?: () => void;
+  deleting?: boolean;
   onReposted?: () => void;
 }) {
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -539,7 +548,7 @@ function StatusRow({
         {row.sourceStatusId && row.status === "scheduled" && (
           <p className="text-xs text-gray-500 mt-0.5">Republicação agendada</p>
         )}
-        {(canRepost || (row.status === "published" && row.mediaUrl)) && (
+        {(canRepost || (row.status === "published" && (row.mediaUrl || onRevoke))) && (
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2.5 pt-2.5 border-t border-gray-100">
             {canRepost && (
               <button
@@ -561,6 +570,17 @@ function StatusRow({
                 Ver prévia no WhatsApp
               </button>
             )}
+            {onRevoke && row.status === "published" && (
+              <button
+                type="button"
+                onClick={onRevoke}
+                disabled={deleting}
+                className="text-xs font-medium text-red-700 hover:text-red-900 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 hover:bg-red-100 transition-colors disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5 flex-shrink-0" />
+                Apagar do WhatsApp
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -570,7 +590,7 @@ function StatusRow({
             variant="ghost"
             size="sm"
             className="text-xs text-red-600 hover:text-red-700 h-8 px-2"
-            disabled={cancelling}
+            disabled={deleting}
             onClick={onCancelSeries}
           >
             Cancelar série
@@ -581,7 +601,7 @@ function StatusRow({
             variant="ghost"
             size="icon"
             className="text-gray-400 hover:text-red-600"
-            disabled={cancelling}
+            disabled={deleting}
             onClick={onCancel}
             aria-label="Cancelar"
           >
