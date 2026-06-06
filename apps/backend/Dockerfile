@@ -20,7 +20,7 @@ ENV NODE_OPTIONS="--max-old-space-size=768"
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @flowdesk/backend...
 
-RUN pnpm --filter @flowdesk/backend build
+RUN pnpm --filter @flowdesk/backend run build:docker
 RUN pnpm deploy --filter=@flowdesk/backend --prod --legacy /prod/backend
 
 FROM base AS runner

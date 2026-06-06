@@ -9,8 +9,9 @@
   "scripts": {
     "dev": "node ../../scripts/backend-dev.mjs",
     "sync:docker": "node scripts/sync-docker-monorepo.mjs",
-    "build": "pnpm run sync:docker && pnpm run build:deps && pnpm run build:whatsapp && node --check src/index.js",
-    "build:deps": "pnpm --filter @flowdesk/shared --filter @flowdesk/firebase --filter @flowdesk/whatsapp-client --parallel run build",
+    "build": "pnpm run sync:docker && pnpm run build:docker",
+    "build:docker": "pnpm run build:deps && pnpm run build:whatsapp && node --check src/index.js",
+    "build:deps": "pnpm --filter @flowdesk/shared run build && pnpm --filter @flowdesk/firebase --filter @flowdesk/whatsapp-client --parallel run build",
     "build:whatsapp": "tsc -p tsconfig.whatsapp.json && node scripts/copy-whatsapp-js.mjs",
     "start": "node src/index.js"
   },
