@@ -22,7 +22,7 @@ export function useRevealedChartData<T extends ChartPoint>(data: T[], delayMs = 
     [data]
   );
 
-  return revealed ? data : zeroed;
+  return { displayData: revealed ? data : zeroed, revealed };
 }
 
 export const chartMotion = {

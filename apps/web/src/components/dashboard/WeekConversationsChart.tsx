@@ -25,12 +25,12 @@ type WeekConversationsChartProps = {
 
 export function WeekConversationsChart({ byDay }: WeekConversationsChartProps) {
   const data = weekConversationsData(byDay);
-  const displayData = useRevealedChartData(data);
+  const { displayData, revealed } = useRevealedChartData(data);
   const total = conversationsTotal(data);
   const todayIdx = new Date().getDay();
   const peak = Math.max(...data.map((d) => d.conversas), 1);
 
-  if (total <= 0) {
+  if (revealed && total <= 0) {
     return <ConversationsChartEmpty label="Nenhuma conversa esta semana" />;
   }
 
@@ -65,7 +65,7 @@ export function WeekConversationsChart({ byDay }: WeekConversationsChartProps) {
           dataKey="conversas"
           radius={[8, 8, 0, 0]}
           maxBarSize={42}
-          isAnimationActive
+          isAnimationActive={revealed}
           animationBegin={chartMotion.begin}
           animationDuration={chartMotion.duration}
           animationEasing={chartMotion.easing}

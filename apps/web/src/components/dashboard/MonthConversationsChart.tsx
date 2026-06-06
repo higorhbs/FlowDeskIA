@@ -29,12 +29,12 @@ type MonthConversationsChartProps = {
 export function MonthConversationsChart({ byDay, refDate = new Date() }: MonthConversationsChartProps) {
   const fillId = useId().replace(/:/g, "");
   const data = monthConversationsData(byDay, refDate);
-  const displayData = useRevealedChartData(data);
+  const { displayData, revealed } = useRevealedChartData(data);
   const total = conversationsTotal(data);
   const peak = Math.max(...data.map((d) => d.conversas), 1);
   const style = monthChartStyle;
 
-  if (total <= 0) {
+  if (revealed && total <= 0) {
     return <ConversationsChartEmpty label="Nenhuma conversa este mês" />;
   }
 
@@ -92,7 +92,7 @@ export function MonthConversationsChart({ byDay, refDate = new Date() }: MonthCo
             stroke: style.activeDot.stroke,
             strokeWidth: style.activeDot.strokeWidth,
           }}
-          isAnimationActive
+          isAnimationActive={revealed}
           animationBegin={chartMotion.begin}
           animationDuration={chartMotion.duration}
           animationEasing={chartMotion.easing}

@@ -10,13 +10,14 @@ export function weekConversationsData(byDay: number[] | undefined) {
 export function monthConversationsData(byDay: number[] | undefined, ref: Date) {
   const y = ref.getFullYear();
   const m = ref.getMonth();
-  return (byDay ?? []).map((conversas, i) => ({
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  return Array.from({ length: daysInMonth }, (_, i) => ({
     date: new Date(y, m, i + 1).toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "2-digit",
       year: "2-digit",
     }),
-    conversas,
+    conversas: byDay?.[i] ?? 0,
   }));
 }
 
