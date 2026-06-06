@@ -3,7 +3,26 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "dist/**"]
+      "outputs": [".next/**", "dist/**"],
+      "env": [
+        "PORT",
+        "WEB_ORIGIN",
+        "CORS_ORIGIN",
+        "ENABLE_WORKERS",
+        "WA_API_PUBLIC_URL",
+        "LOG_LEVEL",
+        "PRIVACY_RETENTION_INTERVAL_HOURS",
+        "FIREBASE_WEB_API_KEY",
+        "FIREBASE_PROJECT_ID",
+        "FIREBASE_CLIENT_EMAIL",
+        "FIREBASE_PRIVATE_KEY",
+        "FIREBASE_STORAGE_BUCKET",
+        "INTERNAL_NOTIFY_SECRET",
+        "STRIPE_SECRET_KEY",
+        "STRIPE_PRICE_STARTER",
+        "STRIPE_PRICE_PRO",
+        "STRIPE_PRICE_UNLIMITED"
+      ]
     },
     "dev": {
       "cache": false,
