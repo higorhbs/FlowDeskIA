@@ -262,10 +262,13 @@ export async function waitForWhatsAppReady(
 }
 
 export async function teardownWhatsAppSession(businessId: string) {
-  const existing = waManager.get(businessId)
-  if (existing) {
+  let client = waManager.get(businessId)
+  if (!client && (await hasStoredSession(businessId))) {
+    client = ensureWhatsAppClient(businessId)
+  }
+  if (client) {
     try {
-      await existing.logout()
+      await client.logout()
     } catch {
       await createWaAuthFileStore(businessId).clear().catch(() => undefined)
     }

@@ -681,11 +681,55 @@ export class WhatsAppClient extends EventEmitter {
     throw lastErr;
   }
 
+  private waitForOpen(timeoutMs: number): Promise<boolean> {
+    if (this.isConnected()) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        clearInterval(poll);
+        this.off("connected", onConnected);
+        resolve(ok);
+      };
+      const onConnected = () => finish(true);
+      const timer = setTimeout(() => finish(this.isConnected()), timeoutMs);
+      const poll = setInterval(() => {
+        if (this.isConnected()) finish(true);
+      }, 300);
+      this.once("connected", onConnected);
+    });
+  }
+
   async logout() {
     this.allowReconnect = false;
     this.cancelScheduledReconnect();
     this.connecting = false;
     this.lastQrDataUrl = undefined;
+
+    if (!this.isConnected()) {
+      if (this.sock) {
+        try {
+          this.sock.ev.removeAllListeners("creds.update");
+          this.sock.end(undefined);
+        } catch {
+          /* ignore */
+        }
+        this.sock = null;
+        this.boundSock = null;
+        this.status = "close";
+      }
+      try {
+        await this.connect();
+        this.allowReconnect = false;
+        this.cancelScheduledReconnect();
+        await this.waitForOpen(20_000);
+      } catch {
+        /* best effort remote logout */
+      }
+    }
+
     const sock = this.sock;
     this.sock = null;
     this.boundSock = null;
@@ -713,6 +757,12 @@ export class WhatsAppClient extends EventEmitter {
         /* ignore */
       }
       this.clearAuthStore = undefined;
+    } else {
+      try {
+        await this.authStore.clear();
+      } catch {
+        /* ignore */
+      }
     }
   }
 
