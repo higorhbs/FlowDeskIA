@@ -1,5 +1,6 @@
 import {
   claimScheduledStatus,
+  deferScheduledStatus,
   finishScheduledStatus,
   getBusiness,
   getTenant,
@@ -120,6 +121,15 @@ async function publishOne(post: { businessId: string; id: string }) {
       `[status] published business=${post.businessId} id=${post.id} waMsg=${msgId ?? "-"} audience=${audience.length}`
     );
   } catch (err) {
+    if (isSignalSessionError(err)) {
+      const deferred = await deferScheduledStatus(post.businessId, post.id, 120_000);
+      if (deferred) {
+        console.warn(
+          `[status] deferred business=${post.businessId} id=${post.id} (+120s, session sync)`
+        );
+        return;
+      }
+    }
     const message = storyPublishError(err);
     await finishScheduledStatus(post.businessId, post.id, { status: "failed", error: message });
     console.error(`[status] failed business=${post.businessId} id=${post.id}:`, message, err);

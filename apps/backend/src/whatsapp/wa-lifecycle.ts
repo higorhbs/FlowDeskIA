@@ -44,7 +44,7 @@ export function attachWhatsAppLifecycle(businessId: string, client: WhatsAppClie
             console.warn(`[whatsapp] status audience warmup failed business=${businessId}:`, err)
           }
         })()
-      }, 8_000)
+      }, 15_000)
     } catch (err) {
       console.error(`[whatsapp] failed to mark connected for ${businessId}:`, err)
     }

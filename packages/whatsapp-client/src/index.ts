@@ -384,9 +384,9 @@ export class WhatsAppClient extends EventEmitter {
         printQRInTerminal: false,
         generateHighQualityLinkPreview: false,
         markOnlineOnConnect: false,
-        fireInitQueries: true,
-        connectTimeoutMs: 30_000,
-        defaultQueryTimeoutMs: 120_000,
+        fireInitQueries: false,
+        connectTimeoutMs: 60_000,
+        defaultQueryTimeoutMs: 180_000,
         shouldSyncHistoryMessage: () => false,
         msgRetryCounterCache: this.msgRetryCounterCache as any,
         getMessage: async (key) => this.messageStore.get(messageStoreKey(key)),
@@ -428,9 +428,62 @@ export class WhatsAppClient extends EventEmitter {
     if (isLidUser(jid)) {
       const phone = this.lidToPhone.get(jid);
       if (phone?.endsWith("@s.whatsapp.net")) return phone;
+      return undefined;
     }
-    if (jid.endsWith("@s.whatsapp.net") || jid.endsWith("@lid")) return jid;
+    if (jid.endsWith("@s.whatsapp.net")) return jid;
     return undefined;
+  }
+
+  private sockSendApi() {
+    return this.sock as {
+      assertSessions?: (jids: string[], force: boolean) => Promise<boolean>;
+      getUSyncDevices?: (
+        jids: string[],
+        useCache: boolean,
+        ignoreZero: boolean
+      ) => Promise<Array<{ jid: string; user: string; device: number }>>;
+      getPrivacyTokens?: (jids: string[]) => Promise<unknown>;
+    } | null;
+  }
+
+  private async resolveStatusDeviceJids(userJids: string[]): Promise<string[]> {
+    const getUSync = this.sockSendApi()?.getUSyncDevices;
+    const normalized = [
+      ...new Set(
+        userJids
+          .map((j) => this.normalizeAudienceJid(j))
+          .filter((j): j is string => !!j)
+      ),
+    ];
+    if (!getUSync || !normalized.length) return normalized;
+
+    const out = new Set<string>();
+    const devices = await getUSync.call(this.sock, normalized, false, false);
+    for (const d of devices) {
+      if (d.jid) out.add(d.jid);
+    }
+    const meId = this.sock?.user?.id;
+    if (meId) {
+      const meNorm = jidNormalizedUser(meId);
+      if (meNorm) {
+        const meDevices = await getUSync.call(this.sock, [meNorm], false, false);
+        for (const d of meDevices) {
+          if (d.jid) out.add(d.jid);
+        }
+      }
+    }
+    return out.size ? [...out] : normalized;
+  }
+
+  private async ensurePrivacyTokens(userJids: string[]): Promise<void> {
+    const fn = this.sockSendApi()?.getPrivacyTokens;
+    const normalized = userJids.filter((j) => j.endsWith("@s.whatsapp.net"));
+    if (typeof fn !== "function" || !normalized.length) return;
+    try {
+      await fn.call(this.sock, normalized.slice(0, 100));
+    } catch (err) {
+      console.warn(`[wa:${this.businessId}] getPrivacyTokens:`, err);
+    }
   }
 
   private async assertAudienceSessions(jids: string[]): Promise<void> {
@@ -463,9 +516,13 @@ export class WhatsAppClient extends EventEmitter {
       const jid = this.normalizeAudienceJid(j);
       if (jid) audience.add(jid);
     }
-    const list = [...audience];
-    if (!list.length) return;
-    await this.assertAudienceSessions(list);
+    const userList = [...audience];
+    if (!userList.length) return;
+    await this.ensurePreKeys();
+    await this.ensurePrivacyTokens(userList);
+    const deviceJids = await this.resolveStatusDeviceJids(userList);
+    await this.assertAudienceSessions(deviceJids);
+    await new Promise((r) => setTimeout(r, 2000));
   }
 
   private async ensurePreKeys() {

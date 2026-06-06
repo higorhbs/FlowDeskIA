@@ -218,6 +218,7 @@ export interface ScheduledStatus {
   scheduledAt: string;
   status: ScheduledStatusState;
   error?: string;
+  retryCount?: number;
   publishedAt?: string;
   seriesId?: string;
   sourceStatusId?: string;

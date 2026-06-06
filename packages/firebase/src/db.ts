@@ -879,6 +879,30 @@ export async function finishScheduledStatus(
   }
 }
 
+export async function deferScheduledStatus(
+  businessId: string,
+  id: string,
+  delayMs: number
+): Promise<boolean> {
+  const ref = scheduledStatusesCol(businessId).doc(id);
+  return getDb().runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return false;
+    const row = snap.data() as ScheduledStatus;
+    const retries = typeof row.retryCount === "number" ? row.retryCount : 0;
+    if (retries >= 5) return false;
+    const ts = nowIso();
+    tx.update(ref, {
+      status: "scheduled" satisfies ScheduledStatusState,
+      scheduledAt: new Date(Date.now() + delayMs).toISOString(),
+      retryCount: retries + 1,
+      updatedAt: ts,
+      error: AdminFieldValue.delete(),
+    });
+    return true;
+  });
+}
+
 const REPOSTABLE_STATUS: ScheduledStatus["status"][] = ["published", "failed", "cancelled"];
 
 async function assertStoriesQuotaForCreate(tenantId: string) {
@@ -1075,10 +1099,16 @@ export async function listStatusAudienceJids(businessId: string, max = 400): Pro
   const jids = new Set<string>();
   for (const d of snap.docs) {
     const c = d.data() as Conversation;
-    const raw = c.replyJid?.trim() || c.customerPhone?.trim() || "";
-    if (!raw) continue;
-    const jid = raw.includes("@") ? raw : phoneToJid(raw);
-    if (jid?.endsWith("@s.whatsapp.net") || jid?.endsWith("@lid")) jids.add(jid);
+    const phone = c.customerPhone?.trim();
+    if (phone) {
+      const jid = phone.includes("@") ? phone : phoneToJid(phone);
+      if (jid?.endsWith("@s.whatsapp.net")) jids.add(jid);
+      continue;
+    }
+    const reply = c.replyJid?.trim();
+    if (!reply) continue;
+    const jid = reply.includes("@") ? reply : phoneToJid(reply);
+    if (jid?.endsWith("@s.whatsapp.net")) jids.add(jid);
   }
   if (!jids.size) {
     const business = await getBusiness(businessId);
