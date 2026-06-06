@@ -29,6 +29,16 @@ function isSignalSessionError(err: unknown): boolean {
   return name === "SessionError" || /no matching sessions|no sessions|bad mac/i.test(msg);
 }
 
+function isBaileysTimeout(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  const code = (err as { output?: { statusCode?: number } })?.output?.statusCode;
+  return msg === "Timed Out" || code === 408 || /time-out|timed out/i.test(msg);
+}
+
+function shouldDeferPublish(err: unknown): boolean {
+  return isSignalSessionError(err) || isBaileysTimeout(err);
+}
+
 function storyPublishError(err: unknown): string {
   if (isSignalSessionError(err)) {
     return "Sessão WhatsApp ainda sincronizando. Aguarde ~1 min após conectar e use Reagendar.";
@@ -144,11 +154,12 @@ async function publishOneInner(post: { businessId: string; id: string }) {
       `[status] published business=${post.businessId} id=${post.id} waMsg=${msgId ?? "-"} audience=${audience.length}`
     );
   } catch (err) {
-    if (isSignalSessionError(err)) {
-      const deferred = await deferScheduledStatus(post.businessId, post.id, 120_000);
+    if (shouldDeferPublish(err)) {
+      const delayMs = isBaileysTimeout(err) ? 180_000 : 120_000;
+      const deferred = await deferScheduledStatus(post.businessId, post.id, delayMs);
       if (deferred) {
         console.warn(
-          `[status] deferred business=${post.businessId} id=${post.id} (+120s, session sync)`
+          `[status] deferred business=${post.businessId} id=${post.id} (+${delayMs / 1000}s)`
         );
         return;
       }

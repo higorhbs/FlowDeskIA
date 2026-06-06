@@ -90,14 +90,14 @@ export function WhatsAppConnectionRunner({ phase, compact }: Props) {
       aria-label={caption}
     >
       <div className="relative mx-auto max-w-sm px-2">
-        <div className="relative min-h-[5.25rem] overflow-visible rounded-2xl bg-gradient-to-b from-brand-50 to-brand-100/80 border border-brand-200/60 pt-2 pb-1">
+        <div className="relative min-h-[4.25rem] overflow-visible rounded-2xl bg-gradient-to-b from-brand-50 to-brand-100/80 border border-brand-200/60 pt-1 pb-0.5">
           <div
             className={cn(
-              "absolute inset-x-0 bottom-3 h-px border-t border-dashed border-brand-300/70",
+              "absolute inset-x-0 bottom-2.5 h-px border-t border-dashed border-brand-300/70",
               running && !reduced && "wa-runner-ground",
             )}
           />
-          <div className="absolute inset-x-0 bottom-0 h-3 bg-brand-200/40 rounded-b-2xl" />
+          <div className="absolute inset-x-0 bottom-0 h-2.5 bg-brand-200/40 rounded-b-2xl" />
 
           {STEPS.map((step, i) => {
             const left = trackLeft(i);
@@ -110,7 +110,7 @@ export function WhatsAppConnectionRunner({ phase, compact }: Props) {
             return (
               <div
                 key={step.phase}
-                className="absolute bottom-3 flex flex-col items-center -translate-x-1/2"
+                className="absolute bottom-2.5 flex flex-col items-center -translate-x-1/2"
                 style={{ left }}
               >
                 {!runnerHere && (
@@ -143,7 +143,7 @@ export function WhatsAppConnectionRunner({ phase, compact }: Props) {
 
           {phase !== "idle" && (
             <motion.div
-              className="absolute bottom-[2.5rem] z-10 flex size-6 -translate-x-1/2 items-center justify-center rounded-full border-2 border-brand-600 bg-brand-600 text-white shadow-sm shadow-brand-600/25"
+              className="absolute bottom-[2.05rem] z-10 flex size-6 -translate-x-1/2 items-center justify-center rounded-full border-2 border-brand-600 bg-brand-600 text-white shadow-sm shadow-brand-600/25"
               style={{ left: runnerLeft }}
               animate={
                 reduced

@@ -142,6 +142,16 @@ function isSignalSessionError(err: unknown): boolean {
   return name === "SessionError" || /no matching sessions|no sessions|bad mac/i.test(msg);
 }
 
+function isBaileysTimeout(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  const code = (err as { output?: { statusCode?: number } })?.output?.statusCode;
+  return msg === "Timed Out" || code === 408 || /time-out|timed out/i.test(msg);
+}
+
+function isPublishRetriable(err: unknown): boolean {
+  return isSignalSessionError(err) || isBaileysTimeout(err);
+}
+
 function linkedDeviceBrowser(): [string, string, string] {
   const name = process.env.WA_LINKED_DEVICE_NAME?.trim() || "FlowDesk";
   return [name, "Chrome", "120.0.0"];
@@ -730,7 +740,7 @@ export class WhatsAppClient extends EventEmitter {
   }): Promise<string | undefined> {
     if (!this.sock) throw new Error("Socket not connected");
 
-    const deadline = Date.now() + 45_000;
+    const deadline = Date.now() + 60_000;
     while (!this.isPublishReady() && Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 500));
     }
@@ -746,8 +756,9 @@ export class WhatsAppClient extends EventEmitter {
       throw new Error("Nenhum contato na audiência do status.");
     }
 
-    await this.ensureStatusChannelReady(own);
-    await this.prepareStatusAudience(statusJidList, { force: true });
+    console.log(
+      `[wa:${this.businessId}] publishStatus start audience=${statusJidList.length} media=${opts.mediaType}`
+    );
 
     const { buffer, mimetype } = opts.mediaBuffer
       ? await this.normalizeStatusBuffer(
@@ -763,17 +774,20 @@ export class WhatsAppClient extends EventEmitter {
         ? { video: buffer, mimetype, caption: opts.caption }
         : { image: buffer, mimetype, caption: opts.caption };
 
+    await this.ensurePreKeys();
+
     let lastErr: unknown;
-    for (let attempt = 0; attempt < 4; attempt++) {
+    for (let attempt = 0; attempt < 5; attempt++) {
       if (attempt > 0) {
-        await new Promise((r) => setTimeout(r, 4000 * attempt));
-        await this.assertAudienceSessions(statusJidList, true);
+        await new Promise((r) => setTimeout(r, 6000 * attempt));
+        if (!this.isConnected()) throw new Error("Socket not connected");
+        await this.ensurePreKeys();
       }
       try {
         const result = await this.sock!.sendMessage("status@broadcast", content, {
           broadcast: true,
           statusJidList,
-          mediaUploadTimeoutMs: 180_000,
+          mediaUploadTimeoutMs: 240_000,
         });
         this.stashSentMessage(result);
         console.log(
@@ -782,7 +796,7 @@ export class WhatsAppClient extends EventEmitter {
         return result?.key?.id ?? undefined;
       } catch (err) {
         lastErr = err;
-        if (!isSignalSessionError(err) || attempt >= 3) throw err;
+        if (!isPublishRetriable(err) || attempt >= 4) throw err;
         console.warn(`[wa:${this.businessId}] publishStatus retry ${attempt + 1}:`, err);
       }
     }
