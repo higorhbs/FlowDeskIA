@@ -139,6 +139,7 @@ export interface Conversation {
   status: ConversationStatus;
   lastMessageAt: string;
   createdAt: string;
+  outsideHoursNoticeAt?: string;
 }
 
 export type MessageMediaType = "image" | "video" | "audio";

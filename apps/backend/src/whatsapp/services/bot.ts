@@ -17,6 +17,8 @@ import {
   listCustomerAppointments,
   getBusinessAsaasIntegration,
   type Conversation,
+  markOutsideHoursNotice,
+  clearOutsideHoursNotice,
 } from "@flowdesk/firebase";
 import {
   APP_DISPLAY_NAME,
@@ -100,21 +102,20 @@ const conversationState = new Map<
   { step: string; data: Record<string, string> }
 >();
 const botPausedSessions = new Set<string>();
-const awayNotifiedWhileClosed = new Set<string>();
 
-function replyWhenClosed(
+async function replyWhenClosed(
   business: { id: string; name: string; awayMsg?: string; lunchMsg?: string; workingHours?: Record<string, unknown>; timezone?: string; specialHours?: Record<string, [string, string] | null>; lunchBreak?: [string, string] | null },
   conversation: Conversation,
   customerName: string | undefined,
   sessionKey: string
 ): Promise<BotResponse[]> {
   conversationState.delete(sessionKey);
-  if (awayNotifiedWhileClosed.has(sessionKey)) return Promise.resolve([]);
+  if (conversation.outsideHoursNoticeAt) return [];
   const response = awayReply(business, customerName);
-  awayNotifiedWhileClosed.add(sessionKey);
-  return saveAndReturn(business.id, conversation.id, [{ text: response }]).then(() => [
-    { text: response },
-  ]);
+  await markOutsideHoursNotice(business.id, conversation.id);
+  conversation.outsideHoursNoticeAt = new Date().toISOString();
+  await saveAndReturn(business.id, conversation.id, [{ text: response }]);
+  return [{ text: response }];
 }
 
 export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
@@ -157,7 +158,10 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   }
 
   if (open) {
-    awayNotifiedWhileClosed.delete(sessionKey);
+    if (conversation.outsideHoursNoticeAt) {
+      await clearOutsideHoursNotice(businessId, conversation.id);
+      conversation.outsideHoursNoticeAt = undefined;
+    }
   } else {
     return replyWhenClosed(business, conversation, customerName, sessionKey);
   }

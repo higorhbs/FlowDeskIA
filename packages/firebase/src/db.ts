@@ -602,6 +602,23 @@ export async function updateConversationStatus(
   return { id: conversationId, businessId, ...snap.data(), status } as Conversation;
 }
 
+export async function clearOutsideHoursNotice(
+  businessId: string,
+  conversationId: string
+): Promise<void> {
+  await conversationsCol(businessId).doc(conversationId).update({
+    outsideHoursNoticeAt: AdminFieldValue.delete(),
+  });
+}
+
+export async function markOutsideHoursNotice(
+  businessId: string,
+  conversationId: string,
+  at = nowIso()
+): Promise<void> {
+  await conversationsCol(businessId).doc(conversationId).update({ outsideHoursNoticeAt: at });
+}
+
 export async function createMessage(
   businessId: string,
   conversationId: string,
