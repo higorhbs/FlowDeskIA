@@ -9,8 +9,6 @@ import {
   backendDeleteWhatsAppConnection,
   backendGetWhatsAppQr,
   backendPostWhatsAppQr,
-  backendSendWhatsAppMedia,
-  backendSendWhatsAppMessage,
 } from "./backend-chat-whatsapp";
 import {
   backendCancelStory,
@@ -294,10 +292,10 @@ export const whatsappApi = {
   connect: (businessId: string, force = false) => backendPostWhatsAppQr(businessId, force),
   status: (businessId: string) => backendGetWhatsAppQr(businessId),
   disconnect: (businessId: string) => backendDeleteWhatsAppConnection(businessId),
-  send: (businessId: string, to: string, text: string, conversationId?: string) =>
-    backendSendWhatsAppMessage(businessId, { to, text, conversationId }),
+  send: (businessId: string, to: string, text: string, conversationId: string) =>
+    webApi.messages.sendMessage(businessId, conversationId, { to, text }),
   sendMedia: (businessId: string, conversationId: string, file: File, caption?: string) =>
-    backendSendWhatsAppMedia(businessId, conversationId, file, caption),
+    webApi.messages.sendMedia(businessId, conversationId, file, caption),
 };
 
 export const scheduledStatusApi = {
