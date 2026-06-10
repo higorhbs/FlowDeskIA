@@ -1,6 +1,7 @@
 import { serve } from '@hono/node-server'
 import { createApp } from './app.js'
 import { env } from './config/env.js'
+import { log } from './lib/log.js'
 import { installProcessGuards } from './process-guards.js'
 import { isWhatsAppRuntime } from './whatsapp/wa-manager.js'
 
@@ -31,9 +32,9 @@ if (retentionIntervalHours > 0) {
         './services/privacy-compliance.js'
       )
       const result = await runPrivacyRetentionForAllTenants(365)
-      console.log('[privacy] retention run completed', result)
+      log.debug('[privacy] retention run completed', result)
     } catch (err) {
-      console.error('[privacy] retention run failed:', err)
+      log.error('[privacy] retention run failed:', err)
     }
   }
   setTimeout(runRetention, 10_000)
@@ -46,9 +47,9 @@ serve(
     port: env.port,
   },
   (info) => {
-    console.log(`Backend listening on http://localhost:${info.port}`)
+    log.info(`Backend listening on http://localhost:${info.port}`)
     if (!env.isProduction) {
-      console.log(`API docs: http://localhost:${info.port}/docs`)
+      log.info(`API docs: http://localhost:${info.port}/docs`)
     }
   },
 )

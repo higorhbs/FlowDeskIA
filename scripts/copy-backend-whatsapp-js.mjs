@@ -24,3 +24,10 @@ function copyJsFiles(srcDir, destDir) {
 }
 
 copyJsFiles(srcRoot, distRoot);
+
+const libLog = join(backendRoot, "src/lib/log.js");
+if (existsSync(libLog)) {
+  const distLib = join(backendRoot, "dist/lib");
+  mkdirSync(distLib, { recursive: true });
+  cpSync(libLog, join(distLib, "log.js"));
+}

@@ -4,12 +4,20 @@ import {
   failWhatsappJob,
   type WhatsappJob,
 } from "@flowdesk/firebase";
+import { log } from "../../lib/log.js";
 import { processMessage } from "../services/bot.js";
 import { resolveWhatsAppClient } from "../wa-lifecycle.js";
 
+function intEnv(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
 const WORKER_ID = `wa-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
-const POLL_MS = 800;
-const CONCURRENCY = 5;
+const POLL_MS = intEnv("WA_WORKER_POLL_MS", 1500);
+const CONCURRENCY = intEnv("WA_WORKER_CONCURRENCY", 2);
 
 let running = 0;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -39,7 +47,9 @@ async function processInboundJob(job: WhatsappJob): Promise<void> {
     }
     await new Promise((r) => setTimeout(r, 800));
   }
-  console.log(`[worker] replied business=${businessId} count=${responses.length}`);
+  if (responses.length > 0) {
+    log.info(`[worker] replied business=${businessId} count=${responses.length}`);
+  }
 }
 
 async function runClaimedJob(job: WhatsappJob): Promise<void> {
@@ -49,7 +59,7 @@ async function runClaimedJob(job: WhatsappJob): Promise<void> {
     await completeWhatsappJob(job.id);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`[worker] job ${job.id} failed:`, message);
+    log.error(`[worker] job ${job.id} failed:`, message);
     await failWhatsappJob(job.id, message);
   } finally {
     running--;
@@ -70,5 +80,5 @@ export function startMessageWorker(): void {
     void pollJobs();
   }, POLL_MS);
   void pollJobs();
-  console.log("[whatsapp] Firestore job worker started");
+  log.info("[whatsapp] Firestore job worker started");
 }
