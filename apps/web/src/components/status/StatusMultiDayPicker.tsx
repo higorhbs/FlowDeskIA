@@ -102,13 +102,6 @@ export function StatusMultiDayPicker({
     return `${n} dias às ${t}`;
   }, [selectedDayKeys, selectedHour, selectedMinute, today]);
 
-  const selectedPreview = useMemo(() => {
-    if (selectedDayKeys.length <= 1) return null;
-    return [...selectedDayKeys]
-      .sort()
-      .slice(0, 4)
-      .map((key) => format(parseDayKey(key), "dd/MM (EEE)", { locale: ptBR }));
-  }, [selectedDayKeys]);
 
   function fixTodayTimeIfNeeded(date: Date) {
     const d = new Date(date);
@@ -311,11 +304,36 @@ export function StatusMultiDayPicker({
         <span className="text-sm font-semibold text-brand-800 capitalize">{summary}</span>
       </div>
 
-      {selectedPreview && (
-        <p className="text-xs text-gray-600 mb-3 capitalize">
-          {selectedPreview.join(" · ")}
-          {selectedDayKeys.length > 4 ? ` · +${selectedDayKeys.length - 4}` : ""}
-        </p>
+      {selectedDayKeys.length > 1 && (
+        <div className="mb-3">
+          <div className="flex items-center gap-2 mb-2.5">
+            <span className="text-[10px] font-bold text-brand-600 uppercase tracking-widest">
+              {disableDaySelection ? "Datas geradas" : `${selectedDayKeys.length} selecionadas`}
+            </span>
+            <div className="flex-1 h-px bg-brand-100" />
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-0.5 px-0.5">
+            {[...selectedDayKeys].sort().map((key) => {
+              const date = parseDayKey(key);
+              return (
+                <div
+                  key={key}
+                  className="flex-shrink-0 flex flex-col items-center w-[50px] pt-2.5 pb-2 rounded-2xl border border-brand-200/80 bg-gradient-to-b from-brand-50 to-white shadow-sm"
+                >
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-brand-400 leading-none">
+                    {format(date, "EEE", { locale: ptBR })}
+                  </span>
+                  <span className="text-xl font-black text-brand-700 leading-none mt-1">
+                    {format(date, "dd")}
+                  </span>
+                  <span className="text-[9px] font-semibold text-brand-500 leading-none mt-0.5">
+                    {format(date, "MMM", { locale: ptBR })}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
