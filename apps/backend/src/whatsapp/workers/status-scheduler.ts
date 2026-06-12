@@ -11,6 +11,7 @@ import {
   reclaimStuckPublishingStatuses,
 } from "@flowdesk/firebase";
 import { assertStoriesPublishQuota, type PlanTier } from "@flowdesk/shared";
+import { log } from "../../lib/log.js";
 import { readStatusMediaBuffer } from "../status-media.js";
 import { resolveWhatsAppClient, waitForWhatsAppReady } from "../wa-lifecycle.js";
 import { waManager } from "../wa-manager.js";
@@ -127,7 +128,7 @@ async function publishOneInner(post: { businessId: string; id: string }) {
 
   try {
     const debug = client.getDebugInfo();
-    console.log(
+    log.debug(
       `[status] attempt business=${post.businessId} id=${post.id} status=${debug.status} socketOpen=${debug.socketOpen}`
     );
 
@@ -153,7 +154,7 @@ async function publishOneInner(post: { businessId: string; id: string }) {
       status: "published",
       waMessageId: msgId,
     });
-    console.log(
+    log.debug(
       `[status] published business=${post.businessId} id=${post.id} waMsg=${msgId ?? "-"} audience=${audience.length}`
     );
   } catch (err) {
@@ -161,7 +162,7 @@ async function publishOneInner(post: { businessId: string; id: string }) {
       const delayMs = isBaileysTimeout(err) ? 180_000 : 120_000;
       const deferred = await deferScheduledStatus(post.businessId, post.id, delayMs);
       if (deferred) {
-        console.warn(
+        log.warn(
           `[status] deferred business=${post.businessId} id=${post.id} (+${delayMs / 1000}s)`
         );
         return;
@@ -169,7 +170,7 @@ async function publishOneInner(post: { businessId: string; id: string }) {
     }
     const message = storyPublishError(err);
     await finishScheduledStatus(post.businessId, post.id, { status: "failed", error: message });
-    console.error(`[status] failed business=${post.businessId} id=${post.id}:`, message, err);
+    log.error(`[status] failed business=${post.businessId} id=${post.id}:`, message, err);
   }
 }
 
@@ -178,7 +179,7 @@ export function enqueueImmediateStatusPublish(post: { businessId: string; id: st
     void (async () => {
       await waitForWhatsAppReady(post.businessId, READY_WAIT_MS, { forPublish: true });
       await publishOne(post);
-    })().catch((err) => console.error("[status-scheduler] immediate publish error:", err));
+    })().catch((err) => log.error("[status-scheduler] immediate publish error:", err));
   }, IMMEDIATE_PUBLISH_DELAY_MS);
 }
 
@@ -192,10 +193,10 @@ export function startStatusScheduler() {
       try {
         const reclaimed = await reclaimStuckPublishingStatuses();
         if (reclaimed > 0) {
-          console.log(`[status-scheduler] reclaimed ${reclaimed} stuck publishing job(s)`);
+          log.debug(`[status-scheduler] reclaimed ${reclaimed} stuck publishing job(s)`);
         }
       } catch (err) {
-        console.error("[status-scheduler] reclaim error:", err);
+        log.error("[status-scheduler] reclaim error:", err);
       }
 
       const due = await listDueScheduledStatuses();
@@ -209,12 +210,12 @@ export function startStatusScheduler() {
   };
 
   setTimeout(() => {
-    void run().catch((err) => console.error("[status-scheduler] tick error:", err));
+    void run().catch((err) => log.error("[status-scheduler] tick error:", err));
   }, FIRST_TICK_DELAY_MS);
 
   setInterval(() => {
-    void run().catch((err) => console.error("[status-scheduler] tick error:", err));
+    void run().catch((err) => log.error("[status-scheduler] tick error:", err));
   }, TICK_MS);
 
-  console.log("[status-scheduler] started");
+  log.info("[status-scheduler] started");
 }

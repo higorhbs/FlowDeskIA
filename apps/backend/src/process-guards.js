@@ -1,3 +1,5 @@
+import { log } from './lib/log.js'
+
 function isBaileysTimeout(err) {
   if (!err || typeof err !== 'object') return false
   const message = err instanceof Error ? err.message : err.message
@@ -9,18 +11,18 @@ function isBaileysTimeout(err) {
 export function installProcessGuards() {
   process.on('unhandledRejection', (reason) => {
     if (isBaileysTimeout(reason)) {
-      console.error('[backend] baileys timeout ignorado (unhandledRejection)')
+      log.debug('[backend] baileys timeout ignorado (unhandledRejection)')
       return
     }
-    console.error('[backend] unhandledRejection:', reason)
+    log.error('[backend] unhandledRejection:', reason)
   })
 
   process.on('uncaughtException', (err) => {
     if (isBaileysTimeout(err)) {
-      console.error('[backend] baileys timeout ignorado (uncaughtException)')
+      log.debug('[backend] baileys timeout ignorado (uncaughtException)')
       return
     }
-    console.error('[backend] uncaughtException:', err)
+    log.error('[backend] uncaughtException:', err)
     process.exit(1)
   })
 }

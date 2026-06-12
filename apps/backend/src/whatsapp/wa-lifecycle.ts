@@ -10,11 +10,19 @@ import {
   listBusinessIdsWithWhatsAppAuth,
   setBusinessConnected,
 } from '@flowdesk/firebase'
+import { log } from '../lib/log.js'
 import { saveChatMedia } from './chat-media.js'
 import { processMessage } from './services/bot.js'
 import { waManager } from './wa-manager.js'
 
 const lifecycleAttached = new WeakSet<WhatsAppClient>()
+
+function restoreStaggerMs(): number {
+  const raw = process.env.WA_RESTORE_STAGGER_MS?.trim()
+  if (!raw) return 3000
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : 3000
+}
 
 export async function hasStoredSession(businessId: string): Promise<boolean> {
   return hasWhatsAppAuth(businessId)
@@ -33,7 +41,7 @@ export function attachWhatsAppLifecycle(businessId: string, client: WhatsAppClie
       await setBusinessConnected(businessId, true)
       attachWhatsAppMessageHandler(businessId, client)
     } catch (err) {
-      console.error(`[whatsapp] failed to mark connected for ${businessId}:`, err)
+      log.error(`[whatsapp] failed to mark connected for ${businessId}:`, err)
     }
   })
 
@@ -41,7 +49,7 @@ export function attachWhatsAppLifecycle(businessId: string, client: WhatsAppClie
     try {
       await setBusinessConnected(businessId, false)
     } catch (err) {
-      console.error(`[whatsapp] failed to mark disconnected for ${businessId}:`, err)
+      log.error(`[whatsapp] failed to mark disconnected for ${businessId}:`, err)
     }
   })
 }
@@ -63,7 +71,7 @@ async function deliverBotReplies(
   })
 
   if (responses.length === 0) {
-    console.log(`[whatsapp] no bot reply business=${businessId}`)
+    log.debug(`[whatsapp] no bot reply business=${businessId}`)
     return
   }
 
@@ -76,7 +84,7 @@ async function deliverBotReplies(
     }
     await new Promise((r) => setTimeout(r, 800))
   }
-  console.log(`[whatsapp] replied business=${businessId} count=${responses.length}`)
+  log.debug(`[whatsapp] replied business=${businessId} count=${responses.length}`)
 }
 
 async function resolveInboundMedia(
@@ -88,7 +96,7 @@ async function resolveInboundMedia(
   if (!msg.mediaType) return {}
   const downloaded = await client.downloadMessageMedia(raw)
   if (!downloaded) {
-    console.warn(
+    log.warn(
       `[whatsapp] media download failed business=${businessId} type=${msg.mediaType} id=${msg.messageId}`
     )
     return { mediaType: msg.mediaType }
@@ -99,7 +107,7 @@ async function resolveInboundMedia(
     downloaded.mimetype,
     downloaded.mediaType
   )
-  console.log(`[whatsapp] media saved business=${businessId} type=${saved.mediaType}`)
+  log.debug(`[whatsapp] media saved business=${businessId} type=${saved.mediaType}`)
   return { mediaUrl: saved.mediaUrl, mediaType: saved.mediaType }
 }
 
@@ -134,18 +142,18 @@ export function attachWhatsAppMessageHandler(businessId: string, client: WhatsAp
       try {
         media = await resolveInboundMedia(businessId, client, msg, raw)
       } catch (err) {
-        console.error(`[whatsapp] inbound media save failed business=${businessId}:`, err)
+        log.error(`[whatsapp] inbound media save failed business=${businessId}:`, err)
       }
       try {
         await enqueueInbound(businessId, msg, media)
         return
       } catch (err) {
-        console.error(`[whatsapp] Firestore queue failed business=${businessId}, direct fallback:`, err)
+        log.warn(`[whatsapp] Firestore queue failed business=${businessId}, direct fallback:`, err)
       }
       try {
         await deliverBotReplies(businessId, client, msg, media)
       } catch (directErr) {
-        console.error(`[whatsapp] direct reply failed business=${businessId}:`, directErr)
+        log.error(`[whatsapp] direct reply failed business=${businessId}:`, directErr)
       }
     })()
   })
@@ -177,7 +185,7 @@ export async function resolveWhatsAppClient(
         await client.kickPairing()
       }
     } catch (err) {
-      console.error(`[whatsapp] resolve connect failed for ${businessId}:`, err)
+      log.error(`[whatsapp] resolve connect failed for ${businessId}:`, err)
     }
   }
 
@@ -196,7 +204,7 @@ export async function resolveWhatsAppClient(
     try {
       await client.kickPairing()
     } catch (err) {
-      console.error(`[whatsapp] resolve kickPairing failed for ${businessId}:`, err)
+      log.error(`[whatsapp] resolve kickPairing failed for ${businessId}:`, err)
     }
     const extraWait = Math.min(12_000, waitMs || 12_000)
     const deadline = Date.now() + extraWait
@@ -209,7 +217,7 @@ export async function resolveWhatsAppClient(
   const ready = client.isConnected() || client.isReadyToSend()
   if (!ready) {
     const debug = client.getDebugInfo()
-    console.warn(
+    log.warn(
       `[whatsapp] resolve timeout business=${businessId} status=${debug.status} socketOpen=${debug.socketOpen}`
     )
   }
@@ -279,23 +287,27 @@ export async function restoreWhatsAppSessions(opts?: { timeoutMs?: number }): Pr
   const ids = await listStoredSessionBusinessIds()
   if (ids.length === 0) return
   const timeoutMs = opts?.timeoutMs ?? 60_000
-  console.log(`[whatsapp] Restoring ${ids.length} stored session(s)...`)
-  await Promise.all(
-    ids.map(async (id) => {
-      const client = ensureWhatsAppClient(id)
-      if (client.isConnected() || client.isReadyToSend()) return
+  const stagger = restoreStaggerMs()
+  log.info(`[whatsapp] Restoring ${ids.length} stored session(s) (stagger=${stagger}ms)`)
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i]
+    const client = ensureWhatsAppClient(id)
+    if (!client.isConnected() && !client.isReadyToSend()) {
       try {
         await client.connect()
       } catch (err) {
-        console.error(`[whatsapp] restore connect failed for ${id}:`, err)
+        log.error(`[whatsapp] restore connect failed for ${id}:`, err)
       }
       const ready = await waitForWhatsAppReady(id, timeoutMs)
       if (!ready) {
         const debug = client.getDebugInfo()
-        console.warn(
+        log.warn(
           `[whatsapp] restore timeout business=${id} status=${debug.status} socketOpen=${debug.socketOpen}`
         )
       }
-    })
-  )
+    }
+    if (i < ids.length - 1) {
+      await new Promise((r) => setTimeout(r, stagger))
+    }
+  }
 }
