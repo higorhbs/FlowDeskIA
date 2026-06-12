@@ -1042,7 +1042,7 @@ export async function cancelScheduledStatus(
   if (row.status !== "scheduled") {
     throw new Error("Só é possível cancelar publicações ainda não enviadas.");
   }
-  await ref.update({ status: "cancelled", updatedAt: nowIso() });
+  await ref.delete();
 }
 
 export async function revokePublishedScheduledStatus(
@@ -1071,9 +1071,8 @@ export async function cancelScheduledStatusSeries(
   });
   if (!pending.length) throw new Error("Nenhum agendamento pendente nesta série.");
   const batch = getDb().batch();
-  const ts = nowIso();
   for (const d of pending) {
-    batch.update(d.ref, { status: "cancelled", updatedAt: ts });
+    batch.delete(d.ref);
   }
   await batch.commit();
 }

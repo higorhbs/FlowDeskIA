@@ -35,7 +35,10 @@ import {
   RecurrenceMode,
   StatusRecurrenceControls,
 } from "@/components/status/StatusRecurrenceControls";
-import { groupByMonthDayScheduled } from "@/components/status/status-day-groups";
+import {
+  groupByMonthDayScheduled,
+  isScheduledStatusHistoryEntry,
+} from "@/components/status/status-day-groups";
 import { StatusHistoryCarousel } from "@/components/status/StatusHistoryCarousel";
 import { StatusHistoryFolders } from "@/components/status/StatusHistoryFolders";
 import { dateDayKey } from "@flowdesk/firebase/client";
@@ -202,7 +205,7 @@ export default function StatusSchedulePage() {
   const history = useMemo(
     () =>
       items
-        .filter((i) => i.status !== "scheduled")
+        .filter(isScheduledStatusHistoryEntry)
         .sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt)),
     [items],
   );

@@ -2,6 +2,15 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { dateDayKey, parseDayKey } from "@flowdesk/firebase/client";
 
+export function isScheduledStatusHistoryEntry(item: {
+  status: string;
+  publishedAt?: string;
+}): boolean {
+  if (item.status === "published" || item.status === "failed") return true;
+  if (item.status === "cancelled" && item.publishedAt) return true;
+  return false;
+}
+
 export const WEEKDAY_LABELS = [
   "Domingo",
   "Segunda-feira",
