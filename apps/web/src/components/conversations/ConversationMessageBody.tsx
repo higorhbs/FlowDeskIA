@@ -21,7 +21,7 @@ export function ConversationMessageBody({ msg }: { msg: Message }) {
           <img
             src={resolveChatMediaUrl(msg.mediaUrl)}
             alt=""
-            className="max-w-full max-h-64 rounded-lg object-cover"
+            className="max-w-full max-h-48 rounded-lg object-cover"
           />
         </a>
       )}

@@ -38,8 +38,8 @@ export {
 } from "@flowdesk/shared";
 
 export const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  OPEN: { label: "Aberta", color: "bg-blue-100 text-blue-700" },
-  ATTENDING: { label: "Em atendimento", color: "bg-yellow-100 text-yellow-700" },
+  OPEN: { label: "Automático", color: "bg-green-100 text-green-700" },
+  ATTENDING: { label: "Manual", color: "bg-blue-100 text-blue-700" },
   CLOSED: { label: "Encerrada", color: "bg-gray-100 text-gray-600" },
   PENDING: { label: "Pendente", color: "bg-orange-100 text-orange-700" },
   CONFIRMED: { label: "Confirmado", color: "bg-green-100 text-green-700" },

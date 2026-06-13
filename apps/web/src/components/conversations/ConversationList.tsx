@@ -1,28 +1,28 @@
 "use client";
 
+import { useState } from "react";
 import type { Conversation } from "@flowdesk/firebase/client";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Search } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { formatCustomerLabel, STATUS_LABELS, cn } from "@/lib/utils";
+import { ConversationStatusBadge } from "@/components/conversations/ConversationStatusBadge";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
+import { formatCustomerLabel, cn } from "@/lib/utils";
 
 type ConversationListProps = {
   conversations: Conversation[];
   selectedId: string | null;
-  search: string;
-  onSearchChange: (value: string) => void;
   onSelect: (id: string) => void;
 };
 
 export function ConversationList({
   conversations,
   selectedId,
-  search,
-  onSearchChange,
   onSelect,
 }: ConversationListProps) {
+  const [searchInput, setSearchInput] = useState("");
+  const search = useDebouncedValue(searchInput, 250);
   const filtered = conversations.filter((c) => {
     const label = formatCustomerLabel(
       c.customerPhone,
@@ -35,14 +35,14 @@ export function ConversationList({
 
   return (
     <div className="flex h-full min-h-0 w-72 shrink-0 flex-col overflow-hidden border-r border-gray-200 sm:w-80">
-      <div className="shrink-0 border-b border-gray-100 p-4">
-        <div className="relative">
+      <div className="flex h-16 shrink-0 items-center border-b border-gray-200 bg-white px-4">
+        <div className="relative w-full min-w-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
-            className="pl-9 text-sm"
+            className="w-full pl-9 text-sm"
             placeholder="Buscar cliente..."
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
       </div>
@@ -74,12 +74,7 @@ export function ConversationList({
                   ) : null}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                  <Badge
-                    variant="secondary"
-                    className={cn("text-xs", STATUS_LABELS[conv.status]?.color)}
-                  >
-                    {STATUS_LABELS[conv.status]?.label}
-                  </Badge>
+                  <ConversationStatusBadge status={conv.status} className="text-xs" />
                   <p className="whitespace-nowrap text-xs text-gray-400">
                     {formatDistanceToNow(new Date(conv.lastMessageAt), {
                       locale: ptBR,

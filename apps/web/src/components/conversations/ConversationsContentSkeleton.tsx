@@ -33,8 +33,8 @@ export function ConversationsContentSkeleton() {
   return (
     <>
       <div className="flex h-full min-h-0 w-72 shrink-0 flex-col overflow-hidden border-r border-gray-200 sm:w-80">
-        <div className="shrink-0 border-b border-gray-100 p-4">
-          <Skeleton className="h-9 w-full rounded-md" />
+        <div className="flex h-16 shrink-0 items-center border-b border-gray-200 bg-white px-4">
+          <Skeleton className="h-8 w-full rounded-lg" />
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           <ListRowSkeleton />
@@ -46,7 +46,7 @@ export function ConversationsContentSkeleton() {
         </div>
       </div>
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6">
           <Skeleton className="h-5 w-40" />
           <div className="flex gap-2">
             <Skeleton className="h-6 w-16 rounded-full" />
