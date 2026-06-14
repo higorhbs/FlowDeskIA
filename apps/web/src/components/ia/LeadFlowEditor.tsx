@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
   GitBranch,
@@ -11,7 +12,6 @@ import {
   Loader2,
   MousePointerClick,
   Plus,
-  Save,
   Sparkles,
   Trash2,
   X,
@@ -34,6 +34,7 @@ import {
 } from "@flowdesk/shared";
 import { TemplateMessageField } from "@/components/business/TemplateMessageField";
 import { LeadFlowWaPreview } from "@/components/ia/LeadFlowWaPreview";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 type Props = {
   businessId: string;
@@ -46,6 +47,15 @@ function parseTriggerKeywords(raw: string): string[] {
     .split(",")
     .map((k) => k.trim().toLowerCase())
     .filter(Boolean);
+}
+
+function serializeLeadFlowDraft(flow: LeadCaptureFlow, keywordsDraft: string): string {
+  return JSON.stringify(
+    normalizeLeadCaptureFlow({
+      ...flow,
+      triggerKeywords: parseTriggerKeywords(keywordsDraft),
+    }),
+  );
 }
 
 function nodeLabel(node: LeadFlowNode, index: number) {
@@ -78,6 +88,12 @@ function LeadFlowHelpItem({
 export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props) {
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const savedSnapshotRef = useRef(
+    serializeLeadFlowDraft(
+      normalizeLeadCaptureFlow(initialFlow),
+      normalizeLeadCaptureFlow(initialFlow).triggerKeywords.join(", "),
+    ),
+  );
   const [uploadNodeId, setUploadNodeId] = useState<string | null>(null);
   const [openNodeId, setOpenNodeId] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -86,10 +102,21 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
     () => normalizeLeadCaptureFlow(initialFlow).triggerKeywords.join(", "),
   );
 
+  const draftSnapshot = useMemo(
+    () => serializeLeadFlowDraft(flow, keywordsDraft),
+    [flow, keywordsDraft],
+  );
+  const debouncedSnapshot = useDebouncedValue(draftSnapshot, 700);
+  const hasChanges = draftSnapshot !== savedSnapshotRef.current;
+
   useEffect(() => {
     const normalized = normalizeLeadCaptureFlow(initialFlow);
     setFlow(normalized);
     setKeywordsDraft(normalized.triggerKeywords.join(", "));
+    savedSnapshotRef.current = serializeLeadFlowDraft(
+      normalized,
+      normalized.triggerKeywords.join(", "),
+    );
   }, [initialFlow]);
 
   const nodeOptions = useMemo(
@@ -104,12 +131,19 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
         leadFlow: normalizeLeadCaptureFlow({ ...flow, triggerKeywords }),
       } as Record<string, unknown>);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["business", businessId] });
-      toast.success("Salvo!");
-    },
     onError: () => toast.error("Erro ao salvar"),
   });
+
+  useEffect(() => {
+    if (debouncedSnapshot === savedSnapshotRef.current) return;
+    const snapshot = debouncedSnapshot;
+    saveMutation.mutate(undefined, {
+      onSuccess: () => {
+        savedSnapshotRef.current = snapshot;
+        void queryClient.invalidateQueries({ queryKey: ["business", businessId] });
+      },
+    });
+  }, [debouncedSnapshot]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const uploadMutation = useMutation({
     mutationFn: ({ nodeId, file }: { nodeId: string; file: File }) =>
@@ -511,19 +545,38 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
         })}
       </div>
 
-      <Button
-        type="button"
-        onClick={() => saveMutation.mutate()}
-        disabled={saveMutation.isPending}
-        className={cn("w-full md:w-auto rounded-xl h-11 px-6")}
-      >
-        {saveMutation.isPending ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <Save className="w-4 h-4" />
-        )}
-        Salvar
-      </Button>
+      <div className="fixed bottom-24 right-4 sm:right-6 lg:bottom-8 z-50">
+        <div
+          className={cn(
+            "flex items-center gap-2.5 rounded-full px-5 py-3 text-sm font-semibold shadow-xl transition-all duration-200",
+            saveMutation.isPending
+              ? "bg-brand-600 text-white shadow-brand-500/30"
+              : hasChanges
+                ? "bg-brand-600 text-white shadow-brand-500/30"
+                : saveMutation.isSuccess
+                  ? "bg-emerald-500 text-white shadow-emerald-500/30"
+                  : "bg-white text-gray-400 border border-gray-200 shadow-gray-200/50",
+          )}
+        >
+          {saveMutation.isPending ? (
+            <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+          ) : !hasChanges && saveMutation.isSuccess ? (
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+          ) : null}
+          <span>
+            {saveMutation.isPending
+              ? "Salvando..."
+              : hasChanges
+                ? "Alterações pendentes..."
+                : saveMutation.isSuccess
+                  ? "Salvo"
+                  : "Tudo salvo"}
+          </span>
+          {hasChanges && !saveMutation.isPending && (
+            <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0 animate-pulse" />
+          )}
+        </div>
+      </div>
 
       <button
         type="button"
@@ -566,8 +619,8 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
               </LeadFlowHelpItem>
               <LeadFlowHelpItem icon={<Zap className="h-4 w-4 text-brand-600" />} title="Quando inicia">
                 Na saudação, por palavras-chave (ex.: <em>orçamento, interesse</em>) ou no primeiro contato.
-                Ative o toggle <strong className="font-semibold text-gray-800">Ativo</strong> e clique em{" "}
-                <strong className="font-semibold text-gray-800">Salvar</strong>.
+                Ative o toggle <strong className="font-semibold text-gray-800">Ativo</strong> — alterações
+                salvam sozinhas.
               </LeadFlowHelpItem>
               <LeadFlowHelpItem icon={<Sparkles className="h-4 w-4 text-brand-600" />} title="Personalização">
                 Use <code className="rounded bg-gray-100 px-1 font-mono text-[11px]">{"{nome}"}</code> para quem
