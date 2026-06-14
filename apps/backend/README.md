@@ -215,4 +215,39 @@ Após deploy: **Open Terminal** no app → `curl -s http://127.0.0.1:9031/health
 
 Rebuild com **Clean Cache ON** se build mostrar tudo `CACHED` e código novo não aplicou.
 
+### Container parado (`is not running`)
+
+O container **subiu e morreu**. No Raspberry (SSH ou Dokploy **Logs**):
+
+```bash
+docker ps -a | head
+docker logs flowdesk-ia-backend-sbzzjb --tail 100
+```
+
+| Log / exit | Causa | Ação |
+| --- | --- | --- |
+| `EADDRINUSE` :9031 | Porta ocupada | Parar processo duplicado ou mudar `PORT` |
+| `FIREBASE_* ausente` | Env não configurado | Preencher no Dokploy Environment |
+| `Invalid PEM` / `private key` | `FIREBASE_PRIVATE_KEY` quebrada | Colar com `\n` ou usar `FIREBASE_SERVICE_ACCOUNT_BASE64` |
+| `OOMKilled` / exit 137 | Pi sem RAM | `ENABLE_WORKERS=false` temporário; aumentar swap |
+| `Cannot find module` | Build incompleto | Rebuild com Clean Cache |
+
+`FIREBASE_PRIVATE_KEY` no Dokploy: uma linha com `\n` entre cabeçalho e fim, **sem aspas extras**.
+
+Teste mínimo no Dokploy Environment:
+
+```
+PORT=9031
+HOST=0.0.0.0
+ENABLE_WORKERS=false
+FIREBASE_PROJECT_ID=zapflow-higor-2026
+FIREBASE_CLIENT_EMAIL=...
+FIREBASE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n
+FIREBASE_WEB_API_KEY=...
+CORS_ORIGIN=https://flowdesk.ia.br,https://zapflow-higor-2026.web.app
+WEB_ORIGIN=https://flowdesk.ia.br
+```
+
+Com `ENABLE_WORKERS=false` o `/health` deve subir; depois reativar workers.
+
 Workers exigem `ENABLE_WORKERS=true` e índices Firestore em `whatsappJobs` e `scheduledStatuses` (collection group). Firestore rules/índices e Hosting são geridos no [Firebase Console](https://console.firebase.google.com) ou via `firestore.indexes.json` na raiz.
