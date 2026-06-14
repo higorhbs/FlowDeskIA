@@ -104,6 +104,7 @@ export interface BotContext {
 export interface BotResponse {
   text: string;
   imageUrl?: string;
+  imageStoragePath?: string;
   buttons?: { id: string; label: string }[];
 }
 

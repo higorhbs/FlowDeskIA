@@ -88,7 +88,13 @@ export function leadFlowNodeToResponses(
 ): BotResponse[] {
   const text = renderTemplate(node.text, vars);
   const out: BotResponse[] = [];
-  if (node.imageUrl) out.push({ text: "", imageUrl: node.imageUrl });
+  if (node.imageUrl) {
+    out.push({
+      text: "",
+      imageUrl: node.imageUrl,
+      imageStoragePath: node.imageStoragePath,
+    });
+  }
   if (node.buttons.length) {
     out.push({
       text,
