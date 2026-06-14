@@ -29,7 +29,6 @@ import { AppLink as Link } from "@/components/AppLink";
 import type { LeadCaptureFlow, LeadFlowNode } from "@flowdesk/firebase/client";
 import type { PlanTier } from "@flowdesk/shared";
 import {
-  DEFAULT_LEAD_FLOW_INVALID_REPLY,
   LEAD_FLOW_MAX_BUTTONS,
   LEAD_FLOW_MEDIA_ACCEPT,
   LEAD_FLOW_MAX_MEDIA_BYTES,
@@ -228,7 +227,6 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
         {
           id,
           text: "",
-          invalidReply: DEFAULT_LEAD_FLOW_INVALID_REPLY,
           buttons: [],
         },
       ],
@@ -589,18 +587,6 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
                     <p className="mt-1 text-[11px] text-gray-400">
                       Cliente digita uma dessas palavras → abre este passo direto
                     </p>
-                  </div>
-
-                  <div>
-                    <Label className="text-xs text-gray-500">Se o cliente digitar texto em vez de clicar</Label>
-                    <div className="mt-1.5">
-                      <TemplateMessageField
-                        value={node.invalidReply ?? ""}
-                        onChange={(invalidReply) => patchNode(node.id, { invalidReply })}
-                        rows={2}
-                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
-                      />
-                    </div>
                   </div>
 
                   <div className="space-y-2">
