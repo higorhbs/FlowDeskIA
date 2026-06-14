@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 const backendRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const srcRoot = join(backendRoot, "src/whatsapp");
 const distRoot = join(backendRoot, "dist/whatsapp");
+const libSrcRoot = join(backendRoot, "src/lib");
+const libDistRoot = join(backendRoot, "dist/lib");
 
 function copyLibDeps() {
   const logSrc = join(backendRoot, "src/lib/log.js");
@@ -33,3 +35,4 @@ function copyJsFiles(srcDir, destDir) {
 
 copyLibDeps();
 copyJsFiles(srcRoot, distRoot);
+copyJsFiles(libSrcRoot, libDistRoot);

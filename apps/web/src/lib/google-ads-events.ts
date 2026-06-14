@@ -1,5 +1,8 @@
-import { googleAdsConversionSendTo, hasGoogleAdsTag } from "@/lib/google-ads-config";
-import { loadGoogleAdsTag } from "@/lib/google-ads-loader";
+import {
+  googleAdsConversionSendTo,
+  googleAdsId,
+  hasGoogleAdsTag,
+} from "@/lib/google-ads-config";
 
 type GtagFn = (...args: unknown[]) => void;
 
@@ -9,9 +12,17 @@ function fireGtag(...args: unknown[]) {
   if (typeof fn === "function") fn(...args);
 }
 
-export async function trackGoogleAdsSignUp() {
+let googleAdsConfigured = false;
+
+export function configureGoogleAdsTag() {
+  if (!hasGoogleAdsTag() || googleAdsConfigured) return;
+  googleAdsConfigured = true;
+  fireGtag("config", googleAdsId, { cookie_domain: "auto" });
+}
+
+export function trackGoogleAdsSignUp() {
   if (!hasGoogleAdsTag()) return;
-  await loadGoogleAdsTag();
+  configureGoogleAdsTag();
   const sendTo = googleAdsConversionSendTo();
   if (sendTo) {
     fireGtag("event", "conversion", { send_to: sendTo });

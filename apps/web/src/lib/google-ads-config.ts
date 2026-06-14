@@ -3,7 +3,7 @@ export const googleAdsConversionLabel =
   process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL?.trim() ?? "";
 
 export function hasGoogleAdsTag() {
-  return Boolean(googleAdsId);
+  return process.env.NODE_ENV === "production" && Boolean(googleAdsId);
 }
 
 export function googleAdsConversionSendTo() {

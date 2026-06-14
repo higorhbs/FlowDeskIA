@@ -1,5 +1,25 @@
 import { getClientAuth } from "@flowdesk/firebase/client";
-import { getAuthApiBaseUrl } from "./backend-url";
+import { getBackendBaseUrl } from "./backend-url";
+
+function authRequestUrl(backendPath: string): string {
+  if (typeof window === "undefined") return `${getBackendBaseUrl()}${backendPath}`;
+  if (backendPath === "/login") return "/api/auth/login";
+  if (backendPath === "/register") return "/api/auth/register";
+  if (backendPath.startsWith("/auth/")) {
+    return `/api/auth/${backendPath.slice("/auth/".length)}`;
+  }
+  return backendPath;
+}
+
+async function publicAuthFetch(backendPath: string, init: RequestInit) {
+  const res = await fetch(authRequestUrl(backendPath), {
+    ...init,
+    credentials: "include",
+  });
+  const data = await parseJson(res);
+  if (!res.ok) fail(data, res.status);
+  return data;
+}
 
 export async function getAuthBearer(): Promise<string> {
   const user = getClientAuth().currentUser;
@@ -25,7 +45,7 @@ export async function authFetch(
     controller && timeoutMs
       ? setTimeout(() => controller.abort(), timeoutMs)
       : undefined;
-  const res = await fetch(`${baseUrl ?? getAuthApiBaseUrl()}${path}`, {
+  const res = await fetch(`${baseUrl ?? getBackendBaseUrl()}${path}`, {
     ...rest,
     headers,
     credentials: "include",
@@ -59,60 +79,23 @@ async function parseJson(res: Response): Promise<AuthJson> {
   return (await res.json().catch(() => ({}))) as AuthJson;
 }
 
-function fail(data: AuthJson, status: number): never {
-  let message =
-    "error" in data && data.error ? data.error : proxyStatusMessage(status);
-  const err = new Error(message);
+function fail(data: AuthJson, status: number) {
+  const err = new Error("error" in data && data.error ? data.error : `Erro ${status}`);
   if ("code" in data && data.code) (err as { code?: string }).code = data.code;
   throw err;
 }
 
-function proxyStatusMessage(status: number): string {
-  if (status === 530) {
-    return "Servidor WhatsApp inacessível (530). Backend offline ou BACKEND_INTERNAL_URL errado na Vercel.";
-  }
-  if (status === 502 || status === 503) {
-    return "Servidor WhatsApp indisponível. Tente de novo em instantes.";
-  }
-  if (status === 504) return "Tempo esgotado ao contactar o servidor WhatsApp.";
-  return `Erro ${status}`;
-}
-
-function readVerifiedPayload(data: AuthJson, status: number): VerifiedPayload {
-  if (!("status" in data) || data.status !== "VERIFIED") {
-    fail(
-      {
-        error:
-          "Resposta de login inválida (sem customToken). Confira FIREBASE_PRIVATE_KEY no backend e redeploy.",
-      },
-      status,
-    );
-  }
-  const payload = data as VerifiedPayload & { token?: string };
-  const customToken = payload.customToken?.trim() || payload.token?.trim() || "";
-  if (!customToken) {
-    const keys = Object.keys(data as object).join(", ") || "(vazio)";
-    throw new Error(
-      `Backend retornou login sem customToken (campos: ${keys}). Confira rede: login deve ir direto para NEXT_PUBLIC_BACKEND_URL, não proxy Vercel.`,
-    );
-  }
-  return { status: "VERIFIED", customToken, uid: payload.uid };
-}
-
 export async function backendRegister(name: string, email: string, password: string) {
-  const res = await fetch(`${getAuthApiBaseUrl()}/register`, {
+  const data = await publicAuthFetch("/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
     body: JSON.stringify({ name, email, password }),
   });
-  const data = await parseJson(res);
-  if (!res.ok) fail(data, res.status);
   return data as PendingPayload;
 }
 
 export async function backendLogin(email: string, password: string) {
-  const res = await fetch(`${getAuthApiBaseUrl()}/login`, {
+  const res = await fetch(authRequestUrl("/login"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -123,63 +106,48 @@ export async function backendLogin(email: string, password: string) {
     return data;
   }
   if (!res.ok) fail(data, res.status);
-  return readVerifiedPayload(data, res.status);
+  return data as VerifiedPayload;
 }
 
 export async function backendGoogle(accessToken: string) {
-  const res = await fetch(`${getAuthApiBaseUrl()}/auth/google`, {
+  const data = await publicAuthFetch("/auth/google", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
     body: JSON.stringify({ accessToken }),
   });
-  const data = await parseJson(res);
-  if (!res.ok) fail(data, res.status);
-  return readVerifiedPayload(data, res.status);
+  return data as VerifiedPayload;
 }
 
 export async function backendResendVerification(email: string, password: string) {
-  const res = await fetch(`${getAuthApiBaseUrl()}/auth/resend-verification`, {
+  await publicAuthFetch("/auth/resend-verification", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
     body: JSON.stringify({ email, password }),
   });
-  const data = await parseJson(res);
-  if (!res.ok) fail(data, res.status);
 }
 
 export async function backendConfirmVerification(email: string, password: string) {
-  const res = await fetch(`${getAuthApiBaseUrl()}/auth/confirm-verification`, {
+  const data = await publicAuthFetch("/auth/confirm-verification", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
     body: JSON.stringify({ email, password }),
   });
-  const data = await parseJson(res);
-  if (!res.ok) fail(data, res.status);
-  return readVerifiedPayload(data, res.status);
+  return data as VerifiedPayload;
 }
 
 export async function backendResendVerificationSession(idToken: string) {
-  const res = await fetch(`${getAuthApiBaseUrl()}/auth/resend-verification/session`, {
+  await publicAuthFetch("/auth/resend-verification/session", {
     method: "POST",
     headers: { Authorization: `Bearer ${idToken}` },
-    credentials: "include",
   });
-  const data = await parseJson(res);
-  if (!res.ok) fail(data, res.status);
 }
 
 export async function backendConfirmVerificationSession(idToken: string) {
-  const res = await fetch(`${getAuthApiBaseUrl()}/auth/confirm-verification/session`, {
+  const data = await publicAuthFetch("/auth/confirm-verification/session", {
     method: "POST",
     headers: { Authorization: `Bearer ${idToken}` },
-    credentials: "include",
   });
-  const data = await parseJson(res);
-  if (!res.ok) fail(data, res.status);
-  return readVerifiedPayload(data, res.status);
+  return data as VerifiedPayload;
 }
 
 export async function backendUpdateProfileName(name: string) {
