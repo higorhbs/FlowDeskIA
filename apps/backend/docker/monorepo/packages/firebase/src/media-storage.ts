@@ -58,6 +58,26 @@ export function parseFirebaseStoragePath(mediaUrl: string): string | null {
   return null;
 }
 
+export async function getBusinessMediaReadUrl(
+  mediaUrl?: string,
+  mediaStoragePath?: string,
+): Promise<string | null> {
+  const storagePath =
+    mediaStoragePath?.trim() || (mediaUrl ? parseFirebaseStoragePath(mediaUrl) : null);
+  if (!storagePath) return mediaUrl?.trim() || null;
+  try {
+    const bucket = getStorageBucket();
+    const [signed] = await bucket.file(storagePath).getSignedUrl({
+      version: "v4",
+      action: "read",
+      expires: Date.now() + 15 * 60 * 1000,
+    });
+    return signed;
+  } catch {
+    return mediaUrl?.trim() || null;
+  }
+}
+
 export async function uploadBusinessMedia(
   businessId: string,
   kind: BusinessMediaKind,
@@ -112,4 +132,53 @@ export async function downloadBusinessMedia(
   } catch {
     return null;
   }
+}
+
+export async function resolveBusinessMediaBuffer(
+  mediaUrl?: string,
+  mediaStoragePath?: string,
+): Promise<{ buffer: Buffer; mimetype: string } | null> {
+  const fromAdmin = await downloadBusinessMedia(mediaUrl, mediaStoragePath);
+  if (fromAdmin?.buffer?.length) return fromAdmin;
+
+  const path = mediaUrl ? parseFirebaseStoragePath(mediaUrl) : null;
+  if (path && path !== mediaStoragePath?.trim()) {
+    const retry = await downloadBusinessMedia(mediaUrl, path);
+    if (retry?.buffer?.length) return retry;
+  }
+
+  if (!mediaUrl?.trim()) return null;
+
+  const fetchUrlBuffer = async (url: string) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 25_000);
+    try {
+      const res = await fetch(url, { redirect: "follow", signal: controller.signal });
+      if (!res.ok) return null;
+      const buffer = Buffer.from(await res.arrayBuffer());
+      if (!buffer.length) return null;
+      const hint = `${url} ${mediaStoragePath ?? ""}`.toLowerCase();
+      const header = res.headers.get("content-type")?.split(";")[0]?.trim();
+      let mimetype = "application/octet-stream";
+      if (hint.includes(".gif")) mimetype = "image/gif";
+      else if (hint.includes(".mp4") || hint.includes(".mov")) mimetype = "video/mp4";
+      else if (hint.includes(".png")) mimetype = "image/png";
+      else if (hint.includes(".webp")) mimetype = "image/webp";
+      else if (header?.startsWith("image/") || header?.startsWith("video/")) mimetype = header;
+      else if (header) mimetype = header;
+      return { buffer, mimetype };
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  const direct = await fetchUrlBuffer(mediaUrl);
+  if (direct) return direct;
+
+  const signed = await getBusinessMediaReadUrl(mediaUrl, mediaStoragePath);
+  if (signed && signed !== mediaUrl) return fetchUrlBuffer(signed);
+
+  return null;
 }

@@ -22,6 +22,7 @@ export type { WaAuthFileStore } from "./remote-auth-state.js";
 import NodeCache from "@cacheable/node-cache";
 import { Boom } from "@hapi/boom";
 import sharp from "sharp";
+import { gifFirstFrameJpeg, gifToMp4Buffer } from "./gif-media.js";
 import { createWaLogger } from "./wa-logger.js";
 import { waLog } from "./wa-app-log.js";
 import { toDataURL } from "qrcode";
@@ -710,6 +711,7 @@ export class WhatsAppClient extends EventEmitter {
     if (mediaType === "gif") return { buffer, mimetype: headerType || "image/gif" };
     if (mediaType === "audio") return { buffer, mimetype: headerType || "audio/ogg" };
     if (headerType?.startsWith("image/")) return { buffer, mimetype: headerType };
+    if (mediaUrl.includes(".gif")) return { buffer, mimetype: "image/gif" };
     if (mediaUrl.includes(".png")) return { buffer, mimetype: "image/png" };
     if (mediaUrl.includes(".webp")) return { buffer, mimetype: "image/webp" };
     return { buffer, mimetype: "image/jpeg" };
@@ -721,6 +723,15 @@ export class WhatsAppClient extends EventEmitter {
     mediaType: WhatsAppMediaType,
     caption?: string
   ): Promise<string | undefined> {
+    if (mediaType === "gif") {
+      let buffer: Buffer | undefined;
+      try {
+        ({ buffer } = await this.loadRemoteMedia(mediaUrl, "gif"));
+      } catch {
+        buffer = undefined;
+      }
+      return this.sendFlowGif(to, { buffer, mediaUrl, caption });
+    }
     const { buffer, mimetype } = await this.loadRemoteMedia(mediaUrl, mediaType);
     return this.sendChatMediaBuffer(to, buffer, mimetype, mediaType, caption);
   }
@@ -735,22 +746,127 @@ export class WhatsAppClient extends EventEmitter {
     if (!this.sock) throw new Error("Socket not connected");
     const jid = this.resolveSendJid(to);
     const cap = caption?.trim() || undefined;
-    const content =
-      mediaType === "gif"
-        ? { video: buffer, mimetype: mimetype || "image/gif", gifPlayback: true, caption: cap }
-        : mediaType === "image"
-          ? { image: buffer, mimetype, caption: cap }
-          : mediaType === "video"
-            ? { video: buffer, mimetype, caption: cap }
-            : {
-                audio: buffer,
-                mimetype,
-                ptt: mimetype.includes("ogg") || mimetype.includes("opus"),
-              };
     await this.ensurePreKeys();
+
+    if (mediaType === "gif" || mimetype === "image/gif") {
+      return this.sendFlowGif(to, { buffer, mediaUrl: "", caption: cap });
+    }
+
+    const content =
+      mediaType === "image"
+        ? { image: buffer, mimetype, caption: cap }
+        : mediaType === "video"
+          ? { video: buffer, mimetype, caption: cap }
+          : {
+              audio: buffer,
+              mimetype,
+              ptt: mimetype.includes("ogg") || mimetype.includes("opus"),
+            };
     const result = await this.sock.sendMessage(jid, content);
+    if (!result?.key?.id) throw new Error("WhatsApp não confirmou envio da mídia.");
     this.stashSentMessage(result);
-    return result?.key.id ?? undefined;
+    return result.key.id;
+  }
+
+  async sendFlowGif(
+    to: string,
+    opts: { buffer?: Buffer; mediaUrl: string; altUrl?: string; caption?: string },
+  ): Promise<string | undefined> {
+    if (!this.sock) throw new Error("Socket not connected");
+    const jid = this.resolveSendJid(to);
+    const cap = opts.caption?.trim() || undefined;
+    await this.ensurePreKeys();
+
+    const stash = (result: WAMessage | undefined) => {
+      if (!result?.key?.id) return undefined;
+      this.stashSentMessage(result);
+      return result.key.id;
+    };
+
+    const urls = [...new Set([opts.mediaUrl, opts.altUrl].filter((u) => u?.trim()))];
+    let lastErr: unknown;
+    const buffer = opts.buffer?.length ? opts.buffer : undefined;
+    const thumb = buffer ? await gifFirstFrameJpeg(buffer).catch(() => null) : null;
+    const thumbB64 = thumb?.length ? thumb.toString("base64") : undefined;
+
+    if (buffer) {
+      const mp4 = await gifToMp4Buffer(buffer);
+      if (mp4) {
+        try {
+          const id = stash(
+            await this.sock.sendMessage(jid, {
+              video: mp4,
+              mimetype: "video/mp4",
+              gifPlayback: true,
+              caption: cap,
+              jpegThumbnail: thumbB64,
+            }),
+          );
+          if (id) return id;
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+
+      try {
+        const id = stash(
+          await this.sock.sendMessage(jid, {
+            image: buffer,
+            mimetype: "image/gif",
+            caption: cap,
+          }),
+        );
+        if (id) return id;
+      } catch (err) {
+        lastErr = err;
+      }
+
+      if (thumb) {
+        try {
+          const id = stash(
+            await this.sock.sendMessage(jid, {
+              image: thumb,
+              mimetype: "image/jpeg",
+              caption: cap,
+            }),
+          );
+          if (id) return id;
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+    }
+
+    for (const url of urls) {
+      try {
+        const id = stash(
+          await this.sock.sendMessage(jid, {
+            image: { url },
+            caption: cap,
+          }),
+        );
+        if (id) return id;
+      } catch (err) {
+        lastErr = err;
+      }
+
+      try {
+        const id = stash(
+          await this.sock.sendMessage(jid, {
+            video: { url },
+            mimetype: "video/mp4",
+            gifPlayback: true,
+            caption: cap,
+          }),
+        );
+        if (id) return id;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+
+    waLog.warn(`[wa:${this.businessId}] sendFlowGif failed urls=${urls.length} buffer=${!!buffer}:`, lastErr);
+    throw lastErr instanceof Error ? lastErr : new Error("Falha ao enviar GIF.");
   }
 
   private async loadStatusMedia(
