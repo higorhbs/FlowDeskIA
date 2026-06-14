@@ -4,12 +4,14 @@ import { unlink, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import ffmpegPath from "ffmpeg-static";
 import sharp from "sharp";
 
 const execFileAsync = promisify(execFile);
+const ffmpegBin = (typeof ffmpegPath === "string" && ffmpegPath) || "ffmpeg";
 
 export async function gifFirstFrameJpeg(buffer: Buffer, maxWidth = 480): Promise<Buffer> {
-  return sharp(buffer, { animated: true, pages: 1 })
+  return sharp(buffer, { pages: 1 })
     .resize({ width: maxWidth, withoutEnlargement: true })
     .jpeg({ quality: 82 })
     .toBuffer();
@@ -22,7 +24,7 @@ export async function gifToMp4Buffer(gifBuffer: Buffer): Promise<Buffer | null> 
   try {
     await writeFile(input, gifBuffer);
     await execFileAsync(
-      "ffmpeg",
+      ffmpegBin,
       [
         "-y",
         "-i",
@@ -32,13 +34,13 @@ export async function gifToMp4Buffer(gifBuffer: Buffer): Promise<Buffer | null> 
         "-pix_fmt",
         "yuv420p",
         "-vf",
-        "scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,fps=15",
+        "scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,fps=12",
         "-an",
         "-t",
-        "15",
+        "12",
         output,
       ],
-      { timeout: 45_000 },
+      { timeout: 60_000, maxBuffer: 32 * 1024 * 1024 },
     );
     const mp4 = await readFile(output);
     return mp4.length ? mp4 : null;

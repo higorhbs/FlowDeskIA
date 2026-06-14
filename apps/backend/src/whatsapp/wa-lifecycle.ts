@@ -5,10 +5,11 @@ import type {
 } from '@flowdesk/whatsapp-client'
 import {
   createWaAuthFileStore,
-  downloadBusinessMedia,
+  getBusinessMediaReadUrl,
   enqueueWhatsappInboundJob,
   hasWhatsAppAuth,
   listBusinessIdsWithWhatsAppAuth,
+  resolveBusinessMediaBuffer,
   setBusinessConnected,
 } from '@flowdesk/firebase'
 import { log } from '../lib/log.js'
@@ -63,28 +64,6 @@ function resolveLeadFlowDeliveryMediaType(resp: BotResponse): "image" | "video" 
   return "image";
 }
 
-async function resolveLeadFlowMediaBuffer(resp: BotResponse): Promise<{ buffer: Buffer; mimetype: string } | null> {
-  const local = await downloadBusinessMedia(resp.imageUrl, resp.imageStoragePath);
-  if (local?.buffer?.length) return local;
-  if (!resp.imageUrl) return null;
-  try {
-    const res = await fetch(resp.imageUrl, { redirect: "follow" });
-    if (!res.ok) return null;
-    const buffer = Buffer.from(await res.arrayBuffer());
-    if (!buffer.length) return null;
-    const hint = `${resp.imageUrl} ${resp.imageStoragePath ?? ""}`.toLowerCase();
-    const header = res.headers.get("content-type")?.split(";")[0]?.trim();
-    const mimetype = hint.includes(".gif")
-      ? "image/gif"
-      : header?.startsWith("image/") || header?.startsWith("video/")
-        ? header
-        : "application/octet-stream";
-    return { buffer, mimetype };
-  } catch {
-    return null;
-  }
-}
-
 async function deliverLeadFlowMedia(
   client: WhatsAppClient,
   dest: string,
@@ -93,23 +72,33 @@ async function deliverLeadFlowMedia(
   if (!resp.imageUrl) return undefined;
   const mediaType = resolveLeadFlowDeliveryMediaType(resp);
   const caption = resp.text?.trim() || undefined;
-  const local = await resolveLeadFlowMediaBuffer(resp);
-  const attempts: Array<() => Promise<string | undefined>> = [];
+  const local = await resolveBusinessMediaBuffer(resp.imageUrl, resp.imageStoragePath);
+  const signedUrl = await getBusinessMediaReadUrl(resp.imageUrl, resp.imageStoragePath);
 
   if (mediaType === "gif") {
-    if (local) {
-      const mime = local.mimetype || "image/gif";
-      attempts.push(() => client.sendChatMediaBuffer(dest, local.buffer, mime, "gif", caption));
-    }
-    attempts.push(() => client.sendChatMedia(dest, resp.imageUrl!, "gif", caption));
-  } else {
-    if (local) {
-      attempts.push(() =>
-        mediaType === "image"
-          ? client.sendImageBuffer(dest, local.buffer, local.mimetype, caption)
-          : client.sendChatMediaBuffer(dest, local.buffer, local.mimetype, mediaType, caption),
-      );
-    }
+    return client.sendFlowGif(dest, {
+      buffer: local?.buffer,
+      mediaUrl: signedUrl ?? resp.imageUrl,
+      altUrl: signedUrl && signedUrl !== resp.imageUrl ? resp.imageUrl : undefined,
+      caption,
+    });
+  }
+
+  const attempts: Array<() => Promise<string | undefined>> = [];
+  if (local) {
+    attempts.push(() =>
+      mediaType === "image"
+        ? client.sendImageBuffer(dest, local.buffer, local.mimetype, caption)
+        : client.sendChatMediaBuffer(dest, local.buffer, local.mimetype, mediaType, caption),
+    );
+  }
+  const url = signedUrl ?? resp.imageUrl;
+  attempts.push(() =>
+    mediaType === "image"
+      ? client.sendImage(dest, url, caption)
+      : client.sendChatMedia(dest, url, mediaType, caption),
+  );
+  if (signedUrl && signedUrl !== resp.imageUrl) {
     attempts.push(() =>
       mediaType === "image"
         ? client.sendImage(dest, resp.imageUrl!, caption)
