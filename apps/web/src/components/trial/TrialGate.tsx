@@ -24,6 +24,15 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { AppLink as Link } from "@/components/AppLink";
+import { normalizeAppPath } from "@/lib/mobile-paths";
+
+const ALLOWED_WHEN_BLOCKED = new Set(["/profile", "/plan"]);
+
+function isAllowedWhenBlocked(path: string) {
+  return ALLOWED_WHEN_BLOCKED.has(normalizeAppPath(path));
+}
 
 const PLANS: { id: Plan; highlight?: boolean; extras?: string[] }[] = [
   { id: "STARTER" },
@@ -95,8 +104,10 @@ function PlanCard({
 }
 
 export function TrialGate() {
+  const pathname = usePathname() ?? "";
   const { uid, ready } = useAuth();
   const [selectingPlan, setSelectingPlan] = useState<Plan | null>(null);
+  const onAllowedPath = isAllowedWhenBlocked(pathname);
 
   const { data: tenant } = useQuery({
     queryKey: ["tenant", uid],
@@ -148,7 +159,17 @@ export function TrialGate() {
         </div>
       )}
 
-      {isBlocked && (
+      {isBlocked && onAllowedPath && (
+        <div className="fixed top-0 inset-x-0 z-40 bg-amber-500 text-white px-4 py-2.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm font-medium shadow">
+          <Lock className="w-4 h-4 flex-shrink-0" />
+          Acesso limitado — escolha um plano para continuar usando o app.
+          <Link href="/plan" className="underline underline-offset-2 hover:text-amber-100">
+            Ver planos →
+          </Link>
+        </div>
+      )}
+
+      {isBlocked && !onAllowedPath && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto py-8 px-4">
           <div className="w-full max-w-3xl">
             <div className="rounded-2xl bg-white shadow-2xl overflow-hidden mb-4">
@@ -204,6 +225,12 @@ export function TrialGate() {
 
             <p className="text-center text-xs text-white/70">
               Pagamento seguro via Stripe. Após confirmar, o acesso é liberado automaticamente.
+            </p>
+            <p className="text-center text-xs text-white/80 mt-3">
+              <Link href="/profile" className="underline underline-offset-2 hover:text-white">
+                Acessar meu perfil
+              </Link>
+              {" "}para exportar ou excluir sua conta.
             </p>
           </div>
         </div>
