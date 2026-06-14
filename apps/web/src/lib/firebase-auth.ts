@@ -79,34 +79,11 @@ function loadGoogleIdentityScript(): Promise<void> {
 async function establishSession(
   customToken: string,
 ): Promise<{ token: string; user: User }> {
-  const sessionToken = customToken?.trim();
-  if (!sessionToken) {
-    throw new Error(
-      "Sessão inválida: backend não enviou customToken. Confira credenciais Firebase Admin no Dokploy e redeploy do backend.",
-    );
-  }
   const auth = getClientAuth();
-  try {
-    const cred = await signInWithCustomToken(auth, sessionToken);
-    const token = await cred.user.getIdToken(true);
-    await syncServerSession(token).catch(() => {});
-    return { token, user: cred.user };
-  } catch (err) {
-    const code =
-      err && typeof err === "object" && "code" in err
-        ? String((err as { code: string }).code)
-        : "";
-    const origin =
-      typeof window !== "undefined" ? window.location.origin : "";
-    if (code === "auth/network-request-failed" && origin) {
-      const hint = new Error(
-        `Firebase recusou sessão em ${origin}. Google Cloud → Browser key (auto created by Firebase) → Restrições do aplicativo: Nenhuma. Restrições de API: não restringir (ou Identity Toolkit API). Rode pnpm google:oauth-setup.`,
-      );
-      (hint as { code?: string }).code = code;
-      throw hint;
-    }
-    throw err;
-  }
+  const cred = await signInWithCustomToken(auth, customToken);
+  const token = await cred.user.getIdToken(true);
+  await syncServerSession(token).catch(() => {});
+  return { token, user: cred.user };
 }
 
 export type EmailAuthResult =
@@ -138,20 +115,12 @@ export function authErrorMessage(err: unknown, fallback: string): string {
       "Por segurança, saia e entre de novo antes de alterar e-mail ou senha.",
     "auth/invalid-email": "E-mail inválido.",
     "auth/email-not-verified": "Confirme seu e-mail antes de acessar o painel.",
-    "auth/invalid-custom-token":
-      "Token de sessão inválido. Backend não gerou customToken — confira FIREBASE_PRIVATE_KEY no Dokploy.",
     "auth/network-request-failed":
-      "Firebase bloqueou a sessão. Google Cloud → Browser key → Restrições do aplicativo: Nenhuma (SDK não envia Referer). API: Identity Toolkit liberada. Domínios: flowdesk.ia.br e localhost no Firebase Auth. Rode pnpm google:oauth-setup.",
+      "API de autenticação inacessível. Confira se o backend está no ar.",
     "permission-denied":
       "Sem permissão no Firestore. Confira as regras e o login.",
   };
   const raw = err instanceof Error ? err.message : fallback;
-  if (raw.includes("MISSING_CUSTOM_TOKEN") || raw.toLowerCase().includes("sem customtoken")) {
-    return "Backend não retornou customToken. Dokploy: FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY, FIREBASE_PROJECT_ID. Redeploy backend.";
-  }
-  if (/failed to fetch|load failed|networkerror/i.test(raw)) {
-    return "API de autenticação inacessível. Confira BACKEND_INTERNAL_URL na Vercel, redeploy produção, e se o backend responde em /health.";
-  }
   if (raw.toLowerCase().includes("confirme seu e-mail")) {
     return "Confirme seu e-mail antes de acessar o painel.";
   }

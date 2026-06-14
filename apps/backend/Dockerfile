@@ -23,6 +23,9 @@ ENV NODE_OPTIONS="--max-old-space-size=768"
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @flowdesk/backend... \
     && pnpm --filter @flowdesk/backend run build:docker \
+    && mkdir -p apps/backend/dist/lib \
+    && cp apps/backend/src/lib/*.js apps/backend/dist/lib/ \
+    && test -f apps/backend/dist/lib/log.js \
     && mkdir -p /prod/apps/backend /prod/packages /prod/node_modules \
     && cp -a node_modules/.pnpm /prod/node_modules/ \
     && cp -a packages/. /prod/packages/ \
@@ -34,7 +37,8 @@ WORKDIR /app/apps/backend
 
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=512"
-ENV PORT=3001
+ENV PORT=9031
+ENV HOST=0.0.0.0
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl tini ffmpeg \
@@ -49,7 +53,7 @@ COPY --from=builder --chown=flowdesk:flowdesk /prod/packages /app/packages
 COPY --from=builder --chown=flowdesk:flowdesk /prod/node_modules /app/node_modules
 
 USER flowdesk
-EXPOSE 3001
+EXPOSE 9031
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD curl -fsS "http://127.0.0.1:${PORT}/health" || exit 1

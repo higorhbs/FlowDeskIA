@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { GoogleAdsScripts } from "@/components/analytics/GoogleAdsScripts";
 import { SwetrixScripts } from "@/components/analytics/SwetrixScripts";
 import { MetaPixelScripts } from "@/components/analytics/MetaPixelScripts";
-import { isMarketingRoute } from "@/lib/analytics-surface";
 import { hasGoogleAdsTag } from "@/lib/google-ads-config";
-import { denyGoogleAdsConsent } from "@/lib/google-ads-loader";
+import { configureGoogleAdsTag } from "@/lib/google-ads-events";
 import { hasMetaPixel } from "@/lib/meta-pixel-config";
 import { hasSwetrix } from "@/lib/swetrix-config";
 
@@ -16,9 +13,34 @@ const CONSENT_KEY = "flowdesk_cookie_consent_v1";
 
 type ConsentState = "accepted" | "rejected" | null;
 
+function grantGoogleAdsConsent() {
+  if (!hasGoogleAdsTag()) return;
+  const gtag = (window as Window & { gtag?: (...args: unknown[]) => void })
+    .gtag;
+  if (!gtag) return;
+  gtag("consent", "update", {
+    ad_storage: "granted",
+    analytics_storage: "granted",
+    ad_user_data: "granted",
+    ad_personalization: "granted",
+  });
+  configureGoogleAdsTag();
+}
+
+function denyGoogleAdsConsent() {
+  if (!hasGoogleAdsTag()) return;
+  const gtag = (window as Window & { gtag?: (...args: unknown[]) => void })
+    .gtag;
+  if (!gtag) return;
+  gtag("consent", "update", {
+    ad_storage: "denied",
+    analytics_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+  });
+}
+
 export function CookieConsentBanner() {
-  const pathname = usePathname() ?? "/";
-  const marketing = isMarketingRoute(pathname);
   const hasAnalytics = useMemo(
     () => hasSwetrix() || hasGoogleAdsTag() || hasMetaPixel(),
     [],
@@ -39,18 +61,17 @@ export function CookieConsentBanner() {
   }, [hasAnalytics]);
 
   useEffect(() => {
-    if (!ready || !hasGoogleAdsTag() || consent !== "rejected") return;
-    denyGoogleAdsConsent();
+    if (!ready || !hasGoogleAdsTag()) return;
+    if (consent === "accepted") grantGoogleAdsConsent();
+    else if (consent === "rejected") denyGoogleAdsConsent();
   }, [consent, ready]);
 
-  const showBanner = ready && hasAnalytics && marketing && consent === null;
-  const loadAnalytics = consent === "accepted" && marketing;
+  const showBanner = ready && hasAnalytics && consent === null;
 
   return (
     <>
-      {loadAnalytics && (
+      {consent === "accepted" && (
         <>
-          <GoogleAdsScripts />
           <SwetrixScripts />
           <MetaPixelScripts />
         </>
@@ -69,6 +90,7 @@ export function CookieConsentBanner() {
                 size="sm"
                 onClick={() => {
                   window.localStorage.setItem(CONSENT_KEY, "rejected");
+                  denyGoogleAdsConsent();
                   setConsent("rejected");
                 }}
               >
@@ -79,6 +101,7 @@ export function CookieConsentBanner() {
                 size="sm"
                 onClick={() => {
                   window.localStorage.setItem(CONSENT_KEY, "accepted");
+                  grantGoogleAdsConsent();
                   setConsent("accepted");
                 }}
               >
