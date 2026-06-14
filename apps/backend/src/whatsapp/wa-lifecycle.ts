@@ -55,6 +55,58 @@ export function attachWhatsAppLifecycle(businessId: string, client: WhatsAppClie
   })
 }
 
+function resolveLeadFlowDeliveryMediaType(resp: BotResponse): "image" | "video" | "gif" {
+  const hint = `${resp.imageUrl ?? ""} ${resp.imageStoragePath ?? ""}`.toLowerCase();
+  if (hint.includes(".gif")) return "gif";
+  if (hint.includes(".mp4") || hint.includes(".mov")) return "video";
+  if (resp.mediaType === "gif" || resp.mediaType === "video") return resp.mediaType;
+  return "image";
+}
+
+async function deliverLeadFlowMedia(
+  client: WhatsAppClient,
+  dest: string,
+  resp: BotResponse,
+): Promise<void> {
+  if (!resp.imageUrl) return;
+  const mediaType = resolveLeadFlowDeliveryMediaType(resp);
+  const caption = resp.text?.trim() || undefined;
+  const local = await downloadBusinessMedia(resp.imageUrl, resp.imageStoragePath);
+  const attempts: Array<() => Promise<unknown>> = [];
+
+  if (local) {
+    attempts.push(() =>
+      mediaType === "image"
+        ? client.sendImageBuffer(dest, local.buffer, local.mimetype, caption)
+        : client.sendChatMediaBuffer(dest, local.buffer, local.mimetype, mediaType, caption),
+    );
+    if (mediaType === "gif") {
+      attempts.push(() =>
+        client.sendChatMediaBuffer(dest, local.buffer, local.mimetype, "gif", caption),
+      );
+    }
+  }
+  attempts.push(() =>
+    mediaType === "image"
+      ? client.sendImage(dest, resp.imageUrl!, caption)
+      : client.sendChatMedia(dest, resp.imageUrl!, mediaType, caption),
+  );
+  if (mediaType === "gif") {
+    attempts.push(() => client.sendChatMedia(dest, resp.imageUrl!, "gif", caption));
+  }
+
+  let lastErr: unknown;
+  for (const attempt of attempts) {
+    try {
+      await attempt();
+      return;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("Falha ao enviar mídia do fluxo guiado.");
+}
+
 export async function deliverBotResponses(
   businessId: string,
   client: WhatsAppClient,
@@ -63,28 +115,26 @@ export async function deliverBotResponses(
   responses: BotResponse[],
 ): Promise<void> {
   for (const resp of responses) {
-    if (resp.imageUrl) {
-      const mediaType = resp.mediaType ?? 'image'
-      const local = await downloadBusinessMedia(resp.imageUrl, resp.imageStoragePath)
-      const caption = resp.text || undefined
-      if (local) {
-        if (mediaType === 'image') {
-          await client.sendImageBuffer(dest, local.buffer, local.mimetype, caption)
-        } else {
-          await client.sendChatMediaBuffer(dest, local.buffer, local.mimetype, mediaType, caption)
-        }
-      } else if (mediaType === 'image') {
-        await client.sendImage(dest, resp.imageUrl, caption)
-      } else {
-        await client.sendChatMedia(dest, resp.imageUrl, mediaType, caption)
+    try {
+      if (resp.imageUrl) {
+        await deliverLeadFlowMedia(client, dest, resp);
+      } else if (resp.buttons?.length) {
+        await client.sendButtons(dest, resp.text, resp.buttons)
+      } else if (resp.text) {
+        await client.sendText(dest, resp.text)
       }
-    } else if (resp.buttons?.length) {
-      await client.sendButtons(dest, resp.text, resp.buttons)
-    } else if (resp.text) {
-      await client.sendText(dest, resp.text)
-    }
-    if (conversationId) {
-      await persistBotReplies(businessId, conversationId, [resp])
+      if (conversationId) {
+        await persistBotReplies(businessId, conversationId, [resp])
+      }
+    } catch (err) {
+      log.error(`[whatsapp] deliver response failed business=${businessId}:`, err)
+      if (resp.imageUrl && resp.text?.trim()) {
+        try {
+          await client.sendText(dest, resp.text)
+        } catch (fallbackErr) {
+          log.error(`[whatsapp] media text fallback failed business=${businessId}:`, fallbackErr)
+        }
+      }
     }
     await new Promise((r) => setTimeout(r, 800))
   }
