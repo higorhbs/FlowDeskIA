@@ -3,6 +3,8 @@ import { SESSION_COOKIE } from "./auth";
 import { ApiError } from "./api-error";
 
 function getServerBackendBaseUrl() {
+  const internal = process.env.BACKEND_INTERNAL_URL?.trim();
+  if (internal) return internal.replace(/\/$/, "");
   const dedicated = process.env.NEXT_PUBLIC_BACKEND_URL?.trim();
   if (dedicated) return dedicated.replace(/\/$/, "");
   const api = process.env.NEXT_PUBLIC_API_URL?.trim();

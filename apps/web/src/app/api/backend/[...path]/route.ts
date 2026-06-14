@@ -1,0 +1,88 @@
+import { NextRequest, NextResponse } from "next/server";
+
+const HOP_BY_HOP = new Set([
+  "connection",
+  "keep-alive",
+  "proxy-authenticate",
+  "proxy-authorization",
+  "te",
+  "trailers",
+  "transfer-encoding",
+  "upgrade",
+  "host",
+  "content-length",
+]);
+
+function resolveServerBackendUrl() {
+  const internal = process.env.BACKEND_INTERNAL_URL?.trim();
+  if (internal) return internal.replace(/\/$/, "");
+  const dedicated = process.env.NEXT_PUBLIC_BACKEND_URL?.trim();
+  if (dedicated) return dedicated.replace(/\/$/, "");
+  const api = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (api) return api.replace(/\/$/, "");
+  return "http://127.0.0.1:3001";
+}
+
+function forwardHeaders(req: NextRequest) {
+  const headers = new Headers();
+  req.headers.forEach((value, key) => {
+    if (HOP_BY_HOP.has(key.toLowerCase())) return;
+    headers.set(key, value);
+  });
+  return headers;
+}
+
+function responseHeaders(res: Response) {
+  const headers = new Headers();
+  res.headers.forEach((value, key) => {
+    if (HOP_BY_HOP.has(key.toLowerCase())) return;
+    headers.set(key, value);
+  });
+  return headers;
+}
+
+async function proxy(req: NextRequest, path: string[]) {
+  const suffix = path.join("/");
+  const url = new URL(`/${suffix}`, `${resolveServerBackendUrl()}/`);
+  req.nextUrl.searchParams.forEach((value, key) => {
+    url.searchParams.set(key, value);
+  });
+
+  const method = req.method.toUpperCase();
+  const hasBody = method !== "GET" && method !== "HEAD";
+  const body = hasBody ? await req.arrayBuffer() : undefined;
+
+  const res = await fetch(url, {
+    method,
+    headers: forwardHeaders(req),
+    body: body?.byteLength ? body : undefined,
+    cache: "no-store",
+  });
+
+  return new NextResponse(res.body, {
+    status: res.status,
+    headers: responseHeaders(res),
+  });
+}
+
+type RouteCtx = { params: Promise<{ path: string[] }> };
+
+export async function GET(req: NextRequest, ctx: RouteCtx) {
+  return proxy(req, (await ctx.params).path);
+}
+
+export async function POST(req: NextRequest, ctx: RouteCtx) {
+  return proxy(req, (await ctx.params).path);
+}
+
+export async function PATCH(req: NextRequest, ctx: RouteCtx) {
+  return proxy(req, (await ctx.params).path);
+}
+
+export async function PUT(req: NextRequest, ctx: RouteCtx) {
+  return proxy(req, (await ctx.params).path);
+}
+
+export async function DELETE(req: NextRequest, ctx: RouteCtx) {
+  return proxy(req, (await ctx.params).path);
+}

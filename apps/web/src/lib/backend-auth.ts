@@ -1,5 +1,5 @@
 import { getClientAuth } from "@flowdesk/firebase/client";
-import { getBackendBaseUrl } from "./backend-url";
+import { getAuthApiBaseUrl } from "./backend-url";
 
 export async function getAuthBearer(): Promise<string> {
   const user = getClientAuth().currentUser;
@@ -25,7 +25,7 @@ export async function authFetch(
     controller && timeoutMs
       ? setTimeout(() => controller.abort(), timeoutMs)
       : undefined;
-  const res = await fetch(`${baseUrl ?? getBackendBaseUrl()}${path}`, {
+  const res = await fetch(`${baseUrl ?? getAuthApiBaseUrl()}${path}`, {
     ...rest,
     headers,
     credentials: "include",
@@ -66,7 +66,7 @@ function fail(data: AuthJson, status: number) {
 }
 
 export async function backendRegister(name: string, email: string, password: string) {
-  const res = await fetch(`${getBackendBaseUrl()}/register`, {
+  const res = await fetch(`${getAuthApiBaseUrl()}/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -78,7 +78,7 @@ export async function backendRegister(name: string, email: string, password: str
 }
 
 export async function backendLogin(email: string, password: string) {
-  const res = await fetch(`${getBackendBaseUrl()}/login`, {
+  const res = await fetch(`${getAuthApiBaseUrl()}/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -93,7 +93,7 @@ export async function backendLogin(email: string, password: string) {
 }
 
 export async function backendGoogle(accessToken: string) {
-  const res = await fetch(`${getBackendBaseUrl()}/auth/google`, {
+  const res = await fetch(`${getAuthApiBaseUrl()}/auth/google`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -105,7 +105,7 @@ export async function backendGoogle(accessToken: string) {
 }
 
 export async function backendResendVerification(email: string, password: string) {
-  const res = await fetch(`${getBackendBaseUrl()}/auth/resend-verification`, {
+  const res = await fetch(`${getAuthApiBaseUrl()}/auth/resend-verification`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -116,7 +116,7 @@ export async function backendResendVerification(email: string, password: string)
 }
 
 export async function backendConfirmVerification(email: string, password: string) {
-  const res = await fetch(`${getBackendBaseUrl()}/auth/confirm-verification`, {
+  const res = await fetch(`${getAuthApiBaseUrl()}/auth/confirm-verification`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -128,7 +128,7 @@ export async function backendConfirmVerification(email: string, password: string
 }
 
 export async function backendResendVerificationSession(idToken: string) {
-  const res = await fetch(`${getBackendBaseUrl()}/auth/resend-verification/session`, {
+  const res = await fetch(`${getAuthApiBaseUrl()}/auth/resend-verification/session`, {
     method: "POST",
     headers: { Authorization: `Bearer ${idToken}` },
     credentials: "include",
@@ -138,7 +138,7 @@ export async function backendResendVerificationSession(idToken: string) {
 }
 
 export async function backendConfirmVerificationSession(idToken: string) {
-  const res = await fetch(`${getBackendBaseUrl()}/auth/confirm-verification/session`, {
+  const res = await fetch(`${getAuthApiBaseUrl()}/auth/confirm-verification/session`, {
     method: "POST",
     headers: { Authorization: `Bearer ${idToken}` },
     credentials: "include",

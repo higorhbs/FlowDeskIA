@@ -3,6 +3,19 @@ function isLocalDevHost() {
   return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 }
 
+function shouldProxyAuthViaWeb() {
+  if (typeof window === "undefined") return false;
+  if (isLocalDevHost()) return false;
+  if (process.env.NEXT_PUBLIC_AUTH_VIA_PROXY === "true") return true;
+  const api = process.env.NEXT_PUBLIC_API_URL?.trim() || process.env.NEXT_PUBLIC_BACKEND_URL?.trim();
+  if (!api) return true;
+  try {
+    return new URL(api).host !== window.location.host;
+  } catch {
+    return true;
+  }
+}
+
 export function resolveBackendBaseUrl() {
   const onLocal = isLocalDevHost();
   const dedicated = process.env.NEXT_PUBLIC_BACKEND_URL?.trim();
@@ -32,6 +45,13 @@ let waCached: string | undefined;
 export function getBackendBaseUrl() {
   if (!cached) cached = resolveBackendBaseUrl();
   return cached;
+}
+
+export function getAuthApiBaseUrl() {
+  if (shouldProxyAuthViaWeb()) {
+    return `${window.location.origin}/api/backend`;
+  }
+  return getBackendBaseUrl();
 }
 
 export function getWaApiBaseUrl() {
