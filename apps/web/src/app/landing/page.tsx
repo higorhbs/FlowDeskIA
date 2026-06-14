@@ -4,7 +4,7 @@ import { LandingPageView } from "@/components/landing/LandingPageView";
 
 export const metadata: Metadata = {
   title: "FlowDesk — Automatize seu WhatsApp com IA",
-  description: `Teste grátis por ${STARTER_TRIAL_DAYS} dias. Agendamentos, fluxo conversacional com botões, PIX e atendimento automático no WhatsApp para seu negócio.`,
+  description: `Teste grátis por ${STARTER_TRIAL_DAYS} dias. Agendamentos, vendas guiadas no WhatsApp, PIX e atendimento automático para seu negócio.`,
   robots: { index: false, follow: false },
 };
 

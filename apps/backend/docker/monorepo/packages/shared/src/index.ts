@@ -320,6 +320,7 @@ export function planMarketingFeatures(plan: PlanTier): string[] {
       : `${formatPlanLimit(l.messagesPerMonth)} mensagens/mês`,
     `${formatPlanLimit(l.catalogItems)} itens no catálogo`,
     `${formatPlanLimit(l.appointmentsPerMonth)} agendamentos/mês`,
+    "Vendas guiadas no WhatsApp",
     stories,
   ];
 }
@@ -356,3 +357,4 @@ export * from "./bot-menu.js";
 export * from "./business-vocabulary.js";
 export * from "./message-role.js";
 export * from "./trial.js";
+export * from "./lead-flow.js";

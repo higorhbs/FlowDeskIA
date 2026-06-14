@@ -1472,7 +1472,7 @@ export default function BotPage() {
       void queryClient.invalidateQueries({ queryKey: ["business", businessId] });
       toast.success(
         enabled
-          ? "Respostas automáticas ativadas — configure menu, fluxo conversacional e perguntas abaixo."
+          ? "Respostas automáticas ativadas — configure menu, vendas guiadas e perguntas abaixo."
           : "Respostas automáticas desativadas."
       );
     },
@@ -1483,7 +1483,7 @@ export default function BotPage() {
     ? ([
         { id: "menu" as const, label: "Menu da IA", icon: MessageSquare },
         { id: "faqs" as const, label: "Perguntas & Respostas", icon: HelpCircle },
-        { id: "leadflow" as const, label: "Fluxo conversacional", icon: GitBranch },
+        { id: "leadflow" as const, label: "Vendas guiadas", icon: GitBranch },
       ] as const)
     : [];
 
@@ -1516,7 +1516,7 @@ export default function BotPage() {
           <div>
             <h1 className="text-2xl font-bold text-white">Configuração da IA</h1>
             <p className="text-brand-100 text-sm mt-0.5">
-              Personalize saudação, menu, fluxo conversacional e respostas automáticas da IA no WhatsApp
+              Personalize saudação, menu, vendas guiadas e respostas automáticas da IA no WhatsApp
             </p>
           </div>
         </div>
@@ -1530,7 +1530,7 @@ export default function BotPage() {
       >
         <ToggleRow
           label="Respostas automáticas da IA"
-          hint="Desligado: a IA não envia nada no WhatsApp. Ligado: configure menu, fluxo conversacional e perguntas nas abas abaixo."
+          hint="Desligado: a IA não envia nada no WhatsApp. Ligado: configure menu, vendas guiadas e perguntas nas abas abaixo."
           checked={autoReplyEnabled}
           disabled={autoReplyMutation.isPending || isLoading}
           onChange={(enabled) => {
@@ -1542,7 +1542,7 @@ export default function BotPage() {
 
       {!autoReplyEnabled && (
         <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6">
-          Com as respostas desligadas, o menu, o fluxo conversacional e as perguntas ficam ocultos. Ative o interruptor acima
+          Com as respostas desligadas, o menu, as vendas guiadas e as perguntas ficam ocultos. Ative o interruptor acima
           para configurá-los, ou responda manualmente em Conversas.
         </p>
       )}

@@ -100,7 +100,7 @@ const TESTIMONIALS: Testimonial[] = [
     id: "academia-fit",
     business: "Academia Fit",
     segment: "Academia",
-    quote: "Fluxo com botões qualifica lead antes de eu ligar.",
+    quote: "Vendas guiadas qualificam lead antes de eu ligar.",
     author: "Diego · Campinas",
     icon: Dumbbell,
   },

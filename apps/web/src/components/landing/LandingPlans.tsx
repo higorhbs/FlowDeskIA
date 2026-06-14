@@ -24,7 +24,7 @@ const PLANS: PlanCardConfig[] = [
   {
     id: "PRO",
     highlight: true,
-    extras: ["Cobrança PIX automática", "Fluxo conversacional com botões", "Relatórios avançados"],
+    extras: ["Cobrança PIX automática", "Vendas guiadas no WhatsApp", "Relatórios avançados"],
     containerClassName: "bg-gradient-to-br from-brand-600 to-brand-900",
     badge: "Mais popular",
   },

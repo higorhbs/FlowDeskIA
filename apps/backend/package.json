@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "node ../../scripts/backend-dev.mjs",
     "sync:docker": "node scripts/sync-docker-monorepo.mjs",
+    "prebuild:docker": "pnpm run sync:docker",
     "build": "pnpm run sync:docker && pnpm run build:docker",
     "build:docker": "pnpm run build:deps && pnpm run build:whatsapp && node --check src/index.js",
     "build:deps": "pnpm --filter @flowdesk/shared run build && pnpm --filter @flowdesk/firebase --filter @flowdesk/whatsapp-client --parallel run build",

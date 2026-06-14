@@ -39,13 +39,13 @@ const STEPS: StepDef[] = [
   {
     badge: "Atendimento automático",
     title: "Seu WhatsApp trabalhando 24h por dia",
-    subtitle: "A IA responde instantaneamente com menu, fluxo conversacional e respostas automáticas — mesmo quando você dorme.",
+    subtitle: "A IA responde instantaneamente com menu, vendas guiadas e respostas automáticas — mesmo quando você dorme.",
     color: "from-brand-500 to-brand-700",
     accentColor: "bg-brand-600",
     features: [
       { icon: Clock, text: "Respostas imediatas fora do horário" },
       { icon: IaIcon, text: "Menu configurável com até 4 opções" },
-      { icon: GitBranch, text: "Fluxo conversacional com botões e imagens" },
+      { icon: GitBranch, text: "Vendas guiadas com botões e imagens no WhatsApp" },
       { icon: Star, text: "Experiência profissional para o cliente" },
     ],
     chat: {
@@ -61,10 +61,10 @@ const STEPS: StepDef[] = [
     },
   },
   {
-    badge: "Fluxo conversacional",
+    badge: "Vendas guiadas",
     title: "Conduza o cliente com botões e imagens",
     subtitle:
-      "Monte passos no painel (IA → Fluxo conversacional): mensagem, botões clicáveis e fotos. Cada resposta leva ao próximo passo — perfeito para captar leads e vender no automático.",
+      "Monte passos no painel (IA → Vendas guiadas): mensagem, botões clicáveis e fotos. Cada resposta leva ao próximo passo — perfeito para captar leads e vender no automático.",
     color: "from-teal-500 to-cyan-700",
     accentColor: "bg-teal-600",
     features: [

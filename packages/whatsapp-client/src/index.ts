@@ -577,7 +577,7 @@ export class WhatsAppClient extends EventEmitter {
       text,
       buttons: items,
       headerType: 1,
-    });
+    } as Parameters<WASocket["sendMessage"]>[1]);
     this.stashSentMessage(result);
     return result?.key.id ?? undefined;
   }

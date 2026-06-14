@@ -106,9 +106,9 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["business", businessId] });
-      toast.success("Fluxo salvo!");
+      toast.success("Salvo!");
     },
-    onError: () => toast.error("Erro ao salvar fluxo"),
+    onError: () => toast.error("Erro ao salvar"),
   });
 
   const uploadMutation = useMutation({
@@ -199,9 +199,9 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
       <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Fluxo conversacional</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Vendas guiadas</h2>
             <p className="text-sm text-gray-500 mt-1">
-              Defina mensagens, botões e imagens que a IA envia no WhatsApp.
+              Mensagens com botões clicáveis que a IA envia no WhatsApp.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -220,7 +220,7 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-gray-900">Iniciar na saudação</p>
-                <p className="text-xs text-gray-500">Quando o cliente mandar oi, entra no fluxo</p>
+                <p className="text-xs text-gray-500">Quando o cliente mandar oi, recebe os botões</p>
               </div>
               <Switch
                 checked={flow.startOnGreeting}
@@ -228,7 +228,7 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
               />
             </div>
             <div>
-              <Label className="text-xs text-gray-500">Palavras que também iniciam o fluxo</Label>
+              <Label className="text-xs text-gray-500">Palavras que também ativam os botões</Label>
               <input
                 value={keywordsDraft}
                 onChange={(e) => setKeywordsDraft(e.target.value)}
@@ -263,7 +263,7 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
             <GitBranch className="w-4 h-4 text-brand-600" />
-            Passos do fluxo
+            Passos
           </h3>
           <Button type="button" variant="outline" size="sm" onClick={addNode} className="rounded-xl">
             <Plus className="w-4 h-4" />
@@ -479,7 +479,7 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
                           }
                           className="rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white"
                         >
-                          <option value="">Encerrar fluxo</option>
+                          <option value="">Encerrar</option>
                           {nodeOptions
                             .filter((o) => o.id !== node.id)
                             .map((o) => (
@@ -522,14 +522,14 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
         ) : (
           <Save className="w-4 h-4" />
         )}
-        Salvar fluxo
+        Salvar
       </Button>
 
       <button
         type="button"
         onClick={() => setHelpOpen(true)}
         className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg shadow-brand-400/40 transition-all duration-200 hover:scale-110 hover:bg-brand-700 active:scale-95"
-        aria-label="Como funciona o fluxo conversacional"
+        aria-label="Como funcionam as vendas guiadas"
       >
         <HelpCircle className="h-5 w-5" />
       </button>
@@ -567,7 +567,7 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
               <LeadFlowHelpItem icon={<Zap className="h-4 w-4 text-brand-600" />} title="Quando inicia">
                 Na saudação, por palavras-chave (ex.: <em>orçamento, interesse</em>) ou no primeiro contato.
                 Ative o toggle <strong className="font-semibold text-gray-800">Ativo</strong> e clique em{" "}
-                <strong className="font-semibold text-gray-800">Salvar fluxo</strong>.
+                <strong className="font-semibold text-gray-800">Salvar</strong>.
               </LeadFlowHelpItem>
               <LeadFlowHelpItem icon={<Sparkles className="h-4 w-4 text-brand-600" />} title="Personalização">
                 Use <code className="rounded bg-gray-100 px-1 font-mono text-[11px]">{"{nome}"}</code> para quem
@@ -582,7 +582,7 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
               <div className="rounded-xl border border-teal-100 bg-teal-50/40 px-3.5 py-3">
                 <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-gray-900">
                   <Sparkles className="h-3.5 w-3.5 text-teal-600" />
-                  Exemplo de fluxo (3 passos)
+                  Exemplo (3 passos)
                 </p>
                 <ol className="list-decimal list-inside space-y-1 text-sm text-gray-600">
                   <li>
@@ -595,7 +595,7 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
                   </li>
                   <li>
                     <strong className="font-semibold text-gray-800">Passo 3:</strong> &quot;Perfeito! Um consultor fala
-                    com você em instantes.&quot; — sem botões (fim do fluxo)
+                    com você em instantes.&quot; — sem botões (fim)
                   </li>
                 </ol>
               </div>
