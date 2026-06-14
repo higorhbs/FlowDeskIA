@@ -56,6 +56,28 @@ function parseTriggerKeywords(raw: string): string[] {
     .filter(Boolean);
 }
 
+function entryKeywordsDraftFromFlow(flow: LeadCaptureFlow): Record<string, string> {
+  return Object.fromEntries(
+    flow.nodes.map((n) => [n.id, (n.entryKeywords ?? []).join(", ")]),
+  );
+}
+
+function applyEntryKeywordDrafts(
+  flow: LeadCaptureFlow,
+  drafts: Record<string, string>,
+): LeadCaptureFlow {
+  return {
+    ...flow,
+    nodes: flow.nodes.map((n) => ({
+      ...n,
+      entryKeywords:
+        drafts[n.id] !== undefined
+          ? parseTriggerKeywords(drafts[n.id])
+          : n.entryKeywords,
+    })),
+  };
+}
+
 function serializeLeadFlowDraft(flow: LeadCaptureFlow, keywordsDraft: string): string {
   return JSON.stringify(
     normalizeLeadCaptureFlow({
@@ -125,11 +147,18 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
   const [keywordsDraft, setKeywordsDraft] = useState(
     () => normalizeLeadCaptureFlow(initialFlow).triggerKeywords.join(", "),
   );
+  const [entryKeywordsDrafts, setEntryKeywordsDrafts] = useState<Record<string, string>>(() =>
+    entryKeywordsDraftFromFlow(normalizeLeadCaptureFlow(initialFlow)),
+  );
   const [editing, setEditing] = useState(false);
 
   const draftSnapshot = useMemo(
-    () => serializeLeadFlowDraft(flow, keywordsDraft),
-    [flow, keywordsDraft],
+    () =>
+      serializeLeadFlowDraft(
+        applyEntryKeywordDrafts(flow, entryKeywordsDrafts),
+        keywordsDraft,
+      ),
+    [flow, keywordsDraft, entryKeywordsDrafts],
   );
   const debouncedSnapshot = useDebouncedValue(draftSnapshot, 1500);
   const hasChanges = draftSnapshot !== savedSnapshotRef.current;
@@ -139,6 +168,7 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
     const normalized = normalizeLeadCaptureFlow(initialFlow);
     setFlow(normalized);
     setKeywordsDraft(normalized.triggerKeywords.join(", "));
+    setEntryKeywordsDrafts(entryKeywordsDraftFromFlow(normalized));
     savedSnapshotRef.current = serializeLeadFlowDraft(
       normalized,
       normalized.triggerKeywords.join(", "),
@@ -163,7 +193,10 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
     mutationFn: () => {
       const triggerKeywords = parseTriggerKeywords(keywordsDraft);
       return businessApi.update(businessId, {
-        leadFlow: normalizeLeadCaptureFlow({ ...flow, triggerKeywords }),
+        leadFlow: normalizeLeadCaptureFlow({
+          ...applyEntryKeywordDrafts(flow, entryKeywordsDrafts),
+          triggerKeywords,
+        }),
       } as Record<string, unknown>);
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Erro ao salvar"),
@@ -235,6 +268,11 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
   }
 
   function removeNode(nodeId: string) {
+    setEntryKeywordsDrafts((prev) => {
+      const next = { ...prev };
+      delete next[nodeId];
+      return next;
+    });
     setFlow((prev) => {
       const nodes = prev.nodes
         .filter((n) => n.id !== nodeId)
@@ -575,12 +613,15 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
                   <div>
                     <Label className="text-xs text-gray-500">Palavras que abrem este passo</Label>
                     <input
-                      value={(node.entryKeywords ?? []).join(", ")}
+                      value={entryKeywordsDrafts[node.id] ?? (node.entryKeywords ?? []).join(", ")}
                       onChange={(e) =>
-                        patchNode(node.id, {
-                          entryKeywords: parseTriggerKeywords(e.target.value),
-                        })
+                        setEntryKeywordsDrafts((prev) => ({ ...prev, [node.id]: e.target.value }))
                       }
+                      onBlur={() => {
+                        const raw =
+                          entryKeywordsDrafts[node.id] ?? (node.entryKeywords ?? []).join(", ");
+                        patchNode(node.id, { entryKeywords: parseTriggerKeywords(raw) });
+                      }}
                       placeholder="como funciona, funcionalidades"
                       className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
                     />
