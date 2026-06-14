@@ -9,6 +9,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      no_cache: true
     container_name: flowdesk-backend
     restart: unless-stopped
     logging: *default-logging
