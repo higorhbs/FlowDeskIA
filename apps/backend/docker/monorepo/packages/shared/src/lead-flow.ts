@@ -157,5 +157,47 @@ export function isLeadFlowBackCommand(text: string): boolean {
     .toLowerCase()
     .trim()
     .replace(/^[!?.,"']+|[!?.,"']+$/g, "");
-  return normalized === "voltar" || normalized === "anterior";
+  return (
+    normalized === "voltar" ||
+    normalized === "anterior" ||
+    normalized === "volta" ||
+    normalized === "retroceder"
+  );
+}
+
+function matchLeadFlowButtonByIdOrLabel(
+  node: LeadFlowNode,
+  body: string,
+): LeadFlowButton | null {
+  const byId = node.buttons.find((b) => b.id === body);
+  if (byId) return byId;
+  const lower = body.toLowerCase();
+  return node.buttons.find((b) => b.label.toLowerCase() === lower) ?? null;
+}
+
+export function isLeadFlowBackIntent(
+  node: LeadFlowNode | null,
+  messageBody: string,
+  flow?: LeadCaptureFlow,
+): boolean {
+  if (isLeadFlowBackCommand(messageBody)) return true;
+  const body = messageBody.trim();
+  if (!body) return false;
+  const nodes = node ? [node] : flow?.nodes ?? [];
+  for (const n of nodes) {
+    const btn = matchLeadFlowButtonByIdOrLabel(n, body);
+    if (btn && isLeadFlowBackCommand(btn.label)) return true;
+  }
+  return false;
+}
+
+export function findLeadFlowButtonMatch(
+  flow: LeadCaptureFlow,
+  messageBody: string,
+): { node: LeadFlowNode; button: LeadFlowButton } | null {
+  for (const node of flow.nodes) {
+    const button = resolveLeadFlowButton(node, messageBody);
+    if (button) return { node, button };
+  }
+  return null;
 }

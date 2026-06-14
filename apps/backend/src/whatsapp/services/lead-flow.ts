@@ -1,12 +1,15 @@
 import {
   DEFAULT_LEAD_FLOW_INVALID_REPLY,
+  findLeadFlowButtonMatch,
   findLeadFlowNode,
   isLeadFlowBackCommand,
+  isLeadFlowBackIntent,
   leadFlowTriggerMatch,
   normalizeLeadCaptureFlow,
   renderTemplate,
   resolveLeadFlowButton,
   type LeadCaptureFlow,
+  type LeadFlowButton,
   type LeadFlowNode,
 } from "@flowdesk/shared";
 import type { Conversation } from "@flowdesk/firebase";
@@ -15,8 +18,6 @@ import {
   setConversationBotFlowState,
 } from "@flowdesk/firebase";
 import type { BotContext, BotResponse } from "./bot.js";
-
-const LEAD_FLOW_AT_START_MSG = "Você já está no início do fluxo.";
 
 type FlowState = { step: "LEAD_FLOW"; data: Record<string, string> };
 type FlowStateMap = Map<string, { step: string; data: Record<string, string> }>;
@@ -136,13 +137,50 @@ export async function recoverLeadFlowFromButton(
 ): Promise<boolean> {
   const flow = getLeadFlowConfig(business);
   if (!flow) return false;
-  const start = findLeadFlowNode(flow, flow.startNodeId);
-  if (!start?.buttons.length) return false;
-  if (!resolveLeadFlowButton(start, ctx.messageBody)) return false;
-  await persistFlowState(business.id, conversation.id, sessionKey, conversationState, {
-    step: "LEAD_FLOW",
-    data: { nodeId: start.id, history: "[]" },
-  });
+
+  if (isLeadFlowBackCommand(ctx.messageBody)) {
+    const persisted = conversation.botFlowState;
+    if (persisted?.step === "LEAD_FLOW" && persisted.data?.nodeId) {
+      await persistFlowState(business.id, conversation.id, sessionKey, conversationState, {
+        step: "LEAD_FLOW",
+        data: persisted.data,
+      });
+      return true;
+    }
+    const start = findLeadFlowNode(flow, flow.startNodeId);
+    if (!start) return false;
+    await persistFlowState(business.id, conversation.id, sessionKey, conversationState, leadFlowState(start.id));
+    return true;
+  }
+
+  const match = findLeadFlowButtonMatch(flow, ctx.messageBody);
+  if (!match) return false;
+  if (isLeadFlowBackIntent(match.node, ctx.messageBody)) {
+    const persisted = conversation.botFlowState;
+    if (persisted?.step === "LEAD_FLOW" && persisted.data?.nodeId) {
+      await persistFlowState(business.id, conversation.id, sessionKey, conversationState, {
+        step: "LEAD_FLOW",
+        data: persisted.data,
+      });
+      return true;
+    }
+    await persistFlowState(
+      business.id,
+      conversation.id,
+      sessionKey,
+      conversationState,
+      leadFlowState(flow.startNodeId),
+    );
+    return true;
+  }
+
+  await persistFlowState(
+    business.id,
+    conversation.id,
+    sessionKey,
+    conversationState,
+    leadFlowState(match.node.id),
+  );
   return true;
 }
 
@@ -178,9 +216,10 @@ async function handleLeadFlowBack(
 
   if (history.length === 0) {
     if (node.id === flow.startNodeId) {
-      const text = renderTemplate(LEAD_FLOW_AT_START_MSG, vars);
-      await saveAndReturn(business.id, conversation.id, [{ text }]);
-      return [{ text }];
+      const start = findLeadFlowNode(flow, flow.startNodeId);
+      if (!start) return [];
+      await persistFlowState(business.id, conversation.id, sessionKey, conversationState, leadFlowState(start.id));
+      return sendLeadFlowNode(business, conversation, start, vars, saveAndReturn);
     }
     const start = findLeadFlowNode(flow, flow.startNodeId);
     if (!start) return [];
@@ -236,7 +275,7 @@ export async function handleLeadFlowMessage(
     return startLeadFlow(business, conversation, ctx.customerName, sessionKey, conversationState, saveAndReturn);
   }
 
-  if (isLeadFlowBackCommand(ctx.messageBody)) {
+  if (isLeadFlowBackIntent(node, ctx.messageBody, flow)) {
     return handleLeadFlowBack(
       ctx,
       business,
@@ -250,18 +289,50 @@ export async function handleLeadFlowMessage(
     );
   }
 
-  const picked = resolveLeadFlowButton(node, ctx.messageBody);
+  let activeNode = node;
+  let picked: LeadFlowButton | null = resolveLeadFlowButton(node, ctx.messageBody);
   if (!picked) {
+    const match = findLeadFlowButtonMatch(flow, ctx.messageBody);
+    if (match) {
+      if (isLeadFlowBackIntent(match.node, ctx.messageBody, flow)) {
+        return handleLeadFlowBack(
+          ctx,
+          business,
+          conversation,
+          flow,
+          state,
+          node,
+          sessionKey,
+          conversationState,
+          saveAndReturn,
+        );
+      }
+      if (match.node.id !== node.id) {
+        activeNode = match.node;
+        await persistFlowState(
+          business.id,
+          conversation.id,
+          sessionKey,
+          conversationState,
+          leadFlowState(match.node.id),
+        );
+        picked = match.button;
+      }
+    }
+  }
+
+  if (!picked) {
+    const vars = flowVars(business, ctx.customerName);
     const invalid = node.invalidReply?.trim() || DEFAULT_LEAD_FLOW_INVALID_REPLY;
-    const text = renderTemplate(invalid, flowVars(business, ctx.customerName));
-    const out: BotResponse[] = [
-      {
-        text,
-        ...(node.buttons.length
-          ? { buttons: node.buttons.map((b) => ({ id: b.id, label: b.label })) }
-          : {}),
-      },
-    ];
+    const invalidText = renderTemplate(invalid, vars);
+    const out = leadFlowNodeToResponses(node, vars);
+    if (out.length) {
+      const btnMsg = out.find((r) => r.buttons?.length) ?? out[out.length - 1];
+      if (btnMsg?.buttons?.length) btnMsg.text = invalidText;
+      else out.unshift({ text: invalidText });
+    } else {
+      out.push({ text: invalidText });
+    }
     await saveAndReturn(business.id, conversation.id, out);
     return out;
   }
@@ -280,7 +351,7 @@ export async function handleLeadFlowMessage(
   }
 
   const history = parseHistory(state.data.history);
-  history.push(node.id);
+  history.push(activeNode.id);
   await persistFlowState(
     business.id,
     conversation.id,
