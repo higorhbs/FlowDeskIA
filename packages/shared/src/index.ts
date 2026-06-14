@@ -320,6 +320,7 @@ export function planMarketingFeatures(plan: PlanTier): string[] {
       : `${formatPlanLimit(l.messagesPerMonth)} mensagens/mês`,
     `${formatPlanLimit(l.catalogItems)} itens no catálogo`,
     `${formatPlanLimit(l.appointmentsPerMonth)} agendamentos/mês`,
+    "Fluxo conversacional com botões e imagens",
     stories,
   ];
 }

@@ -64,7 +64,7 @@ export function buildBusinessPanelLinks(opts: {
 
   return [
     { href: panelHref(businessId, "conversations"), icon: MessageSquare, label: "Conversas", desc: "Histórico e atendimentos", color: "bg-blue-50 text-blue-600", vocab: false },
-    { href: panelHref(businessId, "faqs"), icon: IaIcon, label: "IA", desc: "Menu e perguntas automáticas", color: "bg-green-50 text-green-600", vocab: false },
+    { href: panelHref(businessId, "faqs"), icon: IaIcon, label: "IA", desc: "Menu, fluxo conversacional e perguntas automáticas", color: "bg-green-50 text-green-600", vocab: false },
     { href: panelHref(businessId, "appointments"), icon: Calendar, label: v.bookingsNav, desc: v.bookingsSectionDesc, color: "bg-violet-50 text-violet-600", vocab: true },
     { href: panelHref(businessId, "catalog"), icon: BookOpen, label: v.catalogNav, desc: `${v.catalogItemPlural} no catálogo`, color: "bg-amber-50 text-amber-600", vocab: true },
     ...(pixEnabled

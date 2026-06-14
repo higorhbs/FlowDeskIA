@@ -8,9 +8,9 @@ import { useAppRouter } from "@/lib/app-navigation";
 import { CREATE_BUSINESS_PATH } from "@/components/business/RequireBusinessGate";
 import {
   CheckCircle2, ChevronLeft, ChevronRight,
-  CalendarClock, BookOpen, HelpCircle,
+  CalendarClock, BookOpen, HelpCircle, GitBranch,
   Clock, Users, TrendingUp, Star, MessageSquareText, Zap,
-  QrCode, Banknote, Wallet,
+  QrCode, Banknote, Wallet, ImageIcon, MousePointerClick,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -39,12 +39,13 @@ const STEPS: StepDef[] = [
   {
     badge: "Atendimento automático",
     title: "Seu WhatsApp trabalhando 24h por dia",
-    subtitle: "A IA responde instantaneamente com um menu personalizado, apresentando tudo que seu negócio oferece — mesmo quando você dorme.",
+    subtitle: "A IA responde instantaneamente com menu, fluxo conversacional e respostas automáticas — mesmo quando você dorme.",
     color: "from-brand-500 to-brand-700",
     accentColor: "bg-brand-600",
     features: [
       { icon: Clock, text: "Respostas imediatas fora do horário" },
       { icon: IaIcon, text: "Menu configurável com até 4 opções" },
+      { icon: GitBranch, text: "Fluxo conversacional com botões e imagens" },
       { icon: Star, text: "Experiência profissional para o cliente" },
     ],
     chat: {
@@ -55,6 +56,36 @@ const STEPS: StepDef[] = [
           from: "ia",
           text: `Olá! 👋 Sou o assistente da *${DEMO_BUSINESS}*\n\nComo posso ajudar?\n\n*1* — 📅 Agendamentos/Pedidos\n*2* — 🛍️ Produtos\n*3* — ❓ Dúvidas\n*0* — 👤 Falar com atendente`,
           time: "21:42",
+        },
+      ],
+    },
+  },
+  {
+    badge: "Fluxo conversacional",
+    title: "Conduza o cliente com botões e imagens",
+    subtitle:
+      "Monte passos no painel (IA → Fluxo conversacional): mensagem, botões clicáveis e fotos. Cada resposta leva ao próximo passo — perfeito para captar leads e vender no automático.",
+    color: "from-teal-500 to-cyan-700",
+    accentColor: "bg-teal-600",
+    features: [
+      { icon: MousePointerClick, text: "Até 3 botões por passo no WhatsApp" },
+      { icon: ImageIcon, text: "Imagens salvas e enviadas em cada etapa" },
+      { icon: GitBranch, text: "Ramificações e comando voltar no chat" },
+    ],
+    chat: {
+      businessName: DEMO_BUSINESS,
+      messages: [
+        { from: "customer", text: "Oi, quero saber mais", time: "15:02" },
+        {
+          from: "ia",
+          text: `Olá! 👋 Sou da *${DEMO_BUSINESS}*\n\nComo posso te ajudar hoje?\n\n↩ VER PRODUTOS\n↩ FALAR COM VENDAS\n↩ SUPORTE`,
+          time: "15:02",
+        },
+        { from: "customer", text: "VER PRODUTOS", time: "15:03" },
+        {
+          from: "ia",
+          text: "Ótimo, {nome}! Confira nossa linha completa 👇\n\n↩ QUERO ORÇAMENTO\n↩ VOLTAR",
+          time: "15:03",
         },
       ],
     },

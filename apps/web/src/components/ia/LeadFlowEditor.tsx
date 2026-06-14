@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
@@ -12,6 +12,10 @@ import {
   Save,
   Trash2,
   X,
+  HelpCircle,
+  MousePointerClick,
+  ArrowLeft,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { businessApi } from "@/lib/api";
@@ -46,6 +50,15 @@ function parseTriggerKeywords(raw: string): string[] {
 function nodeLabel(node: LeadFlowNode, index: number) {
   const preview = node.text.trim().slice(0, 42);
   return preview ? `Passo ${index + 1}: ${preview}` : `Passo ${index + 1}`;
+}
+
+function FlowHelpItem({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-gray-100 bg-white px-3.5 py-3">
+      <p className="text-sm font-semibold text-gray-900 mb-1">{title}</p>
+      <div className="text-xs text-gray-600 leading-relaxed">{children}</div>
+    </div>
+  );
 }
 
 export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props) {
@@ -177,11 +190,10 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Label htmlFor="lead-flow-enabled" className="text-sm text-gray-600">
+            <Label className="text-sm text-gray-600">
               Ativo
             </Label>
             <Switch
-              id="lead-flow-enabled"
               checked={flow.enabled}
               onCheckedChange={(enabled) => patchFlow({ enabled })}
             />
@@ -247,6 +259,66 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
               ))}
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-brand-100 bg-brand-50/40 p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <HelpCircle className="w-4 h-4 text-brand-600 shrink-0" />
+          <h3 className="text-sm font-semibold text-gray-900">Como funciona</h3>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <FlowHelpItem title="Exemplo de conversa">
+            Cliente manda <strong className="font-medium text-gray-800">oi</strong> → IA envia mensagem com
+            botões → cliente clica em <strong className="font-medium text-gray-800">VER PRODUTOS</strong> →
+            próximo passo com imagem e novo botão → pode encerrar ou seguir ramificando.
+          </FlowHelpItem>
+          <FlowHelpItem title="Quando inicia">
+            Na saudação, por palavras-chave (ex.: <em>orçamento, interesse</em>) ou quando você ativar o fluxo
+            manualmente no primeiro contato. Use o toggle <strong className="font-medium text-gray-800">Ativo</strong>{" "}
+            e clique em <strong className="font-medium text-gray-800">Salvar fluxo</strong>.
+          </FlowHelpItem>
+          <FlowHelpItem title="Personalização">
+            Use <code className="rounded bg-white px-1 font-mono text-[11px]">{"{nome}"}</code> para quem
+            conversa e <code className="rounded bg-white px-1 font-mono text-[11px]">{"{negocio}"}</code>{" "}
+            para o nome do seu negócio — arraste os blocos para dentro da mensagem.
+          </FlowHelpItem>
+          <FlowHelpItem title="Comandos no WhatsApp">
+            Cliente digita <strong className="font-medium text-gray-800">voltar</strong> para retornar ao passo
+            anterior. No primeiro passo, a IA avisa que já está no início. Texto solto fora dos botões recebe
+            o aviso configurado em cada etapa.
+          </FlowHelpItem>
+        </div>
+        <div className="rounded-xl border border-teal-100 bg-white/80 px-3.5 py-3 text-xs text-gray-600 leading-relaxed">
+          <p className="font-semibold text-gray-900 mb-1.5 flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+            Exemplo de fluxo (3 passos)
+          </p>
+          <ol className="list-decimal list-inside space-y-1">
+            <li>
+              <strong className="font-medium text-gray-800">Passo 1:</strong> &quot;Olá {"{nome}"}! Como posso
+              ajudar?&quot; — botões: Orçamento · Suporte · Encerrar
+            </li>
+            <li>
+              <strong className="font-medium text-gray-800">Passo 2 (Orçamento):</strong> imagem do serviço +
+              &quot;Veja nossos valores&quot; — botão: Quero contratar
+            </li>
+            <li>
+              <strong className="font-medium text-gray-800">Passo 3:</strong> &quot;Perfeito! Um consultor fala
+              com você em instantes.&quot; — sem botões (fim do fluxo)
+            </li>
+          </ol>
+        </div>
+        <div className="flex flex-wrap gap-3 text-[11px] text-gray-500">
+          <span className="inline-flex items-center gap-1">
+            <MousePointerClick className="w-3.5 h-3.5" /> Até 3 botões por passo
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <ImagePlus className="w-3.5 h-3.5" /> Imagens no Firebase Storage
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <ArrowLeft className="w-3.5 h-3.5" /> Comando voltar no chat
+          </span>
         </div>
       </div>
 

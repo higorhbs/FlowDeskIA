@@ -2,7 +2,7 @@
 
 SaaS de resposta automática para WhatsApp voltado a pequenos negócios: barbearia, salão, restaurante, dentista, loja e comércio local.
 
-Automatize atendimento, agendamentos, catálogo, FAQ e cobrança PIX — com painel web e bot no WhatsApp.
+Automatize atendimento, agendamentos, catálogo, FAQ, fluxo conversacional com botões e cobrança PIX — com painel web e bot no WhatsApp.
 
 ---
 
@@ -17,6 +17,7 @@ Automatize atendimento, agendamentos, catálogo, FAQ e cobrança PIX — com pai
 | **Agendamento** | Fluxo guiado: serviço → data → horário → confirmação automática |
 | **Consulta de agendamento** | Cliente pergunta “meu agendamento” → bot localiza e informa |
 | **FAQ inteligente** | Palavras-chave configuradas no painel → respostas automáticas |
+| **Fluxo conversacional** | Passos com botões clicáveis, imagens e ramificações — ideal para captação de leads e vendas guiadas |
 | **PIX automático** | QR Code + copia-e-cola na conversa via Asaas (planos Pro e Unlimited) |
 | **Atendimento humano** | Cliente pede atendente → bot pausa; operador responde pelo painel |
 | **Fora do horário** | Mensagem de ausência configurável quando o negócio está fechado |
@@ -31,7 +32,7 @@ Automatize atendimento, agendamentos, catálogo, FAQ e cobrança PIX — com pai
 | **Agendamentos** | Calendário, confirmação/rejeição (tipos com aprovação manual) |
 | **Conversas** | Histórico, assumir/liberar atendimento, enviar mensagem manual |
 | **WhatsApp** | Conectar via QR Code, status da sessão, desconectar |
-| **FAQ + PIX** | Perguntas frequentes e integração Asaas (Pro+) |
+| **FAQ + fluxo IA** | Perguntas frequentes, menu numérico e fluxo conversacional (botões + imagens) |
 | **Plano** | Assinatura Stripe, trial, portal de cobrança |
 | **Perfil** | Conta, LGPD (exportar, anonimizar, excluir dados) |
 

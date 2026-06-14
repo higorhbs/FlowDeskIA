@@ -18,7 +18,7 @@ function useAnimateIn() {
 
 const AD_TITLE_LEAD = "Seu WhatsApp vende e agenda sozinho com";
 const AD_TITLE_WORDS = AD_TITLE_LEAD.split(" ");
-const AD_SUBTITLE = `Teste grátis por ${STARTER_TRIAL_DAYS} dias, sem cartão. A IA responde clientes, confirma horários, cobra PIX e publica status — 24 horas por dia.`;
+const AD_SUBTITLE = `Teste grátis por ${STARTER_TRIAL_DAYS} dias, sem cartão. A IA responde clientes, conduz fluxos com botões, confirma horários, cobra PIX e publica status — 24 horas por dia.`;
 
 export function HeroCopyMotion({ adMode = false }: { adMode?: boolean }) {
   const active = useAnimateIn();
@@ -80,7 +80,7 @@ export function HeroCopyMotion({ adMode = false }: { adMode?: boolean }) {
       >
         {adMode
           ? AD_SUBTITLE
-          : `Automatize seu atendimento no WhatsApp com IA. O ${APP_DISPLAY_NAME} responde clientes, agenda horários, envia confirmações e cobra via PIX.`}
+          : `Automatize seu atendimento no WhatsApp com IA. O ${APP_DISPLAY_NAME} responde clientes, conduz fluxos com botões e imagens, agenda horários, envia confirmações e cobra via PIX.`}
       </motion.p>
     </motion.div>
   );
