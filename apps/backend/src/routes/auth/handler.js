@@ -58,7 +58,18 @@ function readCredentials(body) {
 
 async function issueVerifiedSession(c, uid, profile) {
   await ensureServerTenant(uid, profile)
-  const customToken = await getAdminAuth().createCustomToken(uid)
+  let customToken
+  try {
+    customToken = await getAdminAuth().createCustomToken(uid)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (/private key|invalid-credential|sign/i.test(msg)) {
+      throw new Error(
+        'FIREBASE_PRIVATE_KEY inválida no Dokploy. Cole a chave em uma linha com \\n entre as partes.',
+      )
+    }
+    throw err
+  }
   if (!customToken?.trim()) {
     throw new Error('Falha ao gerar customToken Firebase.')
   }

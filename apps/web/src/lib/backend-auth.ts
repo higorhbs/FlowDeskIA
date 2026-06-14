@@ -75,13 +75,14 @@ function readVerifiedPayload(data: AuthJson, status: number): VerifiedPayload {
       status,
     );
   }
-  const customToken = data.customToken?.trim() ?? "";
+  const payload = data as VerifiedPayload & { token?: string };
+  const customToken = payload.customToken?.trim() || payload.token?.trim() || "";
   if (!customToken) {
     throw new Error(
-      "Backend retornou login sem customToken. Dokploy: FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY + FIREBASE_PROJECT_ID. Redeploy backend.",
+      "Backend retornou login sem customToken. Rode: curl https://flowdesk.victorsouza.dev/health/auth — Dokploy: FIREBASE_PRIVATE_KEY em uma linha com \\n, redeploy backend.",
     );
   }
-  return { status: "VERIFIED", customToken, uid: data.uid };
+  return { status: "VERIFIED", customToken, uid: payload.uid };
 }
 
 export async function backendRegister(name: string, email: string, password: string) {

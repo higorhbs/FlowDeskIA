@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const maxDuration = 60;
+
 const HOP_BY_HOP = new Set([
   "connection",
   "keep-alive",
@@ -59,7 +61,8 @@ async function proxy(req: NextRequest, path: string[]) {
     cache: "no-store",
   });
 
-  return new NextResponse(res.body, {
+  const text = await res.text();
+  return new NextResponse(text, {
     status: res.status,
     headers: responseHeaders(res),
   });

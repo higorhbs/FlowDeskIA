@@ -27,6 +27,7 @@ console.log(`\nVerificando auth (${API} + ${WEB})...\n`);
 
 const results = await Promise.all([
   check("API /health", `${API}/health`),
+  check("API /health/auth", `${API}/health/auth`),
   check("API POST /auth/google", `${API}/auth/google`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Origin: WEB },
@@ -48,5 +49,6 @@ if (passed < results.length) {
 }
 
 console.log("Backend + proxy ok. Se login falha:");
-console.log("→ Network: POST /auth/google deve retornar { status, customToken, uid }");
-console.log("→ Se customToken ausente: FIREBASE_PRIVATE_KEY no Dokploy + redeploy backend\n");
+console.log("→ curl https://flowdesk.victorsouza.dev/health/auth (customTokenReady deve ser true)");
+console.log("→ Network: POST /auth/google deve retornar customToken");
+console.log("→ Dokploy: FIREBASE_PRIVATE_KEY em UMA linha com \\n, redeploy backend\n");
