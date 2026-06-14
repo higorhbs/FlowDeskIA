@@ -97,13 +97,12 @@ export function resolveBotOperatingContext(
 
   return {
     timezone: schedule?.timezone ?? business.timezone ?? "America/Sao_Paulo",
-    workingHours: hasBusinessHours ? businessHours : scheduleHours,
-    specialHours: {
-      ...(schedule?.specialHours ?? {}),
-      ...(business.specialHours ?? {}),
-    },
-    lunchBreak: business.lunchBreak ?? schedule?.lunchBreak ?? null,
-    lunchMsg: business.lunchMsg ?? schedule?.lunchMsg,
+    workingHours: schedule ? scheduleHours : hasBusinessHours ? businessHours : defaultWorkingHours(),
+    specialHours: schedule
+      ? { ...(business.specialHours ?? {}), ...schedule.specialHours }
+      : (business.specialHours ?? {}),
+    lunchBreak: schedule?.lunchBreak ?? business.lunchBreak ?? null,
+    lunchMsg: schedule?.lunchMsg ?? business.lunchMsg,
   };
 }
 
@@ -159,6 +158,20 @@ export async function upsertBusinessSchedule(
   };
   const record = stripUndefined(next as unknown as Record<string, unknown>);
   await schedules().doc(businessId).set(record);
+  await getDb()
+    .collection("businesses")
+    .doc(businessId)
+    .update(
+      stripUndefined({
+        timezone: next.timezone,
+        workingHours: next.workingHours,
+        specialHours: next.specialHours,
+        lunchBreak: next.lunchBreak,
+        lunchMsg: next.lunchMsg,
+        updatedAt: ts,
+      })
+    )
+    .catch(() => undefined);
   return normalizeBusinessSchedule(businessId, record);
 }
 
