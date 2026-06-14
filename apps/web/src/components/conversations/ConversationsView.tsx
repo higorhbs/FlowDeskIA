@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Business, Conversation, Message } from "@flowdesk/firebase/client";
@@ -32,7 +32,6 @@ export function ConversationsView({
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("c");
-  const [search, setSearch] = useState("");
   const queryClient = useQueryClient();
 
   const { data: listData } = useQuery({
@@ -179,8 +178,6 @@ export function ConversationsView({
       <ConversationList
         conversations={conversations}
         selectedId={selectedId}
-        search={search}
-        onSearchChange={setSearch}
         onSelect={selectConversation}
       />
       <ConversationThread

@@ -4,11 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import type { Business, Message } from "@flowdesk/firebase/client";
 import { getClientAuth } from "@flowdesk/firebase/client";
 import { Loader2, MessageSquare, Paperclip, Send, Trash2, User, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConversationStatusBadge } from "@/components/conversations/ConversationStatusBadge";
 import { Textarea } from "@/components/ui/textarea";
 import { IaIcon, IA_DISPLAY_NAME, isIaMessageRole } from "@/lib/ia-brand";
-import { formatCustomerLabel, STATUS_LABELS, cn } from "@/lib/utils";
+import { formatCustomerLabel, cn } from "@/lib/utils";
 import type { ConversationDetail } from "@/lib/server/data/conversations";
 import { ConversationMessageBody } from "./ConversationMessageBody";
 import { buildManualMessage } from "./conversation-utils";
@@ -156,14 +156,12 @@ export function ConversationThread({
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
-      <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
-        <h2 className="font-semibold text-gray-900">
+      <div className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-6">
+        <h2 className="min-w-0 truncate font-semibold text-gray-900">
           {formatCustomerLabel(conversation.customerPhone, conversation.customerName)}
         </h2>
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className={STATUS_LABELS[conversation.status]?.color}>
-            {STATUS_LABELS[conversation.status]?.label}
-          </Badge>
+        <div className="flex shrink-0 items-center gap-2">
+          <ConversationStatusBadge status={conversation.status} />
           {conversation.status === "OPEN" && (
             <Button
               type="button"
@@ -293,18 +291,9 @@ export function ConversationThread({
               if (file) setPendingFile(file);
             }}
           />
-          <div className="flex items-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 shrink-0"
-              disabled={isSending}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Paperclip className="h-4 w-4" />
-            </Button>
+          <div className="flex gap-2">
             <Textarea
-              className="min-h-20 flex-1 resize-none text-sm"
+              className="h-[5.375rem] min-h-[5.375rem] flex-1 resize-none text-sm field-sizing-fixed"
               placeholder={pendingFile ? "Legenda (opcional)..." : "Digite sua mensagem..."}
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
@@ -315,13 +304,26 @@ export function ConversationThread({
                 }
               }}
             />
-            <Button
-              className="h-10 shrink-0"
-              disabled={(!replyText.trim() && !pendingFile) || isSending}
-              onClick={() => void submitReply(conversation)}
-            >
-              {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </Button>
+            <div className="flex h-[5.375rem] shrink-0 flex-col justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-10"
+                disabled={isSending}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
+              <Button
+                size="icon"
+                className="size-10"
+                disabled={(!replyText.trim() && !pendingFile) || isSending}
+                onClick={() => void submitReply(conversation)}
+              >
+                {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </Button>
+            </div>
           </div>
           <p className="mt-2 text-xs text-gray-400">
             Enter para enviar • Shift+Enter para nova linha • Anexe imagem, vídeo ou áudio
