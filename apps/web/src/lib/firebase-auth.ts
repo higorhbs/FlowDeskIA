@@ -116,7 +116,7 @@ export function authErrorMessage(err: unknown, fallback: string): string {
     "auth/invalid-email": "E-mail inválido.",
     "auth/email-not-verified": "Confirme seu e-mail antes de acessar o painel.",
     "auth/network-request-failed":
-      "API de autenticação inacessível. Confira se o backend está no ar e NEXT_PUBLIC_BACKEND_URL.",
+      "API de autenticação inacessível. Confira se o backend está no ar.",
     "permission-denied":
       "Sem permissão no Firestore. Confira as regras e o login.",
   };

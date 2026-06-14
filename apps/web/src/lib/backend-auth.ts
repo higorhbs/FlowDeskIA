@@ -1,6 +1,26 @@
 import { getClientAuth } from "@flowdesk/firebase/client";
 import { getBackendBaseUrl } from "./backend-url";
 
+function authRequestUrl(backendPath: string): string {
+  if (typeof window === "undefined") return `${getBackendBaseUrl()}${backendPath}`;
+  if (backendPath === "/login") return "/api/auth/login";
+  if (backendPath === "/register") return "/api/auth/register";
+  if (backendPath.startsWith("/auth/")) {
+    return `/api/auth/${backendPath.slice("/auth/".length)}`;
+  }
+  return backendPath;
+}
+
+async function publicAuthFetch(backendPath: string, init: RequestInit) {
+  const res = await fetch(authRequestUrl(backendPath), {
+    ...init,
+    credentials: "include",
+  });
+  const data = await parseJson(res);
+  if (!res.ok) fail(data, res.status);
+  return data;
+}
+
 export async function getAuthBearer(): Promise<string> {
   const user = getClientAuth().currentUser;
   if (!user) throw new Error("Faça login para continuar.");
@@ -66,19 +86,16 @@ function fail(data: AuthJson, status: number) {
 }
 
 export async function backendRegister(name: string, email: string, password: string) {
-  const res = await fetch(`${getBackendBaseUrl()}/register`, {
+  const data = await publicAuthFetch("/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
     body: JSON.stringify({ name, email, password }),
   });
-  const data = await parseJson(res);
-  if (!res.ok) fail(data, res.status);
   return data as PendingPayload;
 }
 
 export async function backendLogin(email: string, password: string) {
-  const res = await fetch(`${getBackendBaseUrl()}/login`, {
+  const res = await fetch(authRequestUrl("/login"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -93,58 +110,43 @@ export async function backendLogin(email: string, password: string) {
 }
 
 export async function backendGoogle(accessToken: string) {
-  const res = await fetch(`${getBackendBaseUrl()}/auth/google`, {
+  const data = await publicAuthFetch("/auth/google", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
     body: JSON.stringify({ accessToken }),
   });
-  const data = await parseJson(res);
-  if (!res.ok) fail(data, res.status);
   return data as VerifiedPayload;
 }
 
 export async function backendResendVerification(email: string, password: string) {
-  const res = await fetch(`${getBackendBaseUrl()}/auth/resend-verification`, {
+  await publicAuthFetch("/auth/resend-verification", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
     body: JSON.stringify({ email, password }),
   });
-  const data = await parseJson(res);
-  if (!res.ok) fail(data, res.status);
 }
 
 export async function backendConfirmVerification(email: string, password: string) {
-  const res = await fetch(`${getBackendBaseUrl()}/auth/confirm-verification`, {
+  const data = await publicAuthFetch("/auth/confirm-verification", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
     body: JSON.stringify({ email, password }),
   });
-  const data = await parseJson(res);
-  if (!res.ok) fail(data, res.status);
   return data as VerifiedPayload;
 }
 
 export async function backendResendVerificationSession(idToken: string) {
-  const res = await fetch(`${getBackendBaseUrl()}/auth/resend-verification/session`, {
+  await publicAuthFetch("/auth/resend-verification/session", {
     method: "POST",
     headers: { Authorization: `Bearer ${idToken}` },
-    credentials: "include",
   });
-  const data = await parseJson(res);
-  if (!res.ok) fail(data, res.status);
 }
 
 export async function backendConfirmVerificationSession(idToken: string) {
-  const res = await fetch(`${getBackendBaseUrl()}/auth/confirm-verification/session`, {
+  const data = await publicAuthFetch("/auth/confirm-verification/session", {
     method: "POST",
     headers: { Authorization: `Bearer ${idToken}` },
-    credentials: "include",
   });
-  const data = await parseJson(res);
-  if (!res.ok) fail(data, res.status);
   return data as VerifiedPayload;
 }
 
