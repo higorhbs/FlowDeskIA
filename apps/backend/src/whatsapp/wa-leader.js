@@ -36,8 +36,13 @@ export async function acquireWaLeadership() {
       return false
     })
     if (!ok) {
+      const snap = await leaderRef().get().catch(() => null)
+      const holder = snap?.data()
       log.warn(
-        `[whatsapp] socket leader held by another instance; workers skipped on ${id}`
+        `[whatsapp] socket leader held by another instance; workers skipped on ${id}` +
+          (holder?.instanceId
+            ? ` (holder=${holder.instanceId} expires=${holder.expiresAt ?? '?'})`
+            : '')
       )
     } else {
       log.info(`[whatsapp] socket leader acquired (${id})`)

@@ -31,16 +31,7 @@ for (const signal of ['SIGTERM', 'SIGINT']) {
   })
 }
 
-async function startWhatsAppWorkers() {
-  if (!isWhatsAppRuntime()) return
-
-  const { acquireWaLeadership, startWaLeadershipRenewal } = await import(
-    './whatsapp/wa-leader.js'
-  )
-  if (!(await acquireWaLeadership())) return
-
-  startWaLeadershipRenewal()
-
+async function bootWaWorkers() {
   const { restoreWhatsAppSessions } = await import('../dist/whatsapp/wa-lifecycle.js')
   const { startMessageWorker } = await import('../dist/whatsapp/workers/message-worker.js')
   const { startStatusScheduler } = await import('../dist/whatsapp/workers/status-scheduler.js')
@@ -48,6 +39,27 @@ async function startWhatsAppWorkers() {
   await restoreWhatsAppSessions({ timeoutMs: 60_000 })
   startMessageWorker()
   startStatusScheduler()
+}
+
+let waWorkersBooted = false
+
+async function startWhatsAppWorkers() {
+  if (!isWhatsAppRuntime()) return
+
+  const { acquireWaLeadership, startWaLeadershipRenewal } = await import(
+    './whatsapp/wa-leader.js'
+  )
+  if (!(await acquireWaLeadership())) {
+    if (!waWorkersBooted) {
+      setTimeout(() => void startWhatsAppWorkers(), 20_000)
+    }
+    return
+  }
+
+  if (waWorkersBooted) return
+  waWorkersBooted = true
+  startWaLeadershipRenewal()
+  await bootWaWorkers()
 }
 
 void startWhatsAppWorkers()
