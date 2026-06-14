@@ -12,6 +12,13 @@ async function startWhatsAppWorkers() {
 
   installProcessGuards()
 
+  const { acquireWaLeadership, startWaLeadershipRenewal } = await import(
+    './whatsapp/wa-leader.js'
+  )
+  if (!(await acquireWaLeadership())) return
+
+  startWaLeadershipRenewal()
+
   const { restoreWhatsAppSessions } = await import('../dist/whatsapp/wa-lifecycle.js')
   const { startMessageWorker } = await import('../dist/whatsapp/workers/message-worker.js')
   const { startStatusScheduler } = await import('../dist/whatsapp/workers/status-scheduler.js')
