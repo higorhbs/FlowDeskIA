@@ -195,7 +195,7 @@ Build OK + **502 Cloudflare** = imagem subiu, **Traefik não alcança o processo
 | --- | --- |
 | Build path | `/apps/backend` |
 | Dockerfile | `Dockerfile` |
-| **Porta do container** | **`3001`** (não 9031) |
+| **Porta do container** | **`9031`** |
 | Domínio | `flowdesk.victorsouza.dev` |
 | Volume | `/app/data` (sessões WhatsApp) |
 
@@ -203,12 +203,12 @@ Variáveis obrigatórias no painel **Environment**:
 
 - `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`
 - `FIREBASE_WEB_API_KEY`
-- `HOST=0.0.0.0`, `PORT=3001`
+- `HOST=0.0.0.0`, `PORT=9031`
 - `CORS_ORIGIN=https://flowdesk.ia.br,https://zapflow-higor-2026.web.app`
 - `WEB_ORIGIN=https://flowdesk.ia.br`
 - `ENABLE_WORKERS=true` (se Pi travar, testar `false` só para validar `/health`)
 
-Após deploy: **Open Terminal** no app → `curl -s http://127.0.0.1:3001/health`
+Após deploy: **Open Terminal** no app → `curl -s http://127.0.0.1:9031/health`
 
 - JSON `ok` + 502 externo → corrigir **porta/domínio** no Dokploy ou DNS Cloudflare
 - curl falha → ver **Logs** (container reiniciando / Firebase ausente)
