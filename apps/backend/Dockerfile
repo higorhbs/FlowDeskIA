@@ -23,6 +23,9 @@ ENV NODE_OPTIONS="--max-old-space-size=768"
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @flowdesk/backend... \
     && pnpm --filter @flowdesk/backend run build:docker \
+    && mkdir -p apps/backend/dist/lib \
+    && cp apps/backend/src/lib/*.js apps/backend/dist/lib/ \
+    && test -f apps/backend/dist/lib/log.js \
     && mkdir -p /prod/apps/backend /prod/packages /prod/node_modules \
     && cp -a node_modules/.pnpm /prod/node_modules/ \
     && cp -a packages/. /prod/packages/ \
