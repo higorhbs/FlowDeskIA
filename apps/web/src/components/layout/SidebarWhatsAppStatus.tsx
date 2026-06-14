@@ -5,7 +5,7 @@ import { AppLink as Link } from "@/components/AppLink";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { WifiOff, ChevronRight, Loader2 } from "lucide-react";
 import { businessApi, whatsappApi } from "@/lib/api";
-import { patchWhatsAppStatus } from "@/lib/use-sync-wa-business";
+import { patchWhatsAppStatus, useSyncWhatsAppBusiness } from "@/lib/use-sync-wa-business";
 import { panelHref } from "@/lib/business-nav";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -18,12 +18,12 @@ type Props = {
 export function SidebarWhatsAppStatus({ businessId, isConnected: initialConnected }: Props) {
   const queryClient = useQueryClient();
   const [disconnectConfirm, setDisconnectConfirm] = useState(false);
-  const [isConnected, setIsConnected] = useState(initialConnected);
+  const { connected, isInitialLoading } = useSyncWhatsAppBusiness(businessId);
+  const isConnected = isInitialLoading ? initialConnected : connected;
 
   const disconnectMutation = useMutation({
     mutationFn: () => whatsappApi.disconnect(businessId),
     onSuccess: () => {
-      setIsConnected(false);
       patchWhatsAppStatus(queryClient, businessId, {
         connected: false,
         status: "close",

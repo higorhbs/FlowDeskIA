@@ -37,6 +37,11 @@ function normalizePrivateKey(raw: string | undefined): string | undefined {
   return key.replace(/\\n/g, "\n");
 }
 
+function privateKeyLooksValid(key: string | undefined): boolean {
+  if (!key) return false;
+  return key.includes("BEGIN PRIVATE KEY") && key.includes("END PRIVATE KEY");
+}
+
 type ServiceAccountCreds = {
   projectId: string;
   clientEmail: string;
@@ -81,6 +86,7 @@ function loadServiceAccountFromEnv(): ServiceAccountCreds | null {
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
   const privateKey = normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY);
   if (projectId && clientEmail && privateKey) {
+    if (!privateKeyLooksValid(privateKey)) return null;
     return { projectId, clientEmail, privateKey };
   }
 

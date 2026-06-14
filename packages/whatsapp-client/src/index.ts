@@ -1,3 +1,4 @@
+import { sendButtons as sendWaInteractiveButtons } from "@ryuu-reinzz/button-helper";
 import makeWASocket, {
   DisconnectReason,
   downloadMediaMessage,
@@ -95,6 +96,18 @@ function extractBody(message: proto.IMessage | null | undefined): string {
   const type = getContentType(content);
   if (type === "conversation") return content.conversation?.trim() ?? "";
   if (type === "extendedTextMessage") return content.extendedTextMessage?.text?.trim() ?? "";
+
+  const nativeFlowParams =
+    content.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson;
+  if (nativeFlowParams) {
+    try {
+      const parsed = JSON.parse(nativeFlowParams) as { id?: string; display_text?: string };
+      if (parsed.id?.trim()) return parsed.id.trim();
+      if (parsed.display_text?.trim()) return parsed.display_text.trim();
+    } catch {
+      /* ignore */
+    }
+  }
 
   const text =
     content.conversation ??
@@ -586,19 +599,14 @@ export class WhatsAppClient extends EventEmitter {
     if (!this.sock) throw new Error("Socket not connected");
     const jid = this.resolveSendJid(to);
     await this.ensurePreKeys();
-    const items = buttons.slice(0, 3).map((b) => ({
-      buttonId: b.id,
-      buttonText: { displayText: b.label.slice(0, 20) },
-      type: 1 as const,
-    }));
+    const items = buttons.slice(0, 3);
     if (!items.length) return this.sendText(to, text);
-    const result = await this.sock.sendMessage(jid, {
+    const result = await sendWaInteractiveButtons(this.sock, jid, {
       text,
-      buttons: items,
-      headerType: 1,
-    } as Parameters<WASocket["sendMessage"]>[1]);
+      buttons: items.map((b) => ({ id: b.id, text: b.label.slice(0, 20) })),
+    });
     this.stashSentMessage(result);
-    return result?.key.id ?? undefined;
+    return result?.key?.id ?? undefined;
   }
 
   async sendImage(to: string, imageUrl: string, caption?: string): Promise<string | undefined> {

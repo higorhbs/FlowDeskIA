@@ -9,6 +9,7 @@
     "dev:backend": "pnpm --filter @flowdesk/backend dev",
     "build": "turbo run build",
     "google:oauth-setup": "node scripts/google-oauth-setup.mjs",
+    "verify:auth": "node scripts/verify-auth-setup.mjs",
     "stripe:sync-prices": "node scripts/stripe-sync-prices.mjs",
     "setup:billing-env": "node scripts/setup-billing-env.mjs"
   },

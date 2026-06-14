@@ -191,6 +191,9 @@ importers:
       '@hapi/boom':
         specifier: ^10.0.1
         version: 10.0.1
+      '@ryuu-reinzz/button-helper':
+        specifier: 2.2.5
+        version: 2.2.5
       '@whiskeysockets/baileys':
         specifier: ^6.7.9
         version: 6.17.16(eslint@9.39.4(jiti@2.7.0))(sharp@0.33.5)(typescript@5.9.3)
@@ -1022,6 +1025,9 @@ packages:
         optional: true
       react-redux:
         optional: true
+
+  '@ryuu-reinzz/button-helper@2.2.5':
+    resolution: {integrity: sha512-5hUInctHUONqyOjtCiKIzcene5EbcMKyPALT2x6kug/Z/woR2tG2+neCUNsMoUyRCcCuS5Olajmr+T+yTTtNEw==}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -3684,6 +3690,13 @@ snapshots:
     optionalDependencies:
       react: 19.2.6
       react-redux: 9.3.0(@types/react@19.2.17)(react@19.2.6)(redux@5.0.1)
+
+  '@ryuu-reinzz/button-helper@2.2.5':
+    dependencies:
+      axios: 1.16.1
+    transitivePeerDependencies:
+      - debug
+      - supports-color
 
   '@standard-schema/spec@1.1.0': {}
 
