@@ -62,6 +62,7 @@ export async function backendSendWhatsAppMessage(
   return authFetch(`/chat/whatsapp/messages/${businessId}`, {
     method: "POST",
     body: JSON.stringify(body),
+    timeoutMs: 35_000,
     ...waBase(),
   }) as Promise<WhatsAppSendResult>;
 }

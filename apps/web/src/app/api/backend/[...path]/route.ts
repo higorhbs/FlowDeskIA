@@ -69,6 +69,13 @@ async function proxy(req: NextRequest, path: string[]) {
     });
 
     const bodyBytes = await res.arrayBuffer();
+    if (!res.ok && (res.status === 530 || res.status === 502 || res.status === 503)) {
+      const hint =
+        res.status === 530
+          ? "Servidor WhatsApp inacessível (530). Backend offline ou BACKEND_INTERNAL_URL errado na Vercel."
+          : "Servidor WhatsApp indisponível.";
+      return NextResponse.json({ error: hint }, { status: res.status });
+    }
     return new NextResponse(bodyBytes, {
       status: res.status,
       headers: responseHeaders(res),

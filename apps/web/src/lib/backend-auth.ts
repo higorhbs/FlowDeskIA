@@ -60,9 +60,22 @@ async function parseJson(res: Response): Promise<AuthJson> {
 }
 
 function fail(data: AuthJson, status: number): never {
-  const err = new Error("error" in data && data.error ? data.error : `Erro ${status}`);
+  let message =
+    "error" in data && data.error ? data.error : proxyStatusMessage(status);
+  const err = new Error(message);
   if ("code" in data && data.code) (err as { code?: string }).code = data.code;
   throw err;
+}
+
+function proxyStatusMessage(status: number): string {
+  if (status === 530) {
+    return "Servidor WhatsApp inacessível (530). Backend offline ou BACKEND_INTERNAL_URL errado na Vercel.";
+  }
+  if (status === 502 || status === 503) {
+    return "Servidor WhatsApp indisponível. Tente de novo em instantes.";
+  }
+  if (status === 504) return "Tempo esgotado ao contactar o servidor WhatsApp.";
+  return `Erro ${status}`;
 }
 
 function readVerifiedPayload(data: AuthJson, status: number): VerifiedPayload {

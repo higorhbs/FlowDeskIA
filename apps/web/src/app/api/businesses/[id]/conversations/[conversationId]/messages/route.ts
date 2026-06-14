@@ -3,6 +3,8 @@ import { apiFail, apiOk } from "@/lib/server/api-error";
 import { assertBusinessOwned } from "@/lib/server/services/business-access";
 import { proxyBackendForm, proxyBackendJson } from "@/lib/server/backend-proxy";
 
+export const maxDuration = 60;
+
 type RouteParams = { params: Promise<{ id: string; conversationId: string }> };
 
 export async function POST(req: Request, { params }: RouteParams) {

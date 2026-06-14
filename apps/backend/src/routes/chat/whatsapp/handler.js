@@ -142,13 +142,19 @@ export async function postMessageHandler(c) {
     dest = conv.replyJid?.trim() || conv.customerPhone?.trim() || dest
   }
 
-  const waMessageId = await client.sendText(dest, text)
-  const message = await createMessage(businessId, convId, {
-    role: 'HUMAN',
-    content: text,
-  })
+  try {
+    const waMessageId = await client.sendText(dest, text)
+    const message = await createMessage(businessId, convId, {
+      role: 'HUMAN',
+      content: text,
+    })
 
-  return json(c, 200, { messageId: waMessageId, message })
+    return json(c, 200, { messageId: waMessageId, message })
+  } catch (err) {
+    return json(c, 500, {
+      error: err instanceof Error ? err.message : 'Falha ao enviar mensagem.',
+    })
+  }
 }
 
 async function readUploadFile(file) {
@@ -207,18 +213,24 @@ export async function postMessageMediaHandler(c) {
   const dest = conv.replyJid?.trim() || conv.customerPhone?.trim()
   if (!dest) return json(c, 400, { error: 'Destino da conversa inválido.' })
 
-  const waMessageId = await client.sendChatMedia(dest, mediaUrl, mediaType, caption)
-  const content =
-    caption ||
-    (mediaType === 'image' ? '[imagem]' : mediaType === 'video' ? '[video]' : '[audio]')
-  const message = await createMessage(businessId, conversationId, {
-    role: 'HUMAN',
-    content,
-    mediaUrl,
-    mediaStoragePath,
-    mediaType,
-    waMessageId,
-  })
+  try {
+    const waMessageId = await client.sendChatMedia(dest, mediaUrl, mediaType, caption)
+    const content =
+      caption ||
+      (mediaType === 'image' ? '[imagem]' : mediaType === 'video' ? '[video]' : '[audio]')
+    const message = await createMessage(businessId, conversationId, {
+      role: 'HUMAN',
+      content,
+      mediaUrl,
+      mediaStoragePath,
+      mediaType,
+      waMessageId,
+    })
 
-  return json(c, 200, { messageId: waMessageId, message })
+    return json(c, 200, { messageId: waMessageId, message })
+  } catch (err) {
+    return json(c, 500, {
+      error: err instanceof Error ? err.message : 'Falha ao enviar mídia.',
+    })
+  }
 }

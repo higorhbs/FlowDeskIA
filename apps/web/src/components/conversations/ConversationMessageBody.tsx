@@ -34,7 +34,7 @@ export function ConversationMessageBody({ msg }: { msg: Message }) {
   const isOwn = msg.role !== "CUSTOMER";
   return (
     <>
-      {hasMedia && msg.mediaType === "image" && (
+      {hasMedia && (msg.mediaType === "image" || msg.mediaType === "gif") && (
         <a
           href={resolveChatMediaUrl(msg.mediaUrl)}
           target="_blank"
