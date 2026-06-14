@@ -21,6 +21,8 @@ import type {
 } from "./types.js";
 import {
   assertStoriesPublishQuota,
+  assertLeadFlowMediaQuota,
+  normalizeLeadCaptureFlow,
   STARTER_TRIAL_DAYS,
   monthKey,
   type PlanTier,
@@ -293,7 +295,10 @@ export async function updateBusiness(
   delete patch.id;
   delete patch.tenantId;
   if (patch.leadFlow && typeof patch.leadFlow === "object") {
-    patch.leadFlow = serializeLeadFlowForFirestore(patch.leadFlow as LeadCaptureFlow);
+    const normalized = normalizeLeadCaptureFlow(patch.leadFlow as LeadCaptureFlow);
+    const tenant = await getTenant(tenantId);
+    assertLeadFlowMediaQuota(normalized, (tenant?.plan ?? "STARTER") as PlanTier);
+    patch.leadFlow = serializeLeadFlowForFirestore(normalized);
   }
   if (patch.type && patch.type !== "OTHER") patch.typeLabel = AdminFieldValue.delete();
   else if (typeof patch.typeLabel === "string") patch.typeLabel = patch.typeLabel.trim() || AdminFieldValue.delete();

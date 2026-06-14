@@ -93,6 +93,7 @@ export function leadFlowNodeToResponses(
       text: "",
       imageUrl: node.imageUrl,
       imageStoragePath: node.imageStoragePath,
+      mediaType: node.mediaType ?? "image",
     });
   }
   if (node.buttons.length) {

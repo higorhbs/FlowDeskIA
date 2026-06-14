@@ -1,6 +1,10 @@
 export const LEAD_FLOW_MAX_BUTTONS = 3;
+export const LEAD_FLOW_MEDIA_ACCEPT =
+  "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime";
 export const DEFAULT_LEAD_FLOW_INVALID_REPLY =
   "👇 Responda com o número da opção (ex: *1*, *2* ou *3*) ou toque em um botão 😊";
+
+export type LeadFlowMediaType = "image" | "video" | "gif";
 
 export interface LeadFlowButton {
   id: string;
@@ -13,6 +17,7 @@ export interface LeadFlowNode {
   text: string;
   imageUrl?: string;
   imageStoragePath?: string;
+  mediaType?: LeadFlowMediaType;
   buttons: LeadFlowButton[];
   invalidReply?: string;
 }
@@ -69,14 +74,33 @@ function normalizeLeadFlowNode(raw: Partial<LeadFlowNode>, index: number): LeadF
   const buttons = (raw.buttons ?? []).slice(0, LEAD_FLOW_MAX_BUTTONS).map((btn, btnIndex) =>
     normalizeLeadFlowButton(btn, btnIndex)
   );
+  const imageUrl = raw.imageUrl?.trim() || undefined;
+  const mediaType = normalizeLeadFlowMediaType(raw.mediaType, imageUrl);
   return {
     id,
     text: raw.text?.trim() || "",
-    imageUrl: raw.imageUrl?.trim() || undefined,
+    imageUrl,
     imageStoragePath: raw.imageStoragePath?.trim() || undefined,
+    mediaType,
     invalidReply: raw.invalidReply?.trim() || DEFAULT_LEAD_FLOW_INVALID_REPLY,
     buttons,
   };
+}
+
+function normalizeLeadFlowMediaType(
+  raw: unknown,
+  imageUrl?: string,
+): LeadFlowMediaType | undefined {
+  if (!imageUrl) return undefined;
+  if (raw === "video" || raw === "gif" || raw === "image") return raw;
+  const lower = imageUrl.toLowerCase();
+  if (lower.includes(".gif")) return "gif";
+  if (lower.includes(".mp4") || lower.includes(".mov")) return "video";
+  return "image";
+}
+
+export function countLeadFlowMediaNodes(flow: LeadCaptureFlow): number {
+  return flow.nodes.filter((n) => Boolean(n.imageUrl?.trim())).length;
 }
 
 function normalizeLeadFlowButton(raw: Partial<LeadFlowButton>, index: number): LeadFlowButton {

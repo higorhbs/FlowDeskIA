@@ -60,18 +60,23 @@ async function proxy(req: NextRequest, path: string[]) {
   const hasBody = method !== "GET" && method !== "HEAD";
   const body = hasBody ? await req.arrayBuffer() : undefined;
 
-  const res = await fetch(url, {
-    method,
-    headers: forwardHeaders(req, url),
-    body: body?.byteLength ? body : undefined,
-    cache: "no-store",
-  });
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: forwardHeaders(req, url),
+      body: body?.byteLength ? body : undefined,
+      cache: "no-store",
+    });
 
-  const bodyBytes = await res.arrayBuffer();
-  return new NextResponse(bodyBytes, {
-    status: res.status,
-    headers: responseHeaders(res),
-  });
+    const bodyBytes = await res.arrayBuffer();
+    return new NextResponse(bodyBytes, {
+      status: res.status,
+      headers: responseHeaders(res),
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Backend indisponível";
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
 }
 
 type RouteCtx = { params: Promise<{ path: string[] }> };

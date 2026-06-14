@@ -1,4 +1,5 @@
 import { getIntentKeywordsForType } from "./business-vocabulary.js";
+import { countLeadFlowMediaNodes, type LeadCaptureFlow } from "./lead-flow.js";
 
 // ─── Intent detection keywords ────────────────────────────────────────────────
 
@@ -286,18 +287,21 @@ export const PLAN_LIMITS = {
     catalogItems: 3,
     appointmentsPerMonth: 30,
     scheduledStoriesPerMonth: 5,
+    leadFlowMediaPerFlow: 1,
   },
   PRO: {
     messagesPerMonth: 5000,
     catalogItems: 100,
     appointmentsPerMonth: 500,
     scheduledStoriesPerMonth: 10,
+    leadFlowMediaPerFlow: 5,
   },
   UNLIMITED: {
     messagesPerMonth: Infinity,
     catalogItems: Infinity,
     appointmentsPerMonth: Infinity,
     scheduledStoriesPerMonth: Infinity,
+    leadFlowMediaPerFlow: 10,
   },
 } as const;
 
@@ -314,6 +318,10 @@ export function planMarketingFeatures(plan: PlanTier): string[] {
     l.scheduledStoriesPerMonth === Infinity
       ? "Stories ilimitados"
       : `${formatPlanLimit(l.scheduledStoriesPerMonth)} publicações de stories/mês`;
+  const leadFlowMedia =
+    l.leadFlowMediaPerFlow === 1
+      ? "1 mídia no fluxo guiado (imagem, GIF ou vídeo)"
+      : `${formatPlanLimit(l.leadFlowMediaPerFlow)} mídias no fluxo guiado (imagem, GIF ou vídeo)`;
   return [
     l.messagesPerMonth === Infinity
       ? "Mensagens ilimitadas"
@@ -321,6 +329,7 @@ export function planMarketingFeatures(plan: PlanTier): string[] {
     `${formatPlanLimit(l.catalogItems)} itens no catálogo`,
     `${formatPlanLimit(l.appointmentsPerMonth)} agendamentos/mês`,
     "Vendas guiadas no WhatsApp",
+    leadFlowMedia,
     stories,
   ];
 }
@@ -333,6 +342,29 @@ export function monthKey(ref = new Date()): string {
 
 export function getStoriesPublishedLimit(plan: PlanTier): number {
   return PLAN_LIMITS[plan].scheduledStoriesPerMonth;
+}
+
+export function getLeadFlowMediaLimit(plan: PlanTier): number {
+  return PLAN_LIMITS[plan].leadFlowMediaPerFlow;
+}
+
+export function assertLeadFlowMediaQuota(flow: LeadCaptureFlow, plan: PlanTier): void {
+  const limit = getLeadFlowMediaLimit(plan);
+  const used = countLeadFlowMediaNodes(flow);
+  if (used > limit) {
+    throw new Error(
+      limit === 1
+        ? "Seu plano permite 1 mídia (imagem, GIF ou vídeo) no fluxo guiado."
+        : `Seu plano permite ${limit} mídias no fluxo guiado e você já atingiu o limite.`,
+    );
+  }
+}
+
+export function leadFlowMediaQuotaMessage(plan: PlanTier): string {
+  const limit = getLeadFlowMediaLimit(plan);
+  return limit === 1
+    ? "Seu plano inclui 1 mídia por fluxo (imagem, GIF ou vídeo)."
+    : `Seu plano inclui até ${limit} mídias por fluxo (imagem, GIF ou vídeo).`;
 }
 
 export function assertStoriesPublishQuota(plan: PlanTier, publishedCount: number): void {

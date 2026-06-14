@@ -28,7 +28,7 @@ import { toDataURL } from "qrcode";
 import EventEmitter from "events";
 import { useRemoteAuthState, type WaAuthFileStore } from "./remote-auth-state.js";
 
-export type WhatsAppMediaType = "image" | "video" | "audio";
+export type WhatsAppMediaType = "image" | "video" | "audio" | "gif";
 
 export interface WhatsAppMessage {
   from: string;
@@ -707,6 +707,7 @@ export class WhatsAppClient extends EventEmitter {
     if (!buffer.length) throw new Error("Arquivo de mídia vazio.");
     const headerType = res.headers.get("content-type")?.split(";")[0]?.trim();
     if (mediaType === "video") return { buffer, mimetype: headerType || "video/mp4" };
+    if (mediaType === "gif") return { buffer, mimetype: headerType || "image/gif" };
     if (mediaType === "audio") return { buffer, mimetype: headerType || "audio/ogg" };
     if (headerType?.startsWith("image/")) return { buffer, mimetype: headerType };
     if (mediaUrl.includes(".png")) return { buffer, mimetype: "image/png" };
@@ -735,15 +736,17 @@ export class WhatsAppClient extends EventEmitter {
     const jid = this.resolveSendJid(to);
     const cap = caption?.trim() || undefined;
     const content =
-      mediaType === "image"
-        ? { image: buffer, mimetype, caption: cap }
-        : mediaType === "video"
-          ? { video: buffer, mimetype, caption: cap }
-          : {
-              audio: buffer,
-              mimetype,
-              ptt: mimetype.includes("ogg") || mimetype.includes("opus"),
-            };
+      mediaType === "gif"
+        ? { video: buffer, mimetype: mimetype || "image/gif", gifPlayback: true, caption: cap }
+        : mediaType === "image"
+          ? { image: buffer, mimetype, caption: cap }
+          : mediaType === "video"
+            ? { video: buffer, mimetype, caption: cap }
+            : {
+                audio: buffer,
+                mimetype,
+                ptt: mimetype.includes("ogg") || mimetype.includes("opus"),
+              };
     await this.ensurePreKeys();
     const result = await this.sock.sendMessage(jid, content);
     this.stashSentMessage(result);

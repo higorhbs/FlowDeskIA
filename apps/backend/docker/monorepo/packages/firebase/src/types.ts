@@ -148,7 +148,7 @@ export interface Conversation {
   botFlowState?: { step: string; data: Record<string, string> };
 }
 
-export type MessageMediaType = "image" | "video" | "audio";
+export type MessageMediaType = "image" | "video" | "audio" | "gif";
 
 export interface MessageButton {
   id: string;

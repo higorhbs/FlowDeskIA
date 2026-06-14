@@ -1,10 +1,17 @@
 import {
   createBusiness,
   getBusiness,
+  getTenant,
   hasAdminCredential,
   listBusinesses,
   uploadBusinessMedia,
 } from '@flowdesk/firebase'
+import {
+  assertLeadFlowMediaQuota,
+  countLeadFlowMediaNodes,
+  getLeadFlowMediaLimit,
+  normalizeLeadCaptureFlow,
+} from '@flowdesk/shared'
 import { json, requireBearerUser } from '../../lib/auth-guard.js'
 
 const BUSINESS_TYPES = new Set([
@@ -127,18 +134,46 @@ export async function postLeadFlowMediaHandler(c) {
   const form = await c.req.parseBody()
   const upload = await readUploadFile(form.file)
   if (!upload?.buffer?.length) {
-    return json(c, 400, { error: 'Envie uma imagem.' })
+    return json(c, 400, { error: 'Envie uma imagem, GIF ou vídeo.' })
+  }
+
+  const nodeId = String(form.nodeId ?? '').trim()
+  const flow = normalizeLeadCaptureFlow(ctx.business.leadFlow)
+  const tenant = await getTenant(ctx.business.tenantId)
+  const plan = tenant?.plan ?? 'STARTER'
+  const limit = getLeadFlowMediaLimit(plan)
+  const used = countLeadFlowMediaNodes(flow)
+  const replacing = nodeId && flow.nodes.some((n) => n.id === nodeId && n.imageUrl)
+  if (!replacing && used >= limit) {
+    return json(c, 400, {
+      error:
+        limit === 1
+          ? 'Seu plano permite 1 mídia (imagem, GIF ou vídeo) no fluxo guiado.'
+          : `Seu plano permite ${limit} mídias no fluxo guiado e você já atingiu o limite.`,
+    })
   }
 
   try {
-    const saved = await uploadBusinessMedia(
-      businessId,
-      'flow',
-      upload.buffer,
-      upload.mimetype,
-      'image',
-    )
-    return json(c, 200, saved)
+    const saved = await uploadBusinessMedia(businessId, 'flow', upload.buffer, upload.mimetype)
+    const draft = normalizeLeadCaptureFlow({
+      ...flow,
+      nodes: flow.nodes.map((n) =>
+        n.id === nodeId
+          ? {
+              ...n,
+              imageUrl: saved.mediaUrl,
+              imageStoragePath: saved.mediaStoragePath,
+              mediaType: saved.mediaType === 'video' || saved.mediaType === 'gif' ? saved.mediaType : 'image',
+            }
+          : n,
+      ),
+    })
+    assertLeadFlowMediaQuota(draft, plan)
+    return json(c, 200, {
+      mediaUrl: saved.mediaUrl,
+      mediaStoragePath: saved.mediaStoragePath,
+      mediaType: saved.mediaType === 'video' || saved.mediaType === 'gif' ? saved.mediaType : 'image',
+    })
   } catch (err) {
     return json(c, 400, {
       error: err instanceof Error ? err.message : 'Upload inválido',
