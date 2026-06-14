@@ -1,6 +1,6 @@
 export const LEAD_FLOW_MAX_BUTTONS = 3;
 export const DEFAULT_LEAD_FLOW_INVALID_REPLY =
-  "👇 Por favor, clique em um dos botões abaixo pra continuar 😊";
+  "👇 Responda com o número da opção (ex: *1*, *2* ou *3*) ou toque em um botão 😊";
 
 export interface LeadFlowButton {
   id: string;
@@ -102,11 +102,28 @@ export function resolveLeadFlowButton(
   messageBody: string
 ): LeadFlowButton | null {
   const body = messageBody.trim();
-  if (!body) return null;
+  if (!body || !node.buttons.length) return null;
+
   const byId = node.buttons.find((b) => b.id === body);
   if (byId) return byId;
+
   const lower = body.toLowerCase();
-  return node.buttons.find((b) => b.label.toLowerCase() === lower) ?? null;
+  const byLabel = node.buttons.find((b) => b.label.toLowerCase() === lower);
+  if (byLabel) return byLabel;
+
+  const byPartial = node.buttons.find((b) => {
+    const label = b.label.toLowerCase();
+    return label.includes(lower) || lower.includes(label);
+  });
+  if (byPartial && lower.length >= 2) return byPartial;
+
+  const numMatch = body.match(/^(\d{1,2})[\.\)\s]*$/);
+  if (numMatch) {
+    const n = parseInt(numMatch[1], 10);
+    if (n >= 1 && n <= node.buttons.length) return node.buttons[n - 1] ?? null;
+  }
+
+  return null;
 }
 
 export function isLeadFlowBackCommand(text: string): boolean {
