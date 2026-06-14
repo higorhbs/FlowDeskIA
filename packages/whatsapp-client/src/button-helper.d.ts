@@ -13,4 +13,11 @@ declare module "@ryuu-reinzz/button-helper" {
     },
     options?: Record<string, unknown>,
   ): Promise<WAMessage>;
+
+  export function getButtonType(message: Record<string, unknown>): string | null;
+  export function getButtonArgs(message: Record<string, unknown>): {
+    tag: string;
+    attrs: Record<string, string>;
+    content?: unknown[];
+  };
 }
