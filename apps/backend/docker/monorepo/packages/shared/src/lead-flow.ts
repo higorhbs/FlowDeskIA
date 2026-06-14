@@ -22,6 +22,7 @@ export interface LeadFlowNode {
   mediaType?: LeadFlowMediaType;
   buttons: LeadFlowButton[];
   invalidReply?: string;
+  entryKeywords?: string[];
 }
 
 export interface LeadCaptureFlow {
@@ -86,6 +87,9 @@ function normalizeLeadFlowNode(raw: Partial<LeadFlowNode>, index: number): LeadF
     imageStoragePath: raw.imageStoragePath?.trim() || undefined,
     mediaType,
     invalidReply: raw.invalidReply?.trim() || DEFAULT_LEAD_FLOW_INVALID_REPLY,
+    entryKeywords: (raw.entryKeywords ?? [])
+      .map((k) => k.trim().toLowerCase())
+      .filter(Boolean),
     buttons,
   };
 }
@@ -125,6 +129,15 @@ export function leadFlowTriggerMatch(text: string, keywords: string[]): boolean 
   return keywords.some((kw) => normalized.includes(kw));
 }
 
+export function matchesLeadFlowRestartTrigger(
+  flow: LeadCaptureFlow,
+  messageBody: string,
+  isGreeting = false,
+): boolean {
+  if (flow.startOnGreeting && isGreeting) return true;
+  return leadFlowTriggerMatch(messageBody, flow.triggerKeywords);
+}
+
 export function resolveLeadFlowButton(
   node: LeadFlowNode,
   messageBody: string
@@ -141,9 +154,10 @@ export function resolveLeadFlowButton(
 
   const byPartial = node.buttons.find((b) => {
     const label = b.label.toLowerCase();
-    return label.includes(lower) || lower.includes(label);
+    if (lower.length < 3 || lower.includes(" ")) return false;
+    return label.includes(lower);
   });
-  if (byPartial && lower.length >= 2) return byPartial;
+  if (byPartial) return byPartial;
 
   const numMatch = body.match(/^(\d{1,2})[\.\)\s]*$/);
   if (numMatch) {
@@ -198,8 +212,57 @@ export function findLeadFlowButtonMatch(
   messageBody: string,
 ): { node: LeadFlowNode; button: LeadFlowButton } | null {
   for (const node of flow.nodes) {
-    const button = resolveLeadFlowButton(node, messageBody);
+    const button = resolveLeadFlowButtonExact(node, messageBody);
     if (button) return { node, button };
   }
   return null;
+}
+
+function resolveLeadFlowButtonExact(
+  node: LeadFlowNode,
+  messageBody: string,
+): LeadFlowButton | null {
+  const body = messageBody.trim();
+  if (!body || !node.buttons.length) return null;
+
+  const byId = node.buttons.find((b) => b.id === body);
+  if (byId) return byId;
+
+  const lower = body.toLowerCase();
+  const byLabel = node.buttons.find((b) => b.label.toLowerCase() === lower);
+  if (byLabel) return byLabel;
+
+  const numMatch = body.match(/^(\d{1,2})[\.\)\s]*$/);
+  if (numMatch) {
+    const n = parseInt(numMatch[1], 10);
+    if (n >= 1 && n <= node.buttons.length) return node.buttons[n - 1] ?? null;
+  }
+
+  return null;
+}
+
+export function resolveLeadFlowEntryNode(
+  flow: LeadCaptureFlow,
+  messageBody: string,
+): LeadFlowNode | null {
+  const body = messageBody.trim().toLowerCase();
+  if (!body) return findLeadFlowNode(flow, flow.startNodeId);
+
+  for (const node of flow.nodes) {
+    const keywords = node.entryKeywords ?? [];
+    if (keywords.some((kw) => body === kw || body.includes(kw))) {
+      return node;
+    }
+  }
+
+  for (const node of flow.nodes) {
+    for (const btn of node.buttons) {
+      if (btn.label.toLowerCase() === body && btn.nextNodeId) {
+        const target = findLeadFlowNode(flow, btn.nextNodeId);
+        if (target) return target;
+      }
+    }
+  }
+
+  return findLeadFlowNode(flow, flow.startNodeId);
 }

@@ -46,12 +46,13 @@ import {
 import { createPixCharge, resolveAsaasCredentials } from "./pix.js";
 import {
   isLeadFlowActive,
-  shouldStartLeadFlow,
   startLeadFlow,
   handleLeadFlowMessage,
   leadFlowNodeToResponses,
   getLeadFlowConfig,
   recoverLeadFlowFromButton,
+  restartLeadFlowFromStart,
+  matchesLeadFlowRestartTrigger,
 } from "./lead-flow.js";
 import { addMinutes, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -219,6 +220,24 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
     return sendPresentation(business, conversation, customerName);
   }
 
+  const flowConfig = getLeadFlowConfig(business);
+  const greetingHit = isGreeting(messageBody);
+  if (
+    flowConfig &&
+    matchesLeadFlowRestartTrigger(flowConfig, messageBody, greetingHit)
+  ) {
+    conversationState.delete(sessionKey);
+    return restartLeadFlowFromStart(
+      business,
+      conversation,
+      customerName,
+      sessionKey,
+      conversationState,
+      saveAndReturn,
+      { sendGreeting: flowConfig.startOnGreeting && greetingHit },
+    );
+  }
+
   const state = conversationState.get(sessionKey);
 
   if (!isLeadFlowActive(state)) {
@@ -268,44 +287,6 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
       ]);
       return [{ text: faqHit.answer }];
     }
-  }
-
-  if (!state && isGreeting(messageBody)) {
-    if (shouldStartLeadFlow(business, messageBody, true)) {
-      const out: BotResponse[] = [];
-      const vars = { nome: customerName ?? "cliente", negocio: business.name };
-      if (isGreetingEnabled(business)) {
-        out.push({
-          text: renderTemplate(business.greetingMsg, vars),
-        });
-      }
-      const flow = getLeadFlowConfig(business);
-      const node = flow ? flow.nodes.find((n) => n.id === flow.startNodeId) : null;
-      if (node) {
-        const flowState = {
-          step: "LEAD_FLOW",
-          data: { nodeId: node.id, history: "[]" },
-        };
-        conversationState.set(sessionKey, flowState);
-        void setConversationBotFlowState(business.id, conversation.id, flowState);
-        out.push(...leadFlowNodeToResponses(node, vars));
-      }
-      if (!out.length) return [];
-      await saveAndReturn(business.id, conversation.id, out);
-      return out;
-    }
-    return sendPresentation(business, conversation, customerName);
-  }
-
-  if (!state && shouldStartLeadFlow(business, messageBody, false)) {
-    return startLeadFlow(
-      business,
-      conversation,
-      customerName,
-      sessionKey,
-      conversationState,
-      saveAndReturn,
-    );
   }
 
   const intent = detectIntent(messageBody, business.type);
