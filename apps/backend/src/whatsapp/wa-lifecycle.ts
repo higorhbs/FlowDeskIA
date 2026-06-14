@@ -67,41 +67,44 @@ async function deliverLeadFlowMedia(
   client: WhatsAppClient,
   dest: string,
   resp: BotResponse,
-): Promise<void> {
-  if (!resp.imageUrl) return;
+): Promise<string | undefined> {
+  if (!resp.imageUrl) return undefined;
   const mediaType = resolveLeadFlowDeliveryMediaType(resp);
   const caption = resp.text?.trim() || undefined;
   const local = await downloadBusinessMedia(resp.imageUrl, resp.imageStoragePath);
-  const attempts: Array<() => Promise<unknown>> = [];
+  const attempts: Array<() => Promise<string | undefined>> = [];
 
-  if (local) {
-    attempts.push(() =>
-      mediaType === "image"
-        ? client.sendImageBuffer(dest, local.buffer, local.mimetype, caption)
-        : client.sendChatMediaBuffer(dest, local.buffer, local.mimetype, mediaType, caption),
-    );
-    if (mediaType === "gif") {
+  if (mediaType === "gif") {
+    if (local) {
+      const mime = local.mimetype || "image/gif";
+      attempts.push(() => client.sendImageBuffer(dest, local.buffer, mime, caption));
+      attempts.push(() => client.sendChatMediaBuffer(dest, local.buffer, mime, "gif", caption));
+    }
+    attempts.push(() => client.sendChatMedia(dest, resp.imageUrl!, "gif", caption));
+    attempts.push(() => client.sendImage(dest, resp.imageUrl!, caption));
+  } else {
+    if (local) {
       attempts.push(() =>
-        client.sendChatMediaBuffer(dest, local.buffer, local.mimetype, "gif", caption),
+        mediaType === "image"
+          ? client.sendImageBuffer(dest, local.buffer, local.mimetype, caption)
+          : client.sendChatMediaBuffer(dest, local.buffer, local.mimetype, mediaType, caption),
       );
     }
-  }
-  attempts.push(() =>
-    mediaType === "image"
-      ? client.sendImage(dest, resp.imageUrl!, caption)
-      : client.sendChatMedia(dest, resp.imageUrl!, mediaType, caption),
-  );
-  if (mediaType === "gif") {
-    attempts.push(() => client.sendChatMedia(dest, resp.imageUrl!, "gif", caption));
+    attempts.push(() =>
+      mediaType === "image"
+        ? client.sendImage(dest, resp.imageUrl!, caption)
+        : client.sendChatMedia(dest, resp.imageUrl!, mediaType, caption),
+    );
   }
 
   let lastErr: unknown;
   for (const attempt of attempts) {
     try {
-      await attempt();
-      return;
+      const id = await attempt();
+      if (id) return id;
     } catch (err) {
       lastErr = err;
+      log.warn(`[whatsapp] lead flow media attempt failed type=${mediaType}:`, err);
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error("Falha ao enviar mídia do fluxo guiado.");
@@ -116,28 +119,31 @@ export async function deliverBotResponses(
 ): Promise<void> {
   for (const resp of responses) {
     try {
+      let waMessageId: string | undefined;
       if (resp.imageUrl) {
-        await deliverLeadFlowMedia(client, dest, resp);
+        waMessageId = await deliverLeadFlowMedia(client, dest, resp);
       } else if (resp.buttons?.length) {
-        await client.sendButtons(dest, resp.text, resp.buttons)
+        waMessageId = await client.sendButtons(dest, resp.text, resp.buttons);
       } else if (resp.text?.trim()) {
-        await client.sendText(dest, resp.text)
+        waMessageId = await client.sendText(dest, resp.text);
       }
-      if (conversationId) {
-        await persistBotReplies(businessId, conversationId, [resp])
+      if (conversationId && waMessageId) {
+        await persistBotReplies(businessId, conversationId, [resp]);
       }
     } catch (err) {
-      log.error(`[whatsapp] deliver response failed business=${businessId}:`, err)
-      if (resp.text?.trim()) {
+      log.error(`[whatsapp] deliver response failed business=${businessId}:`, err);
+      if (resp.text?.trim() && !resp.imageUrl) {
         try {
-          await client.sendText(dest, resp.text)
-          if (conversationId) await persistBotReplies(businessId, conversationId, [{ text: resp.text }])
+          const waMessageId = await client.sendText(dest, resp.text);
+          if (conversationId && waMessageId) {
+            await persistBotReplies(businessId, conversationId, [{ text: resp.text }]);
+          }
         } catch (fallbackErr) {
-          log.error(`[whatsapp] text fallback failed business=${businessId}:`, fallbackErr)
+          log.error(`[whatsapp] text fallback failed business=${businessId}:`, fallbackErr);
         }
       }
     }
-    await new Promise((r) => setTimeout(r, 800))
+    await new Promise((r) => setTimeout(r, resp.imageUrl ? 1200 : 800));
   }
 }
 
