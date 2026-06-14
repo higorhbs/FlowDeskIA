@@ -9,7 +9,7 @@ export interface WhatsappInboundPayload {
   messageBody: string;
   replyJid: string;
   mediaUrl?: string;
-  mediaType?: "image" | "video" | "audio";
+  mediaType?: "image" | "video" | "audio" | "gif";
 }
 
 export interface WhatsappJob {

@@ -14,7 +14,9 @@ export async function POST(req: Request, { params }: RouteParams) {
     const incoming = await req.formData();
     const form = new FormData();
     const file = incoming.get("file");
+    const nodeId = incoming.get("nodeId");
     if (file instanceof File) form.append("file", file);
+    if (typeof nodeId === "string" && nodeId.trim()) form.append("nodeId", nodeId.trim());
 
     const saved = await proxyBackendForm(
       `/businesses/${encodeURIComponent(id)}/lead-flow/media`,

@@ -1,13 +1,16 @@
 import { randomUUID } from "crypto";
 import { getStorageBucket } from "./admin.js";
 
-const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const VIDEO_TYPES = new Set(["video/mp4", "video/quicktime"]);
 const MAX_BYTES = 16 * 1024 * 1024;
 
+export type BusinessMediaType = "image" | "video" | "audio" | "gif";
+
 export type BusinessMediaKind = "chat" | "status" | "flow";
 
-function extFor(mimetype: string, mediaType: "image" | "video" | "audio"): string {
+function extFor(mimetype: string, mediaType: BusinessMediaType): string {
+  if (mediaType === "gif") return "gif";
   if (mediaType === "image") {
     if (mimetype === "image/png") return "png";
     if (mimetype === "image/webp") return "webp";
@@ -30,6 +33,7 @@ function mimetypeFromPath(storagePath: string): string {
   const ext = storagePath.split(".").pop()?.toLowerCase() ?? "";
   if (ext === "png") return "image/png";
   if (ext === "webp") return "image/webp";
+  if (ext === "gif") return "image/gif";
   if (ext === "mp4" || ext === "mov") return "video/mp4";
   if (ext === "ogg") return "audio/ogg";
   return "image/jpeg";
@@ -59,13 +63,15 @@ export async function uploadBusinessMedia(
   kind: BusinessMediaKind,
   buffer: Buffer,
   mimetype: string,
-  mediaTypeHint?: "image" | "video" | "audio"
+  mediaTypeHint?: BusinessMediaType
 ) {
   if (buffer.length > MAX_BYTES) throw new Error("Arquivo muito grande (máx. 16 MB).");
 
-  let mediaType: "image" | "video" | "audio";
+  let mediaType: BusinessMediaType;
   if (mediaTypeHint) {
     mediaType = mediaTypeHint;
+  } else if (mimetype === "image/gif") {
+    mediaType = "gif";
   } else if (IMAGE_TYPES.has(mimetype)) {
     mediaType = "image";
   } else if (VIDEO_TYPES.has(mimetype)) {
@@ -73,7 +79,7 @@ export async function uploadBusinessMedia(
   } else if (mimetype.startsWith("audio/")) {
     mediaType = "audio";
   } else {
-    throw new Error("Use imagem (JPEG, PNG, WebP), vídeo MP4 ou áudio.");
+    throw new Error("Use imagem (JPEG, PNG, WebP, GIF), vídeo MP4 ou áudio.");
   }
 
   const fileName = `${randomUUID()}.${extFor(mimetype, mediaType)}`;

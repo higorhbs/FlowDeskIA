@@ -97,7 +97,7 @@ export interface BotContext {
   messageBody: string;
   replyJid?: string;
   mediaUrl?: string;
-  mediaType?: "image" | "video" | "audio";
+  mediaType?: "image" | "video" | "audio" | "gif";
   persistReplies?: boolean;
 }
 
@@ -105,6 +105,7 @@ export interface BotResponse {
   text: string;
   imageUrl?: string;
   imageStoragePath?: string;
+  mediaType?: "image" | "video" | "gif";
   buttons?: { id: string; label: string }[];
 }
 
@@ -1206,7 +1207,13 @@ async function saveAndReturn(
     responses.map((r) => ({
       role: "IA" as const,
       content: r.text,
-      ...(r.imageUrl ? { mediaUrl: r.imageUrl, mediaType: "image" as const } : {}),
+      ...(r.imageUrl
+        ? {
+            mediaUrl: r.imageUrl,
+            mediaType:
+              r.mediaType === "video" || r.mediaType === "gif" ? r.mediaType : ("image" as const),
+          }
+        : {}),
       ...(r.buttons?.length ? { buttons: r.buttons } : {}),
     })),
   );

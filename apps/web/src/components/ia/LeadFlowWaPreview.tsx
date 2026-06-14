@@ -9,6 +9,7 @@ type Props = {
   businessName: string;
   text?: string;
   imageUrl?: string;
+  mediaType?: "image" | "video" | "gif";
   buttons?: Button[];
   className?: string;
 };
@@ -60,10 +61,12 @@ function ReplyIcon() {
 function InteractiveMessage({
   text,
   imageUrl,
+  mediaType = "image",
   buttons = [],
 }: {
   text?: string;
   imageUrl?: string;
+  mediaType?: "image" | "video" | "gif";
   buttons?: Button[];
 }) {
   const hasBody = Boolean(text?.trim());
@@ -82,10 +85,13 @@ function InteractiveMessage({
   return (
     <div className="flex justify-start">
       <div className="max-w-[88%] overflow-hidden rounded-lg rounded-tl-none bg-white shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">
-        {imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={imageUrl} alt="" className="block w-full max-h-[120px] object-cover" />
-        )}
+        {imageUrl &&
+          (mediaType === "video" ? (
+            <video src={imageUrl} className="block w-full max-h-[120px] object-cover" muted playsInline />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageUrl} alt="" className="block w-full max-h-[120px] object-cover" />
+          ))}
         {hasBody && (
           <div className="px-2.5 pt-2 pb-1">
             <WaBody text={text!.trim()} />
@@ -121,6 +127,7 @@ export function LeadFlowWaPreview({
   businessName,
   text,
   imageUrl,
+  mediaType,
   buttons = [],
   className,
 }: Props) {
@@ -210,7 +217,7 @@ export function LeadFlowWaPreview({
                 </div>
               </div>
 
-              <InteractiveMessage text={body} imageUrl={imageUrl} buttons={buttons} />
+              <InteractiveMessage text={body} imageUrl={imageUrl} mediaType={mediaType} buttons={buttons} />
             </div>
 
             <div className="flex items-center gap-1.5 bg-[#F0F2F5] px-2 py-1.5">

@@ -34,3 +34,19 @@ export async function authHealthHandler(c) {
     ...(error ? { error } : {}),
   })
 }
+
+export function billingHealthHandler(c) {
+  const stripeSecretKey = Boolean(process.env.STRIPE_SECRET_KEY?.trim())
+  const prices = {
+    STARTER: Boolean(process.env.STRIPE_PRICE_STARTER?.trim()),
+    PRO: Boolean(process.env.STRIPE_PRICE_PRO?.trim()),
+    UNLIMITED: Boolean(process.env.STRIPE_PRICE_UNLIMITED?.trim()),
+  }
+  const ok = stripeSecretKey && prices.STARTER && prices.PRO && prices.UNLIMITED
+  return c.json({
+    ok,
+    stripeSecretKey,
+    prices,
+    webhookSecret: Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim()),
+  })
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -19,16 +19,22 @@ import {
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
-import { businessApi } from "@/lib/api";
+import { businessApi, tenantApi } from "@/lib/api";
 import { uploadLeadFlowMedia } from "@/lib/web-api/lead-flow";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { AppLink as Link } from "@/components/AppLink";
 import type { LeadCaptureFlow, LeadFlowNode } from "@flowdesk/firebase/client";
+import type { PlanTier } from "@flowdesk/shared";
 import {
   DEFAULT_LEAD_FLOW_INVALID_REPLY,
   LEAD_FLOW_MAX_BUTTONS,
+  LEAD_FLOW_MEDIA_ACCEPT,
+  countLeadFlowMediaNodes,
+  getLeadFlowMediaLimit,
+  leadFlowMediaQuotaMessage,
   newLeadFlowId,
   normalizeLeadCaptureFlow,
 } from "@flowdesk/shared";
@@ -56,6 +62,18 @@ function serializeLeadFlowDraft(flow: LeadCaptureFlow, keywordsDraft: string): s
       triggerKeywords: parseTriggerKeywords(keywordsDraft),
     }),
   );
+}
+
+function mediaNodeLabel(mediaType?: LeadFlowNode["mediaType"]) {
+  if (mediaType === "video") return "Vídeo";
+  if (mediaType === "gif") return "GIF";
+  return "Imagem";
+}
+
+function isAllowedLeadFlowFile(file: File) {
+  if (file.type.startsWith("image/") || file.type.startsWith("video/")) return true;
+  const lower = file.name.toLowerCase();
+  return lower.endsWith(".gif") || lower.endsWith(".mp4") || lower.endsWith(".mov");
 }
 
 function nodeLabel(node: LeadFlowNode, index: number) {
@@ -119,6 +137,15 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
     );
   }, [initialFlow]);
 
+  const { data: tenant } = useQuery({
+    queryKey: ["tenant"],
+    queryFn: () => tenantApi.get(),
+  });
+  const plan = (tenant?.plan ?? "STARTER") as PlanTier;
+  const mediaLimit = getLeadFlowMediaLimit(plan);
+  const mediaUsed = countLeadFlowMediaNodes(flow);
+  const mediaLeft = Math.max(0, mediaLimit - mediaUsed);
+
   const nodeOptions = useMemo(
     () => flow.nodes.map((n, i) => ({ id: n.id, label: nodeLabel(n, i) })),
     [flow.nodes],
@@ -131,7 +158,7 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
         leadFlow: normalizeLeadCaptureFlow({ ...flow, triggerKeywords }),
       } as Record<string, unknown>);
     },
-    onError: () => toast.error("Erro ao salvar"),
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Erro ao salvar"),
   });
 
   useEffect(() => {
@@ -147,20 +174,25 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
 
   const uploadMutation = useMutation({
     mutationFn: ({ nodeId, file }: { nodeId: string; file: File }) =>
-      uploadLeadFlowMedia(businessId, file),
+      uploadLeadFlowMedia(businessId, file, nodeId),
     onSuccess: (saved, { nodeId }) => {
       setFlow((prev) => ({
         ...prev,
         nodes: prev.nodes.map((n) =>
           n.id === nodeId
-            ? { ...n, imageUrl: saved.mediaUrl, imageStoragePath: saved.mediaStoragePath }
+            ? {
+                ...n,
+                imageUrl: saved.mediaUrl,
+                imageStoragePath: saved.mediaStoragePath,
+                mediaType: saved.mediaType,
+              }
             : n,
         ),
       }));
-      toast.success("Imagem enviada!");
+      toast.success(`${mediaNodeLabel(saved.mediaType)} enviado!`);
     },
     onError: (err) =>
-      toast.error(err instanceof Error ? err.message : "Erro ao enviar imagem"),
+      toast.error(err instanceof Error ? err.message : "Erro ao enviar mídia"),
   });
 
   function patchFlow(patch: Partial<LeadCaptureFlow>) {
@@ -220,8 +252,18 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
 
   function onPickFile(nodeId: string, file: File | null) {
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Use JPEG, PNG ou WebP");
+    if (!isAllowedLeadFlowFile(file)) {
+      toast.error("Use JPEG, PNG, WebP, GIF ou MP4");
+      return;
+    }
+    const node = flow.nodes.find((n) => n.id === nodeId);
+    const replacing = Boolean(node?.imageUrl);
+    if (!replacing && mediaLeft <= 0) {
+      toast.error(
+        mediaLimit === 1
+          ? "Seu plano permite 1 mídia no fluxo. Faça upgrade para adicionar mais."
+          : `Seu plano permite ${mediaLimit} mídias no fluxo e você já usou todas.`,
+      );
       return;
     }
     uploadMutation.mutate({ nodeId, file });
@@ -236,7 +278,7 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Vendas guiadas</h2>
             <p className="text-sm text-gray-500 mt-1">
-              Mensagens com botões clicáveis que a IA envia no WhatsApp.
+              Mensagens com botões clicáveis e mídia (imagem, GIF ou vídeo) no WhatsApp.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -248,6 +290,24 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
               onCheckedChange={(enabled) => patchFlow({ enabled })}
             />
           </div>
+        </div>
+
+        <div className="rounded-xl border border-brand-100 bg-brand-50/60 px-4 py-3 text-sm text-gray-700">
+          <p>
+            {leadFlowMediaQuotaMessage(plan)}{" "}
+            <span className="font-semibold text-brand-700">
+              {mediaUsed}/{mediaLimit} em uso
+            </span>
+            {mediaLeft === 0 ? (
+              <>
+                {" "}
+                ·{" "}
+                <Link href="/plan" className="font-semibold text-brand-700 underline-offset-2 hover:underline">
+                  Ver planos
+                </Link>
+              </>
+            ) : null}
+          </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -288,6 +348,7 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
               businessName={businessName}
               text={previewStart?.text}
               imageUrl={previewStart?.imageUrl}
+              mediaType={previewStart?.mediaType}
               buttons={previewStart?.buttons ?? []}
             />
           </div>
@@ -308,6 +369,8 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
 
         {flow.nodes.map((node, index) => {
           const open = openNodeId === node.id;
+          const nodeHasMedia = Boolean(node.imageUrl);
+          const canAddMedia = nodeHasMedia || mediaLeft > 0;
           return (
             <div key={node.id} className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
               <div className="flex items-center gap-1 px-2 py-1">
@@ -399,11 +462,13 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
                   </div>
 
                   <div>
-                    <Label className="text-xs text-gray-500">Imagem (opcional)</Label>
+                    <Label className="text-xs text-gray-500">
+                      Mídia (opcional) — imagem, GIF ou vídeo
+                    </Label>
                     <input
                       ref={fileRef}
                       type="file"
-                      accept="image/jpeg,image/png,image/webp"
+                      accept={LEAD_FLOW_MEDIA_ACCEPT}
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0] ?? null;
@@ -418,8 +483,16 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
                         variant="outline"
                         size="sm"
                         className="rounded-xl"
-                        disabled={uploadMutation.isPending}
+                        disabled={uploadMutation.isPending || !canAddMedia}
                         onClick={() => {
+                          if (!canAddMedia) {
+                            toast.error(
+                              mediaLimit === 1
+                                ? "Seu plano permite 1 mídia no fluxo."
+                                : `Limite de ${mediaLimit} mídias atingido.`,
+                            );
+                            return;
+                          }
                           setUploadNodeId(node.id);
                           fileRef.current?.click();
                         }}
@@ -429,18 +502,34 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
                         ) : (
                           <ImagePlus className="w-4 h-4" />
                         )}
-                        Enviar imagem
+                        {nodeHasMedia ? "Trocar mídia" : "Enviar mídia"}
                       </Button>
                       {node.imageUrl && (
                         <>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={node.imageUrl} alt="" className="h-16 rounded-lg border object-cover" />
+                          {node.mediaType === "video" ? (
+                            <video
+                              src={node.imageUrl}
+                              className="h-16 w-24 rounded-lg border object-cover"
+                              muted
+                              playsInline
+                            />
+                          ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={node.imageUrl} alt="" className="h-16 rounded-lg border object-cover" />
+                          )}
+                          <span className="text-[11px] font-medium text-gray-500">
+                            {mediaNodeLabel(node.mediaType)}
+                          </span>
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon-xs"
                             onClick={() =>
-                              patchNode(node.id, { imageUrl: undefined, imageStoragePath: undefined })
+                              patchNode(node.id, {
+                                imageUrl: undefined,
+                                imageStoragePath: undefined,
+                                mediaType: undefined,
+                              })
                             }
                           >
                             <X className="w-4 h-4" />
@@ -448,6 +537,14 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
                         </>
                       )}
                     </div>
+                    {!canAddMedia && !nodeHasMedia && (
+                      <p className="mt-1 text-[11px] text-amber-700">
+                        Limite do plano atingido.{" "}
+                        <Link href="/plan" className="font-semibold underline-offset-2 hover:underline">
+                          Upgrade
+                        </Link>
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -616,7 +713,7 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
               <LeadFlowHelpItem icon={<GitBranch className="h-4 w-4 text-brand-600" />} title="Exemplo de conversa">
                 Cliente manda <strong className="font-semibold text-gray-800">oi</strong> → IA envia mensagem com
                 botões → cliente clica em <strong className="font-semibold text-gray-800">VER PRODUTOS</strong> →
-                próximo passo com imagem e novo botão → pode encerrar ou seguir ramificando.
+                próximo passo com GIF, imagem ou vídeo e novo botão → pode encerrar ou seguir ramificando.
               </LeadFlowHelpItem>
               <LeadFlowHelpItem icon={<Zap className="h-4 w-4 text-brand-600" />} title="Quando inicia">
                 Na saudação, por palavras-chave (ex.: <em>orçamento, interesse</em>) ou no primeiro contato.
@@ -644,8 +741,8 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
                     ajudar?&quot; — botões: Orçamento · Suporte · Encerrar
                   </li>
                   <li>
-                    <strong className="font-semibold text-gray-800">Passo 2 (Orçamento):</strong> imagem do serviço +
-                    &quot;Veja nossos valores&quot; — botão: Quero contratar
+                    <strong className="font-semibold text-gray-800">Passo 2 (Orçamento):</strong> GIF ou vídeo do
+                    serviço + &quot;Veja nossos valores&quot; — botão: Quero contratar
                   </li>
                   <li>
                     <strong className="font-semibold text-gray-800">Passo 3:</strong> &quot;Perfeito! Um consultor fala
@@ -658,7 +755,7 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
                   <MousePointerClick className="h-3.5 w-3.5" /> Até 3 botões por passo
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <ImagePlus className="h-3.5 w-3.5" /> Imagens no Firebase Storage
+                  <ImagePlus className="h-3.5 w-3.5" /> Imagem, GIF ou vídeo (limite do plano)
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <ArrowLeft className="h-3.5 w-3.5" /> Comando voltar no chat

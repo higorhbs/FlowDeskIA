@@ -85,8 +85,10 @@ function sendBillingError(c, err) {
   const stripeErr = err
   if (stripeErr?.type?.startsWith('Stripe')) {
     console.warn('[billing] stripe error:', stripeErr.message)
-    return json(c, 502, {
+    const status = stripeErr.type === 'StripeAuthenticationError' ? 503 : 400
+    return json(c, status, {
       error: stripeErr.message || 'Stripe recusou a operação. Verifique os preços configurados.',
+      code: stripeErr.code ?? null,
     })
   }
 
@@ -107,13 +109,25 @@ function sendBillingError(c, err) {
 
 function planPriceId(plan) {
   const map = {
-    STARTER: process.env.STRIPE_PRICE_STARTER,
-    PRO: process.env.STRIPE_PRICE_PRO,
-    UNLIMITED: process.env.STRIPE_PRICE_UNLIMITED,
+    STARTER: process.env.STRIPE_PRICE_STARTER?.trim(),
+    PRO: process.env.STRIPE_PRICE_PRO?.trim(),
+    UNLIMITED: process.env.STRIPE_PRICE_UNLIMITED?.trim(),
   }
   const price = map[plan]
-  if (!price) throw new Error(`Preço Stripe não configurado para plano ${plan}`)
+  if (!price) throw new Error(`STRIPE_PRICE_${plan} não configurado no servidor.`)
   return price
+}
+
+async function assertRecurringPrice(stripe, plan) {
+  const priceId = planPriceId(plan)
+  const price = await stripe.prices.retrieve(priceId)
+  if (!price.active) {
+    throw new Error(`Preço Stripe do plano ${plan} está inativo.`)
+  }
+  if (!price.recurring) {
+    throw new Error(`Preço Stripe do plano ${plan} deve ser recorrente (assinatura).`)
+  }
+  return priceId
 }
 
 function planFromPriceId(priceId) {
@@ -280,7 +294,7 @@ export async function billingCheckoutHandler(c) {
     }
 
     const origin = resolveBillingOrigin(c)
-    const priceId = planPriceId(plan)
+    const priceId = await assertRecurringPrice(stripe, plan)
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
@@ -297,7 +311,7 @@ export async function billingCheckoutHandler(c) {
     })
 
     if (!session.url) {
-      return json(c, 502, { error: 'Stripe não retornou URL de checkout.' })
+      return json(c, 500, { error: 'Stripe não retornou URL de checkout.' })
     }
 
     return c.json({ url: session.url })
@@ -325,7 +339,7 @@ export async function billingPortalHandler(c) {
       return_url: `${origin}/plan`,
     })
     if (!portal.url) {
-      return json(c, 502, { error: 'Stripe não retornou URL do portal.' })
+      return json(c, 500, { error: 'Stripe não retornou URL do portal.' })
     }
     return c.json({ url: portal.url })
   } catch (err) {

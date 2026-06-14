@@ -64,11 +64,19 @@ export async function deliverBotResponses(
 ): Promise<void> {
   for (const resp of responses) {
     if (resp.imageUrl) {
+      const mediaType = resp.mediaType ?? 'image'
       const local = await downloadBusinessMedia(resp.imageUrl, resp.imageStoragePath)
+      const caption = resp.text || undefined
       if (local) {
-        await client.sendImageBuffer(dest, local.buffer, local.mimetype, resp.text || undefined)
+        if (mediaType === 'image') {
+          await client.sendImageBuffer(dest, local.buffer, local.mimetype, caption)
+        } else {
+          await client.sendChatMediaBuffer(dest, local.buffer, local.mimetype, mediaType, caption)
+        }
+      } else if (mediaType === 'image') {
+        await client.sendImage(dest, resp.imageUrl, caption)
       } else {
-        await client.sendImage(dest, resp.imageUrl, resp.text || undefined)
+        await client.sendChatMedia(dest, resp.imageUrl, mediaType, caption)
       }
     } else if (resp.buttons?.length) {
       await client.sendButtons(dest, resp.text, resp.buttons)

@@ -343,6 +343,11 @@ export const appointmentApi = {
     ),
 };
 
+function billingApiBase() {
+  if (typeof window === "undefined") return undefined;
+  return window.location.origin;
+}
+
 export const billingApi = {
   checkout: async (plan: "STARTER" | "PRO" | "UNLIMITED") => {
     const directLink = getStripePaymentLink(plan);
@@ -353,7 +358,9 @@ export const billingApi = {
       throw new Error(`Link Stripe do plano ${plan} não configurado.`);
     }
     await authApi.sync();
-    return api.post("/billing/checkout", { plan }).then((r) => r.data as { url?: string });
+    return api
+      .post("/api/billing/checkout", { plan }, { baseURL: billingApiBase() })
+      .then((r) => r.data as { url?: string });
   },
   portal: async () => {
     const portalLink = getStripePortalLink();
@@ -364,14 +371,18 @@ export const billingApi = {
       throw new Error("Portal Stripe não configurado.");
     }
     await authApi.sync();
-    return api.post("/billing/portal").then((r) => r.data as { url?: string });
+    return api
+      .post("/api/billing/portal", undefined, { baseURL: billingApiBase() })
+      .then((r) => r.data as { url?: string });
   },
   sync: async () => {
     if (!hasPublicApi()) {
       return { ok: false as const, planStatus: null, subscriptionStatus: null };
     }
     await authApi.sync();
-    return api.post("/billing/sync").then(
+    return api
+      .post("/api/billing/sync", undefined, { baseURL: billingApiBase() })
+      .then(
       (r) =>
         r.data as {
           ok: boolean;
