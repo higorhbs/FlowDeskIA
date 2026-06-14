@@ -22,7 +22,7 @@ export async function gifToMp4Buffer(gifBuffer: Buffer): Promise<Buffer | null> 
   const input = join(tmpdir(), `fd-gif-${id}.gif`);
   const output = join(tmpdir(), `fd-gif-${id}.mp4`);
   try {
-    await writeFile(input, gifBuffer);
+    await writeFile(input, new Uint8Array(gifBuffer));
     await execFileAsync(
       ffmpegBin,
       [

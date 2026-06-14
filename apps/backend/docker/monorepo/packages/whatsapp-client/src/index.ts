@@ -783,7 +783,11 @@ export class WhatsAppClient extends EventEmitter {
       return result.key.id;
     };
 
-    const urls = [...new Set([opts.mediaUrl, opts.altUrl].filter((u) => u?.trim()))];
+    const urls = [...new Set(
+      [opts.mediaUrl, opts.altUrl]
+        .map((u) => u?.trim())
+        .filter((u): u is string => Boolean(u)),
+    )];
     let lastErr: unknown;
     const buffer = opts.buffer?.length ? opts.buffer : undefined;
     const thumb = buffer ? await gifFirstFrameJpeg(buffer).catch(() => null) : null;
