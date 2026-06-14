@@ -5,15 +5,21 @@ function isLocalDevHost() {
 
 function shouldProxyAuthViaWeb() {
   if (typeof window === "undefined") return false;
-  if (isLocalDevHost()) return false;
   if (process.env.NEXT_PUBLIC_AUTH_VIA_PROXY === "true") return true;
-  const api = process.env.NEXT_PUBLIC_API_URL?.trim() || process.env.NEXT_PUBLIC_BACKEND_URL?.trim();
-  if (!api) return true;
-  try {
-    return new URL(api).host !== window.location.host;
-  } catch {
-    return true;
+  if (process.env.NEXT_PUBLIC_AUTH_VIA_PROXY === "false") return false;
+  if (isLocalDevHost()) {
+    const api =
+      process.env.NEXT_PUBLIC_API_URL?.trim() ||
+      process.env.NEXT_PUBLIC_BACKEND_URL?.trim();
+    if (!api) return false;
+    try {
+      const host = new URL(api).hostname;
+      return host !== "localhost" && host !== "127.0.0.1";
+    } catch {
+      return false;
+    }
   }
+  return true;
 }
 
 export function resolveBackendBaseUrl() {

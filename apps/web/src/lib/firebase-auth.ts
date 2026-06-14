@@ -116,11 +116,14 @@ export function authErrorMessage(err: unknown, fallback: string): string {
     "auth/invalid-email": "E-mail inválido.",
     "auth/email-not-verified": "Confirme seu e-mail antes de acessar o painel.",
     "auth/network-request-failed":
-      "API de autenticação inacessível. Confira se o backend está no ar e NEXT_PUBLIC_BACKEND_URL.",
+      "Firebase bloqueou a sessão. Confira API Key (HTTP referrers) e domínios autorizados: flowdesk.ia.br e localhost. Rode pnpm google:oauth-setup.",
     "permission-denied":
       "Sem permissão no Firestore. Confira as regras e o login.",
   };
   const raw = err instanceof Error ? err.message : fallback;
+  if (/failed to fetch|load failed|networkerror/i.test(raw)) {
+    return "API de autenticação inacessível. Confira BACKEND_INTERNAL_URL na Vercel, redeploy produção, e se o backend responde em /health.";
+  }
   if (raw.toLowerCase().includes("confirme seu e-mail")) {
     return "Confirme seu e-mail antes de acessar o painel.";
   }
