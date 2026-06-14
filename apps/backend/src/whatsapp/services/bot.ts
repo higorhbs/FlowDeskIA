@@ -193,7 +193,6 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
   const sessionKey = `${businessId}:${customerPhone}`;
   lastProcessMeta = null;
 
-  try {
   // Busca negócio com relacionamentos necessários
   const business = await getBusinessForBot(businessId);
 
@@ -421,7 +420,6 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
       await saveAndReturn(business.id, conversation.id, [{ text: fallback }]);
       return [{ text: fallback }];
     }
-  }
   }
 }
 
