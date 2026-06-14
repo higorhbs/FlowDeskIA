@@ -597,25 +597,39 @@ export class WhatsAppClient extends EventEmitter {
     buttons: { id: string; label: string }[],
   ): Promise<string | undefined> {
     if (!this.sock) throw new Error("Socket not connected");
-    const jid = this.resolveSendJid(to);
-    await this.ensurePreKeys();
     const items = buttons.slice(0, 3);
     if (!items.length) return this.sendText(to, text);
+
     const payload = {
       text,
+      footer: "Toque em uma opção",
       buttons: items.map((b) => ({ id: b.id, text: b.label.slice(0, 20) })),
     };
-    try {
-      const audience = this.buildAudienceList([jid]);
-      if (audience.length) await this.assertAudienceSessions(audience, false);
-      const result = await sendWaInteractiveButtons(this.sock, jid, payload);
-      this.stashSentMessage(result);
-      return result?.key?.id ?? undefined;
-    } catch (err) {
-      waLog.warn(`[wa:${this.businessId}] sendButtons failed, falling back to text:`, err);
-      const fallback = `${text}\n\n${items.map((b, i) => `*${i + 1}* — ${b.label}`).join("\n")}`;
-      return this.sendText(to, fallback);
+
+    const targets = new Set<string>();
+    const primary = this.resolveSendJid(to);
+    targets.add(primary);
+    if (isLidUser(primary)) {
+      const phone = this.lidToPhone.get(primary);
+      if (phone) targets.add(phone);
     }
+
+    let lastErr: unknown;
+    for (const jid of targets) {
+      try {
+        await this.ensurePreKeys();
+        const result = await sendWaInteractiveButtons(this.sock, jid, payload);
+        this.stashSentMessage(result);
+        return result?.key?.id ?? undefined;
+      } catch (err) {
+        lastErr = err;
+        waLog.warn(`[wa:${this.businessId}] sendButtons failed jid=${jid}:`, err);
+      }
+    }
+
+    waLog.warn(`[wa:${this.businessId}] sendButtons fallback to text:`, lastErr);
+    const fallback = `${text}\n\n${items.map((b, i) => `*${i + 1}* — ${b.label}`).join("\n")}\n\n_Responda com o número da opção._`;
+    return this.sendText(to, fallback);
   }
 
   async sendImage(to: string, imageUrl: string, caption?: string): Promise<string | undefined> {
