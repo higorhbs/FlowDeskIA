@@ -5,9 +5,11 @@ import {
   isLeadFlowBackCommand,
   isLeadFlowBackIntent,
   leadFlowTriggerMatch,
+  matchesLeadFlowRestartTrigger,
   normalizeLeadCaptureFlow,
   renderTemplate,
   resolveLeadFlowButton,
+  resolveLeadFlowEntryNode,
   type LeadCaptureFlow,
   type LeadFlowButton,
   type LeadFlowNode,
@@ -185,6 +187,43 @@ export async function recoverLeadFlowFromButton(
   return true;
 }
 
+export async function restartLeadFlowFromStart(
+  business: {
+    id: string;
+    name: string;
+    leadFlow?: LeadCaptureFlow | null;
+    greetingEnabled?: boolean;
+    greetingMsg?: string;
+  },
+  conversation: Conversation,
+  customerName: string | undefined,
+  sessionKey: string,
+  conversationState: Map<string, { step: string; data: Record<string, string> }>,
+  saveAndReturn: (businessId: string, conversationId: string, responses: BotResponse[]) => Promise<void>,
+  opts: { sendGreeting?: boolean } = {},
+): Promise<BotResponse[]> {
+  const flow = getLeadFlowConfig(business);
+  if (!flow) return [];
+  await clearFlowState(business.id, conversation.id, sessionKey, conversationState);
+  const start = findLeadFlowNode(flow, flow.startNodeId);
+  if (!start) return [];
+
+  const vars = flowVars(business, customerName);
+  const out: BotResponse[] = [];
+  const greetingOn = business.greetingEnabled !== false;
+  if (opts.sendGreeting && greetingOn && business.greetingMsg?.trim()) {
+    out.push({ text: renderTemplate(business.greetingMsg, vars) });
+  }
+
+  await persistFlowState(business.id, conversation.id, sessionKey, conversationState, leadFlowState(start.id));
+  out.push(...leadFlowNodeToResponses(start, vars));
+  if (!out.length) return [];
+  await saveAndReturn(business.id, conversation.id, out);
+  return out;
+}
+
+export { matchesLeadFlowRestartTrigger };
+
 export async function startLeadFlow(
   business: { id: string; name: string; leadFlow?: LeadCaptureFlow | null },
   conversation: Conversation,
@@ -192,10 +231,11 @@ export async function startLeadFlow(
   sessionKey: string,
   conversationState: Map<string, { step: string; data: Record<string, string> }>,
   saveAndReturn: (businessId: string, conversationId: string, responses: BotResponse[]) => Promise<void>,
+  messageBody = "",
 ): Promise<BotResponse[]> {
   const flow = getLeadFlowConfig(business);
   if (!flow) return [];
-  const node = findLeadFlowNode(flow, flow.startNodeId);
+  const node = resolveLeadFlowEntryNode(flow, messageBody) ?? findLeadFlowNode(flow, flow.startNodeId);
   if (!node) return [];
   await persistFlowState(business.id, conversation.id, sessionKey, conversationState, leadFlowState(node.id));
   return sendLeadFlowNode(business, conversation, node, flowVars(business, customerName), saveAndReturn);
@@ -273,7 +313,30 @@ export async function handleLeadFlowMessage(
   const node = nodeId ? findLeadFlowNode(flow, nodeId) : null;
   if (!node) {
     await clearFlowState(business.id, conversation.id, sessionKey, conversationState);
-    return startLeadFlow(business, conversation, ctx.customerName, sessionKey, conversationState, saveAndReturn);
+    return startLeadFlow(
+      business,
+      conversation,
+      ctx.customerName,
+      sessionKey,
+      conversationState,
+      saveAndReturn,
+      ctx.messageBody,
+    );
+  }
+
+  const body = ctx.messageBody.trim().toLowerCase();
+  for (const target of flow.nodes) {
+    const keywords = target.entryKeywords ?? [];
+    if (!keywords.some((kw) => body === kw || body.includes(kw))) continue;
+    if (target.id === node.id) break;
+    await persistFlowState(
+      business.id,
+      conversation.id,
+      sessionKey,
+      conversationState,
+      leadFlowState(target.id),
+    );
+    return sendLeadFlowNode(business, conversation, target, flowVars(business, ctx.customerName), saveAndReturn);
   }
 
   if (isLeadFlowBackIntent(node, ctx.messageBody, flow)) {

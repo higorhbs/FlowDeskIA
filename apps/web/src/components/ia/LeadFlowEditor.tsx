@@ -361,7 +361,9 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
                 placeholder="interesse, orçamento, informação"
                 className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
               />
-              <p className="mt-1 text-[11px] text-gray-400">Separe as palavras com vírgula</p>
+              <p className="mt-1 text-[11px] text-gray-400">
+                Separe com vírgula. Cliente manda uma dessas palavras → fluxo reinicia do início
+              </p>
             </div>
           </div>
 
@@ -570,6 +572,23 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
                         </Link>
                       </p>
                     )}
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-gray-500">Palavras que abrem este passo</Label>
+                    <input
+                      value={(node.entryKeywords ?? []).join(", ")}
+                      onChange={(e) =>
+                        patchNode(node.id, {
+                          entryKeywords: parseTriggerKeywords(e.target.value),
+                        })
+                      }
+                      placeholder="como funciona, funcionalidades"
+                      className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                    />
+                    <p className="mt-1 text-[11px] text-gray-400">
+                      Cliente digita uma dessas palavras → abre este passo direto
+                    </p>
                   </div>
 
                   <div>
