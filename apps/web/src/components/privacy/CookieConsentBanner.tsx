@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { SwetrixScripts } from "@/components/analytics/SwetrixScripts";
 import { MetaPixelScripts } from "@/components/analytics/MetaPixelScripts";
 import { hasGoogleAdsTag } from "@/lib/google-ads-config";
+import { configureGoogleAdsTag } from "@/lib/google-ads-events";
 import { hasMetaPixel } from "@/lib/meta-pixel-config";
 import { hasSwetrix } from "@/lib/swetrix-config";
 
@@ -23,6 +24,7 @@ function grantGoogleAdsConsent() {
     ad_user_data: "granted",
     ad_personalization: "granted",
   });
+  configureGoogleAdsTag();
 }
 
 function denyGoogleAdsConsent() {

@@ -1,10 +1,8 @@
 import Script from "next/script";
-import { googleAdsId } from "@/lib/google-ads-config";
+import { googleAdsId, hasGoogleAdsTag } from "@/lib/google-ads-config";
 
 export function GoogleAdsTag() {
-  if (!googleAdsId) return null;
-
-  const idJson = JSON.stringify(googleAdsId);
+  if (!hasGoogleAdsTag()) return null;
 
   return (
     <>
@@ -28,7 +26,6 @@ gtag('consent', 'default', {
   ad_personalization: 'denied',
   wait_for_update: 500
 });
-gtag('config', ${idJson});
 `,
         }}
       />
