@@ -19,6 +19,7 @@ import {
   type Conversation,
   clearOutsideHoursNotice,
   tryClaimOutsideHoursNotice,
+  setConversationBotFlowState,
 } from "@flowdesk/firebase";
 import {
   APP_DISPLAY_NAME,
@@ -50,6 +51,7 @@ import {
   handleLeadFlowMessage,
   leadFlowNodeToResponses,
   getLeadFlowConfig,
+  recoverLeadFlowFromButton,
 } from "./lead-flow.js";
 import { addMinutes, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -177,6 +179,10 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   );
   lastProcessMeta = { businessId, conversationId: conversation.id };
 
+  if (!conversationState.has(sessionKey) && conversation.botFlowState?.step === "LEAD_FLOW") {
+    conversationState.set(sessionKey, conversation.botFlowState);
+  }
+
   await createMessage(businessId, conversation.id, {
     role: "CUSTOMER",
     content: messageBody,
@@ -212,6 +218,27 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   }
 
   const state = conversationState.get(sessionKey);
+
+  if (!isLeadFlowActive(state)) {
+    const recovered = await recoverLeadFlowFromButton(
+      ctx,
+      business,
+      conversation,
+      sessionKey,
+      conversationState,
+    );
+    if (recovered) {
+      return handleLeadFlowMessage(
+        ctx,
+        business,
+        conversation,
+        conversationState.get(sessionKey) as { step: "LEAD_FLOW"; data: Record<string, string> },
+        sessionKey,
+        conversationState,
+        saveAndReturn,
+      );
+    }
+  }
 
   if (isLeadFlowActive(state)) {
     if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
@@ -253,10 +280,12 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
       const flow = getLeadFlowConfig(business);
       const node = flow ? flow.nodes.find((n) => n.id === flow.startNodeId) : null;
       if (node) {
-        conversationState.set(sessionKey, {
+        const flowState = {
           step: "LEAD_FLOW",
           data: { nodeId: node.id, history: "[]" },
-        });
+        };
+        conversationState.set(sessionKey, flowState);
+        void setConversationBotFlowState(business.id, conversation.id, flowState);
         out.push(...leadFlowNodeToResponses(node, vars));
       }
       if (!out.length) return [];

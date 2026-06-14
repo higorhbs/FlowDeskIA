@@ -624,6 +624,27 @@ export async function updateConversationStatus(
   return { id: conversationId, businessId, ...snap.data(), status } as Conversation;
 }
 
+export async function setConversationBotFlowState(
+  businessId: string,
+  conversationId: string,
+  state: { step: string; data: Record<string, string> }
+): Promise<void> {
+  await conversationsCol(businessId).doc(conversationId).update({
+    botFlowState: state,
+    lastMessageAt: nowIso(),
+  });
+}
+
+export async function clearConversationBotFlowState(
+  businessId: string,
+  conversationId: string
+): Promise<void> {
+  await conversationsCol(businessId).doc(conversationId).update({
+    botFlowState: AdminFieldValue.delete(),
+    lastMessageAt: nowIso(),
+  });
+}
+
 function botClosedLockRef(businessId: string, customerKey: string) {
   const safe = customerKey.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
   return businessRef(businessId).collection("botLocks").doc(`closed_${safe}`);

@@ -109,6 +109,12 @@ function extractBody(message: proto.IMessage | null | undefined): string {
     }
   }
 
+  const buttonsReply = content.buttonsResponseMessage;
+  if (buttonsReply?.selectedButtonId?.trim()) return buttonsReply.selectedButtonId.trim();
+  if (typeof buttonsReply?.selectedDisplayText === "string" && buttonsReply.selectedDisplayText.trim()) {
+    return buttonsReply.selectedDisplayText.trim();
+  }
+
   const text =
     content.conversation ??
     content.extendedTextMessage?.text ??

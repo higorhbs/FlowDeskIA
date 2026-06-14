@@ -145,6 +145,7 @@ export interface Conversation {
   lastMessageAt: string;
   createdAt: string;
   outsideHoursNoticeAt?: string;
+  botFlowState?: { step: string; data: Record<string, string> };
 }
 
 export type MessageMediaType = "image" | "video" | "audio";
