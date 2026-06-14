@@ -21,7 +21,9 @@ async function startWhatsAppWorkers() {
   startStatusScheduler()
 }
 
-void startWhatsAppWorkers()
+void startWhatsAppWorkers().catch((err) => {
+  log.error('[whatsapp] worker startup failed (API still up):', err)
+})
 
 const retentionRaw = process.env.PRIVACY_RETENTION_INTERVAL_HOURS?.trim()
 const retentionIntervalHours = retentionRaw ? Number(retentionRaw) : 0

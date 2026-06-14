@@ -35,6 +35,7 @@ WORKDIR /app/apps/backend
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=512"
 ENV PORT=3001
+ENV HOST=0.0.0.0
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl tini \
