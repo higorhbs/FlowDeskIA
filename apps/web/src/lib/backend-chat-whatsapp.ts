@@ -1,5 +1,6 @@
 import { authFetch } from "./backend-auth";
 import { getWaApiBaseUrl } from "./backend-url";
+import type { Message } from "@flowdesk/firebase/client";
 
 const waBase = () => ({ baseUrl: getWaApiBaseUrl() });
 
@@ -41,18 +42,9 @@ export async function backendDeleteWhatsAppConnection(
   }) as Promise<{ status: string }>;
 }
 
-export type WhatsAppChatMessage = {
-  id: string;
-  role: "CUSTOMER" | "IA" | "HUMAN" | "BOT";
-  content: string;
-  mediaUrl?: string;
-  mediaType?: "image" | "video" | "audio";
-  createdAt: string;
-};
-
 export type WhatsAppSendResult = {
   messageId: string;
-  message?: WhatsAppChatMessage;
+  message?: Message;
 };
 
 export async function backendSendWhatsAppMessage(
