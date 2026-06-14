@@ -9,6 +9,28 @@ if (isWhatsAppRuntime()) installProcessGuards()
 
 const app = createApp()
 
+let shutdownStarted = false
+
+async function shutdownWhatsAppWorkers(signal) {
+  if (shutdownStarted) return
+  shutdownStarted = true
+  log.info(`[backend] ${signal} — stopping WhatsApp workers`)
+  try {
+    const { releaseWaLeadership } = await import('./whatsapp/wa-leader.js')
+    const { waManager } = await import('./whatsapp/wa-manager.js')
+    await waManager.shutdownAll()
+    await releaseWaLeadership()
+  } catch (err) {
+    log.debug('[backend] WhatsApp shutdown error:', err)
+  }
+}
+
+for (const signal of ['SIGTERM', 'SIGINT']) {
+  process.on(signal, () => {
+    void shutdownWhatsAppWorkers(signal).finally(() => process.exit(0))
+  })
+}
+
 async function startWhatsAppWorkers() {
   if (!isWhatsAppRuntime()) return
 

@@ -199,6 +199,16 @@ export class WhatsAppClient extends EventEmitter {
     }
   }
 
+  async shutdown(): Promise<void> {
+    this.allowReconnect = false;
+    this.cancelScheduledReconnect();
+    this.connecting = false;
+    this.stopSocket();
+    this.sock = null;
+    this.boundSock = null;
+    this.status = "close";
+  }
+
   private stashInMessageStore(key: string, message: proto.IMessage) {
     if (this.messageStore.size >= MESSAGE_STORE_MAX) {
       const first = this.messageStore.keys().next().value;
@@ -990,6 +1000,11 @@ export class WhatsAppManager {
 
   remove(businessId: string) {
     this.clients.delete(businessId);
+  }
+
+  async shutdownAll(): Promise<void> {
+    await Promise.all([...this.clients.values()].map((c) => c.shutdown()));
+    this.clients.clear();
   }
 
   all(): Map<string, WhatsAppClient> {

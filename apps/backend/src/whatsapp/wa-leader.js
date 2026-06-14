@@ -64,3 +64,17 @@ export function startWaLeadershipRenewal() {
       .catch(() => undefined)
   }, RENEW_MS)
 }
+
+export async function releaseWaLeadership() {
+  if (process.env.WA_LEADER_DISABLED === 'true') return
+  const id = instanceId()
+  try {
+    await getDb().runTransaction(async (tx) => {
+      const snap = await tx.get(leaderRef())
+      if (snap.data()?.instanceId === id) tx.delete(leaderRef())
+    })
+    log.info(`[whatsapp] socket leader released (${id})`)
+  } catch (err) {
+    log.debug('[whatsapp] leader release failed:', err)
+  }
+}

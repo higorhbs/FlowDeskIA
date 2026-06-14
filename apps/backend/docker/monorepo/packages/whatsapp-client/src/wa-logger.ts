@@ -10,6 +10,10 @@ function flattenArgs(args: unknown[]): string {
       if (a && typeof a === "object") {
         const o = a as Record<string, unknown>;
         if ("_chains" in o || "currentRatchet" in o || "pendingPreKey" in o) return "SessionEntry";
+        const err = o.err as Record<string, unknown> | undefined;
+        if (err?.type === "MessageCounterError" || err?.type === "SessionError") {
+          return `${String(err.type)} ${String(err.message ?? "")}`;
+        }
         try {
           return JSON.stringify(o);
         } catch {
@@ -23,8 +27,8 @@ function flattenArgs(args: unknown[]): string {
 
 function isExpectedDecryptNoise(args: unknown[]): boolean {
   const text = flattenArgs(args);
+  if (/failed to decrypt/i.test(text)) return true;
   return (
-    (/failed to decrypt/i.test(text) && /@lid|status@broadcast|SenderKeyRecord/i.test(text)) ||
     (/no session record/i.test(text) && /@lid/i.test(text)) ||
     (/stream errored out/i.test(text) && /conflict|replaced/i.test(text)) ||
     SESSION_NOISE.test(text)
