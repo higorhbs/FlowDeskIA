@@ -1,4 +1,4 @@
-import { sendButtons as sendWaInteractiveButtons } from "@ryuu-reinzz/button-helper";
+import { sendNativeButtons } from "./native-buttons.js";
 import makeWASocket, {
   DisconnectReason,
   downloadMediaMessage,
@@ -600,12 +600,6 @@ export class WhatsAppClient extends EventEmitter {
     const items = buttons.slice(0, 3);
     if (!items.length) return this.sendText(to, text);
 
-    const payload = {
-      text,
-      footer: "Toque em uma opção",
-      buttons: items.map((b) => ({ id: b.id, text: b.label.slice(0, 20) })),
-    };
-
     const targets = new Set<string>();
     const primary = this.resolveSendJid(to);
     targets.add(primary);
@@ -618,8 +612,8 @@ export class WhatsAppClient extends EventEmitter {
     for (const jid of targets) {
       try {
         await this.ensurePreKeys();
-        const result = await sendWaInteractiveButtons(this.sock, jid, payload);
-        this.stashSentMessage(result);
+        const result = await sendNativeButtons(this.sock, jid, text, items);
+        this.stashSentMessage(result as WAMessage);
         return result?.key?.id ?? undefined;
       } catch (err) {
         lastErr = err;
