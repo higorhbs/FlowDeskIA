@@ -1,4 +1,6 @@
 export const LEAD_FLOW_MAX_BUTTONS = 3;
+export const LEAD_FLOW_MAX_MEDIA_BYTES = 16 * 1024 * 1024;
+export const LEAD_FLOW_MAX_MEDIA_LABEL = "16 MB";
 export const LEAD_FLOW_MEDIA_ACCEPT =
   "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,.jpg,.jpeg,.png,.webp,.gif,.mp4,.mov";
 export const DEFAULT_LEAD_FLOW_INVALID_REPLY =
