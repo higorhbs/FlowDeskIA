@@ -296,7 +296,16 @@ export class WhatsAppClient extends EventEmitter {
         this.statusChannelReady = false;
         this.audiencePreparedAt = 0;
         const code = (lastDisconnect?.error as Boom)?.output?.statusCode;
-        const shouldReconnect = code !== DisconnectReason.loggedOut && this.allowReconnect;
+        const replaced =
+          code === DisconnectReason.connectionReplaced || code === 440;
+        if (replaced) {
+          this.allowReconnect = false;
+          waLog.warn(
+            `[wa:${this.businessId}] connection replaced — stop reconnect (another instance or phone took session)`
+          );
+        }
+        const shouldReconnect =
+          code !== DisconnectReason.loggedOut && !replaced && this.allowReconnect;
         waLog.info(`[wa:${this.businessId}] disconnected code=${code ?? "-"} reconnect=${shouldReconnect}`);
         this.emit("disconnected", { code, shouldReconnect });
         if (shouldReconnect) {

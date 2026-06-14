@@ -5,12 +5,12 @@ import { log } from './lib/log.js'
 import { installProcessGuards } from './process-guards.js'
 import { isWhatsAppRuntime } from './whatsapp/wa-manager.js'
 
+if (isWhatsAppRuntime()) installProcessGuards()
+
 const app = createApp()
 
 async function startWhatsAppWorkers() {
   if (!isWhatsAppRuntime()) return
-
-  installProcessGuards()
 
   const { acquireWaLeadership, startWaLeadershipRenewal } = await import(
     './whatsapp/wa-leader.js'

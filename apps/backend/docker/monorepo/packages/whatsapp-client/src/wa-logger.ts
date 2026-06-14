@@ -1,7 +1,7 @@
 import pino from "pino";
 
 const SESSION_NOISE =
-  /Bad MAC|Session error|MessageCounterError|Key used already or never filled|Closing session|Decrypted message with closed session|Closing open session|SessionEntry|_chains|currentRatchet|pendingPreKey|baseKey|remoteIdentityKey|baseKeyType/i;
+  /Bad MAC|Session error|MessageCounterError|Key used already or never filled|No matching sessions found for message|Closing session|Decrypted message with closed session|Closing open session|Closing open session in favor|SessionEntry|_chains|currentRatchet|pendingPreKey|baseKey|remoteIdentityKey|baseKeyType|registrationId|ephemeralKeyPair|remoteIdentityKey|stream errored out|conflict|replaced/i;
 
 function flattenArgs(args: unknown[]): string {
   return args
@@ -24,9 +24,9 @@ function flattenArgs(args: unknown[]): string {
 function isExpectedDecryptNoise(args: unknown[]): boolean {
   const text = flattenArgs(args);
   return (
-    (/failed to decrypt/i.test(text) &&
-      (/status@broadcast/i.test(text) || /SenderKeyRecord/i.test(text) || /@lid/i.test(text))) ||
+    (/failed to decrypt/i.test(text) && /@lid|status@broadcast|SenderKeyRecord/i.test(text)) ||
     (/no session record/i.test(text) && /@lid/i.test(text)) ||
+    (/stream errored out/i.test(text) && /conflict|replaced/i.test(text)) ||
     SESSION_NOISE.test(text)
   );
 }
