@@ -1,27 +1,31 @@
 import pino from "pino";
 
 const SESSION_NOISE =
-  /Bad MAC|Session error|Closing session|Decrypted message with closed session|Closing open session|SessionEntry|_chains|currentRatchet|pendingPreKey|baseKey|remoteIdentityKey|baseKeyType/i;
+  /Bad MAC|Session error|MessageCounterError|Key used already or never filled|Closing session|Decrypted message with closed session|Closing open session|SessionEntry|_chains|currentRatchet|pendingPreKey|baseKey|remoteIdentityKey|baseKeyType/i;
 
-function serializeArg(a: unknown): string {
-  if (typeof a === "string") return a;
-  if (a && typeof a === "object") {
-    const o = a as Record<string, unknown>;
-    if ("_chains" in o || "currentRatchet" in o || "pendingPreKey" in o) return "SessionEntry";
-    try {
-      return JSON.stringify(o);
-    } catch {
+function flattenArgs(args: unknown[]): string {
+  return args
+    .map((a) => {
+      if (typeof a === "string") return a;
+      if (a && typeof a === "object") {
+        const o = a as Record<string, unknown>;
+        if ("_chains" in o || "currentRatchet" in o || "pendingPreKey" in o) return "SessionEntry";
+        try {
+          return JSON.stringify(o);
+        } catch {
+          return "";
+        }
+      }
       return "";
-    }
-  }
-  return "";
+    })
+    .join(" ");
 }
 
 function isExpectedDecryptNoise(args: unknown[]): boolean {
-  const text = args.map(serializeArg).join(" ");
+  const text = flattenArgs(args);
   return (
     (/failed to decrypt/i.test(text) &&
-      (/status@broadcast/i.test(text) || /SenderKeyRecord/i.test(text))) ||
+      (/status@broadcast/i.test(text) || /SenderKeyRecord/i.test(text) || /@lid/i.test(text))) ||
     (/no session record/i.test(text) && /@lid/i.test(text)) ||
     SESSION_NOISE.test(text)
   );
@@ -34,7 +38,7 @@ export function createWaLogger() {
   return pino({
     level,
     hooks: {
-      logMethod(args, method, level) {
+      logMethod(args, method) {
         if (isExpectedDecryptNoise(args)) return;
         method.apply(this, args);
       },

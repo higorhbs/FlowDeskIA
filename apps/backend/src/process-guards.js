@@ -1,7 +1,7 @@
 import { log } from './lib/log.js'
 
 const WA_CONSOLE_NOISE =
-  /Bad MAC|Session error|Closing session|Decrypted message with closed session|Closing open session|SessionEntry|_chains|currentRatchet|pendingPreKey/i
+  /Bad MAC|Session error|MessageCounterError|Key used already or never filled|failed to decrypt|Closing session|Decrypted message with closed session|Closing open session|SessionEntry|_chains|currentRatchet|pendingPreKey|@lid/i
 
 function isBaileysTimeout(err) {
   if (!err || typeof err !== 'object') return false
@@ -14,7 +14,12 @@ function isBaileysTimeout(err) {
 function isBaileysSessionNoise(err) {
   const message =
     err instanceof Error ? err.message : String(err?.message ?? err ?? '')
-  return /Bad MAC|Session error|no session record|failed to decrypt/i.test(message)
+  const name = err && typeof err === 'object' ? String(err.name ?? '') : ''
+  return (
+    /Bad MAC|Session error|MessageCounterError|Key used already or never filled|no session record|failed to decrypt/i.test(
+      message
+    ) || name === 'MessageCounterError'
+  )
 }
 
 function shouldMuteConsoleArgs(args) {
