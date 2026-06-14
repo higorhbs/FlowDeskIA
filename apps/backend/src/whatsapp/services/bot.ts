@@ -43,6 +43,14 @@ import {
   PLAN_LIMITS,
 } from "@flowdesk/shared";
 import { createPixCharge, resolveAsaasCredentials } from "./pix.js";
+import {
+  isLeadFlowActive,
+  shouldStartLeadFlow,
+  startLeadFlow,
+  handleLeadFlowMessage,
+  leadFlowNodeToResponses,
+  getLeadFlowConfig,
+} from "./lead-flow.js";
 import { addMinutes, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -93,6 +101,7 @@ export interface BotContext {
 export interface BotResponse {
   text: string;
   imageUrl?: string;
+  buttons?: { id: string; label: string }[];
 }
 
 // Estado simples de conversa por sessão (em memória — para MVP)
@@ -182,6 +191,23 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
 
   const state = conversationState.get(sessionKey);
 
+  if (isLeadFlowActive(state)) {
+    if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
+      conversationState.delete(sessionKey);
+      if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
+      return sendPresentation(business, conversation, customerName);
+    }
+    return handleLeadFlowMessage(
+      ctx,
+      business,
+      conversation,
+      state as { step: "LEAD_FLOW"; data: Record<string, string> },
+      sessionKey,
+      conversationState,
+      saveAndReturn,
+    );
+  }
+
   if (state?.step !== "FAQ_SELECT") {
     const faqHit = matchFaq(messageBody, business.faqs);
     if (faqHit) {
@@ -194,7 +220,39 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   }
 
   if (!state && isGreeting(messageBody)) {
+    if (shouldStartLeadFlow(business, messageBody, true)) {
+      const out: BotResponse[] = [];
+      const vars = { nome: customerName ?? "cliente", negocio: business.name };
+      if (isGreetingEnabled(business)) {
+        out.push({
+          text: renderTemplate(business.greetingMsg, vars),
+        });
+      }
+      const flow = getLeadFlowConfig(business);
+      const node = flow ? flow.nodes.find((n) => n.id === flow.startNodeId) : null;
+      if (node) {
+        conversationState.set(sessionKey, {
+          step: "LEAD_FLOW",
+          data: { nodeId: node.id, history: "[]" },
+        });
+        out.push(...leadFlowNodeToResponses(node, vars));
+      }
+      if (!out.length) return [];
+      await saveAndReturn(business.id, conversation.id, out);
+      return out;
+    }
     return sendPresentation(business, conversation, customerName);
+  }
+
+  if (!state && shouldStartLeadFlow(business, messageBody, false)) {
+    return startLeadFlow(
+      business,
+      conversation,
+      customerName,
+      sessionKey,
+      conversationState,
+      saveAndReturn,
+    );
   }
 
   const intent = detectIntent(messageBody, business.type);
@@ -1089,6 +1147,10 @@ async function saveAndReturn(
   await createMessages(
     businessId,
     conversationId,
-    responses.map((r) => ({ role: "IA", content: r.text })),
+    responses.map((r) => ({
+      role: "IA" as const,
+      content: r.text,
+      ...(r.imageUrl ? { mediaUrl: r.imageUrl, mediaType: "image" as const } : {}),
+    })),
   );
 }

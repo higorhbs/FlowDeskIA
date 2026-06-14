@@ -555,6 +555,29 @@ export class WhatsAppClient extends EventEmitter {
     return result?.key.id ?? undefined;
   }
 
+  async sendButtons(
+    to: string,
+    text: string,
+    buttons: { id: string; label: string }[],
+  ): Promise<string | undefined> {
+    if (!this.sock) throw new Error("Socket not connected");
+    const jid = this.resolveSendJid(to);
+    await this.ensurePreKeys();
+    const items = buttons.slice(0, 3).map((b) => ({
+      buttonId: b.id,
+      buttonText: { displayText: b.label.slice(0, 20) },
+      type: 1 as const,
+    }));
+    if (!items.length) return this.sendText(to, text);
+    const result = await this.sock.sendMessage(jid, {
+      text,
+      buttons: items,
+      headerType: 1,
+    });
+    this.stashSentMessage(result);
+    return result?.key.id ?? undefined;
+  }
+
   async sendImage(to: string, imageUrl: string, caption?: string): Promise<string | undefined> {
     return this.sendChatMedia(to, imageUrl, "image", caption);
   }

@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import {
   MessageSquare, HelpCircle, Plus, Trash2, Loader2, X,
   ChevronUp, ChevronDown, Eye, Save, Pencil, Check,
-  Sparkles, Hash, MessageCircleQuestion, Zap,
+  Sparkles, Hash, MessageCircleQuestion, Zap, GitBranch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import type { BotMenuItemConfig } from "@flowdesk/firebase/client";
 import { buildBotMenuEntries, getBusinessVocabulary, renderTemplate, DEFAULT_THANKS_MSG } from "@flowdesk/shared";
 import { IaIcon } from "@/lib/ia-brand";
 import { usePlanAllowsPix } from "@/lib/use-plan-allows-pix";
+import { LeadFlowEditor } from "@/components/ia/LeadFlowEditor";
 
 const LEGACY_EMOJI: Record<string, string> = {
   APPOINTMENT: "📅",
@@ -90,7 +91,7 @@ const faqSchema = z.object({
 });
 type FAQForm = z.infer<typeof faqSchema>;
 
-type Tab = "menu" | "faqs";
+type Tab = "menu" | "faqs" | "leadflow";
 type PreviewFocus = "greeting" | "menu" | "thanks" | "attendant";
 
 // ── Emoji picker ───────────────────────────────────────────────────────────────
@@ -1482,6 +1483,7 @@ export default function BotPage() {
     ? ([
         { id: "menu" as const, label: "Menu da IA", icon: MessageSquare },
         { id: "faqs" as const, label: "Perguntas & Respostas", icon: HelpCircle },
+        { id: "leadflow" as const, label: "Fluxo conversacional", icon: GitBranch },
       ] as const)
     : [];
 
@@ -1497,6 +1499,7 @@ export default function BotPage() {
 
   const savedMenu = (business as any)?.botMenu as Partial<BotMenuItemConfig>[] | undefined;
   const initialMenu = migrateMenu(savedMenu, business?.type, tenant?.plan);
+  const initialLeadFlow = business?.leadFlow;
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
@@ -1596,6 +1599,12 @@ export default function BotPage() {
         />
       ) : tab === "faqs" && autoReplyEnabled ? (
         <FAQsEditor businessId={businessId} businessType={business?.type} />
+      ) : tab === "leadflow" && autoReplyEnabled ? (
+        <LeadFlowEditor
+          businessId={businessId}
+          businessName={business?.name ?? "Meu Negócio"}
+          initialFlow={initialLeadFlow}
+        />
       ) : null}
     </div>
   );

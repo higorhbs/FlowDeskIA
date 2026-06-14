@@ -1,7 +1,39 @@
 import type { Business, BusinessCreateInput, BusinessType } from "./types.js";
+import { normalizeLeadCaptureFlow, type LeadCaptureFlow } from "@flowdesk/shared";
 
 export function stripUndefined<T extends Record<string, unknown>>(data: T): T {
   return Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined)) as T;
+}
+
+export function serializeLeadFlowForFirestore(flow: LeadCaptureFlow): Record<string, unknown> {
+  const normalized = normalizeLeadCaptureFlow(flow);
+  return {
+    enabled: normalized.enabled,
+    startOnGreeting: normalized.startOnGreeting,
+    triggerKeywords: normalized.triggerKeywords,
+    startNodeId: normalized.startNodeId,
+    nodes: normalized.nodes.map((node) =>
+      stripUndefined({
+        id: node.id,
+        text: node.text,
+        invalidReply: node.invalidReply,
+        imageUrl: node.imageUrl,
+        imageStoragePath: node.imageStoragePath,
+        buttons: node.buttons.map((btn) =>
+          stripUndefined({
+            id: btn.id,
+            label: btn.label,
+            nextNodeId: btn.nextNodeId,
+          }),
+        ),
+      }),
+    ),
+  };
+}
+
+function readLeadFlow(raw: unknown): Business["leadFlow"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  return normalizeLeadCaptureFlow(raw as LeadCaptureFlow);
 }
 
 export function buildBusinessCreateRecord(
@@ -70,6 +102,7 @@ export function normalizeBusiness(id: string, raw: Record<string, unknown>): Bus
       : undefined,
     attendantEnabled: raw.attendantEnabled !== false,
     manualAttendantPrefixEnabled: raw.manualAttendantPrefixEnabled !== false,
+    leadFlow: readLeadFlow(raw.leadFlow),
     isConnected: raw.isConnected === true,
   };
 }

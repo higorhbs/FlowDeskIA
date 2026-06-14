@@ -78,7 +78,9 @@ async function deliverBotReplies(
   const dest = msg.replyJid || msg.from
   for (const resp of responses) {
     if (resp.imageUrl) {
-      await client.sendImage(dest, resp.imageUrl, resp.text)
+      await client.sendImage(dest, resp.imageUrl, resp.text || undefined)
+    } else if (resp.buttons?.length) {
+      await client.sendButtons(dest, resp.text, resp.buttons)
     } else if (resp.text) {
       await client.sendText(dest, resp.text)
     }

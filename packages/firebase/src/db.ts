@@ -25,7 +25,8 @@ import {
   monthKey,
   type PlanTier,
 } from "@flowdesk/shared";
-import { buildBusinessCreateRecord, normalizeBusiness } from "./business-record.js";
+import type { LeadCaptureFlow } from "@flowdesk/shared";
+import { buildBusinessCreateRecord, normalizeBusiness, serializeLeadFlowForFirestore } from "./business-record.js";
 import { getBusinessSchedule, resolveBotOperatingContext } from "./schedule.js";
 import { resolveStoryScheduledAts } from "./schedule-status-dates.js";
 import type { Query, QueryDocumentSnapshot } from "firebase-admin/firestore";
@@ -291,6 +292,9 @@ export async function updateBusiness(
   const patch: Record<string, unknown> = removeUndefined({ ...data, updatedAt: nowIso() });
   delete patch.id;
   delete patch.tenantId;
+  if (patch.leadFlow && typeof patch.leadFlow === "object") {
+    patch.leadFlow = serializeLeadFlowForFirestore(patch.leadFlow as LeadCaptureFlow);
+  }
   if (patch.type && patch.type !== "OTHER") patch.typeLabel = AdminFieldValue.delete();
   else if (typeof patch.typeLabel === "string") patch.typeLabel = patch.typeLabel.trim() || AdminFieldValue.delete();
   await businessRef(id).update(patch);

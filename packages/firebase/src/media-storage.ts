@@ -5,7 +5,7 @@ const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const VIDEO_TYPES = new Set(["video/mp4", "video/quicktime"]);
 const MAX_BYTES = 16 * 1024 * 1024;
 
-export type BusinessMediaKind = "chat" | "status";
+export type BusinessMediaKind = "chat" | "status" | "flow";
 
 function extFor(mimetype: string, mediaType: "image" | "video" | "audio"): string {
   if (mediaType === "image") {
