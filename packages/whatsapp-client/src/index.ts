@@ -167,7 +167,8 @@ export class WhatsAppClient extends EventEmitter {
   private logger = createWaLogger();
   private messageStore = new Map<string, proto.IMessage>();
   private msgRetryCounterCache = new NodeCache({ stdTTL: 600, useClones: false });
-  private seenInboundIds = new NodeCache({ stdTTL: 300, useClones: false });
+  private seenInboundIds = new NodeCache({ stdTTL: 86_400, useClones: false });
+  private liveInboundSinceSec = 0;
   private lidToPhone = new Map<string, string>();
   private replyJidByContact = new Map<string, string>();
   public status: ConnectionStatus = "close";
@@ -206,10 +207,19 @@ export class WhatsAppClient extends EventEmitter {
     this.messageStore.set(key, message);
   }
 
+  private isLiveInbound(msg: WAMessage): boolean {
+    const ts = Number(msg.messageTimestamp) || 0;
+    if (!ts) return false;
+    const liveSince = this.liveInboundSinceSec;
+    if (liveSince > 0 && ts < liveSince - 30) return false;
+    return true;
+  }
+
   private tryEmitInbound(msg: WAMessage) {
     if (msg.key.fromMe) return;
     const rawJid = msg.key.remoteJid ?? "";
     if (!rawJid || shouldSkipJid(rawJid)) return;
+    if (!this.isLiveInbound(msg)) return;
 
     const messageId = msg.key.id ?? "";
     if (messageId && this.seenInboundIds.has(messageId)) return;
@@ -272,6 +282,7 @@ export class WhatsAppClient extends EventEmitter {
       if (connection === "open") {
         this.status = "open";
         this.connectedAt = Date.now();
+        this.liveInboundSinceSec = Math.floor(this.connectedAt / 1000);
         this.lastQrDataUrl = undefined;
         this.connecting = false;
         waLog.info(`[wa:${this.businessId}] connected`);
@@ -299,7 +310,8 @@ export class WhatsAppClient extends EventEmitter {
       }
     });
 
-    this.sock.ev.on("messages.upsert", ({ messages }) => {
+    this.sock.ev.on("messages.upsert", ({ messages, type }) => {
+      if (type && type !== "notify") return;
       for (const msg of messages) {
         const remoteJid = msg.key.remoteJid ?? "";
         if (msg.key.fromMe && msg.message && msg.key.id) {
@@ -310,14 +322,6 @@ export class WhatsAppClient extends EventEmitter {
         }
         if (!remoteJid || shouldSkipJid(remoteJid)) continue;
         this.tryEmitInbound(msg);
-      }
-    });
-
-    this.sock.ev.on("messages.update", (updates) => {
-      for (const { key, update } of updates) {
-        if (!key?.remoteJid || key.fromMe || !update.message) continue;
-        if (shouldSkipJid(key.remoteJid)) continue;
-        this.tryEmitInbound({ key, message: update.message, messageTimestamp: Date.now() / 1000 });
       }
     });
   }

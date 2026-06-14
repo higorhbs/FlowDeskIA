@@ -163,7 +163,11 @@ export async function claimWhatsappInboundJob(workerId: string): Promise<Whatsap
 }
 
 export async function completeWhatsappJob(jobId: string): Promise<void> {
-  await jobsCol().doc(jobId).delete().catch(() => undefined);
+  const now = nowIso();
+  await jobsCol()
+    .doc(jobId)
+    .update({ status: "done", updatedAt: now, lockedBy: FieldValue.delete(), lockedUntil: FieldValue.delete() })
+    .catch(() => undefined);
 }
 
 export async function failWhatsappJob(jobId: string, error: string): Promise<void> {
