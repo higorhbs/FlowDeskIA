@@ -96,6 +96,7 @@ export interface BotContext {
   replyJid?: string;
   mediaUrl?: string;
   mediaType?: "image" | "video" | "audio";
+  persistReplies?: boolean;
 }
 
 export interface BotResponse {
@@ -112,6 +113,23 @@ const conversationState = new Map<
 >();
 const botPausedSessions = new Set<string>();
 const closedNoticeClaims = new Map<string, Promise<boolean>>();
+let deferReplyPersistence = false;
+let lastProcessMeta: { businessId: string; conversationId: string } | null = null;
+
+export function takeLastProcessMeta() {
+  const meta = lastProcessMeta;
+  lastProcessMeta = null;
+  return meta;
+}
+
+export async function persistBotReplies(
+  businessId: string,
+  conversationId: string,
+  responses: BotResponse[],
+): Promise<void> {
+  if (!conversationId || !responses.length) return;
+  await saveAndReturn(businessId, conversationId, responses);
+}
 
 async function claimClosedNotice(businessId: string, customerPhone: string): Promise<boolean> {
   const key = `${businessId}:${customerPhone}`;
@@ -142,7 +160,10 @@ async function replyWhenClosed(
 export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   const { businessId, customerPhone, customerName, messageBody, replyJid, mediaUrl, mediaType } = ctx;
   const sessionKey = `${businessId}:${customerPhone}`;
+  deferReplyPersistence = ctx.persistReplies === false;
+  lastProcessMeta = null;
 
+  try {
   // Busca negócio com relacionamentos necessários
   const business = await getBusinessForBot(businessId);
 
@@ -154,6 +175,7 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
     customerName,
     replyJid
   );
+  lastProcessMeta = { businessId, conversationId: conversation.id };
 
   await createMessage(businessId, conversation.id, {
     role: "CUSTOMER",
@@ -362,6 +384,9 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
       await saveAndReturn(business.id, conversation.id, [{ text: fallback }]);
       return [{ text: fallback }];
     }
+  }
+  } finally {
+    deferReplyPersistence = false;
   }
 }
 
@@ -1144,6 +1169,7 @@ async function saveAndReturn(
   conversationId: string,
   responses: BotResponse[],
 ): Promise<void> {
+  if (deferReplyPersistence) return;
   await createMessages(
     businessId,
     conversationId,

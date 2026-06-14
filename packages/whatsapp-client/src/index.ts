@@ -601,12 +601,21 @@ export class WhatsAppClient extends EventEmitter {
     await this.ensurePreKeys();
     const items = buttons.slice(0, 3);
     if (!items.length) return this.sendText(to, text);
-    const result = await sendWaInteractiveButtons(this.sock, jid, {
+    const payload = {
       text,
       buttons: items.map((b) => ({ id: b.id, text: b.label.slice(0, 20) })),
-    });
-    this.stashSentMessage(result);
-    return result?.key?.id ?? undefined;
+    };
+    try {
+      const audience = this.buildAudienceList([jid]);
+      if (audience.length) await this.assertAudienceSessions(audience, false);
+      const result = await sendWaInteractiveButtons(this.sock, jid, payload);
+      this.stashSentMessage(result);
+      return result?.key?.id ?? undefined;
+    } catch (err) {
+      waLog.warn(`[wa:${this.businessId}] sendButtons failed, falling back to text:`, err);
+      const fallback = `${text}\n\n${items.map((b, i) => `*${i + 1}* — ${b.label}`).join("\n")}`;
+      return this.sendText(to, fallback);
+    }
   }
 
   async sendImage(to: string, imageUrl: string, caption?: string): Promise<string | undefined> {
