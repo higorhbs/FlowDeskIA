@@ -10,11 +10,37 @@ import {
   type LeadFlowNode,
 } from "@flowdesk/shared";
 import type { Conversation } from "@flowdesk/firebase";
+import {
+  clearConversationBotFlowState,
+  setConversationBotFlowState,
+} from "@flowdesk/firebase";
 import type { BotContext, BotResponse } from "./bot.js";
 
 const LEAD_FLOW_AT_START_MSG = "Você já está no início do fluxo.";
 
 type FlowState = { step: "LEAD_FLOW"; data: Record<string, string> };
+type FlowStateMap = Map<string, { step: string; data: Record<string, string> }>;
+
+async function persistFlowState(
+  businessId: string,
+  conversationId: string,
+  sessionKey: string,
+  map: FlowStateMap,
+  state: FlowState,
+) {
+  map.set(sessionKey, state);
+  await setConversationBotFlowState(businessId, conversationId, state);
+}
+
+async function clearFlowState(
+  businessId: string,
+  conversationId: string,
+  sessionKey: string,
+  map: FlowStateMap,
+) {
+  map.delete(sessionKey);
+  await clearConversationBotFlowState(businessId, conversationId).catch(() => undefined);
+}
 
 function parseHistory(raw?: string): string[] {
   if (!raw?.trim()) return [];
@@ -94,6 +120,25 @@ async function sendLeadFlowNode(
   return out;
 }
 
+export async function recoverLeadFlowFromButton(
+  ctx: BotContext,
+  business: { id: string; leadFlow?: LeadCaptureFlow | null },
+  conversation: Conversation,
+  sessionKey: string,
+  conversationState: FlowStateMap,
+): Promise<boolean> {
+  const flow = getLeadFlowConfig(business);
+  if (!flow) return false;
+  const start = findLeadFlowNode(flow, flow.startNodeId);
+  if (!start?.buttons.length) return false;
+  if (!resolveLeadFlowButton(start, ctx.messageBody)) return false;
+  await persistFlowState(business.id, conversation.id, sessionKey, conversationState, {
+    step: "LEAD_FLOW",
+    data: { nodeId: start.id, history: "[]" },
+  });
+  return true;
+}
+
 export async function startLeadFlow(
   business: { id: string; name: string; leadFlow?: LeadCaptureFlow | null },
   conversation: Conversation,
@@ -106,7 +151,7 @@ export async function startLeadFlow(
   if (!flow) return [];
   const node = findLeadFlowNode(flow, flow.startNodeId);
   if (!node) return [];
-  conversationState.set(sessionKey, leadFlowState(node.id));
+  await persistFlowState(business.id, conversation.id, sessionKey, conversationState, leadFlowState(node.id));
   return sendLeadFlowNode(business, conversation, node, flowVars(business, customerName), saveAndReturn);
 }
 
@@ -132,7 +177,7 @@ async function handleLeadFlowBack(
     }
     const start = findLeadFlowNode(flow, flow.startNodeId);
     if (!start) return [];
-    conversationState.set(sessionKey, leadFlowState(start.id));
+    await persistFlowState(business.id, conversation.id, sessionKey, conversationState, leadFlowState(start.id));
     return sendLeadFlowNode(business, conversation, start, vars, saveAndReturn);
   }
 
@@ -140,13 +185,25 @@ async function handleLeadFlowBack(
   const trimmed = history.slice(0, -1);
   const prev = findLeadFlowNode(flow, prevId);
   if (!prev) {
-    conversationState.set(sessionKey, leadFlowState(flow.startNodeId));
+    await persistFlowState(
+      business.id,
+      conversation.id,
+      sessionKey,
+      conversationState,
+      leadFlowState(flow.startNodeId),
+    );
     const start = findLeadFlowNode(flow, flow.startNodeId);
     if (!start) return [];
     return sendLeadFlowNode(business, conversation, start, vars, saveAndReturn);
   }
 
-  conversationState.set(sessionKey, leadFlowState(prev.id, trimmed));
+  await persistFlowState(
+    business.id,
+    conversation.id,
+    sessionKey,
+    conversationState,
+    leadFlowState(prev.id, trimmed),
+  );
   return sendLeadFlowNode(business, conversation, prev, vars, saveAndReturn);
 }
 
@@ -161,14 +218,14 @@ export async function handleLeadFlowMessage(
 ): Promise<BotResponse[]> {
   const flow = getLeadFlowConfig(business);
   if (!flow) {
-    conversationState.delete(sessionKey);
+    await clearFlowState(business.id, conversation.id, sessionKey, conversationState);
     return [];
   }
 
   const nodeId = state.data.nodeId;
   const node = nodeId ? findLeadFlowNode(flow, nodeId) : null;
   if (!node) {
-    conversationState.delete(sessionKey);
+    await clearFlowState(business.id, conversation.id, sessionKey, conversationState);
     return startLeadFlow(business, conversation, ctx.customerName, sessionKey, conversationState, saveAndReturn);
   }
 
@@ -203,18 +260,26 @@ export async function handleLeadFlowMessage(
   }
 
   if (!picked.nextNodeId) {
-    conversationState.delete(sessionKey);
-    return [];
+    await clearFlowState(business.id, conversation.id, sessionKey, conversationState);
+    const text = renderTemplate("Obrigado! Em breve entraremos em contato. 😊", flowVars(business, ctx.customerName));
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
   }
 
   const next = findLeadFlowNode(flow, picked.nextNodeId);
   if (!next) {
-    conversationState.delete(sessionKey);
+    await clearFlowState(business.id, conversation.id, sessionKey, conversationState);
     return [];
   }
 
   const history = parseHistory(state.data.history);
   history.push(node.id);
-  conversationState.set(sessionKey, leadFlowState(next.id, history));
+  await persistFlowState(
+    business.id,
+    conversation.id,
+    sessionKey,
+    conversationState,
+    leadFlowState(next.id, history),
+  );
   return sendLeadFlowNode(business, conversation, next, flowVars(business, ctx.customerName), saveAndReturn);
 }
