@@ -7,6 +7,14 @@ const backendRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const srcRoot = join(backendRoot, "src/whatsapp");
 const distRoot = join(backendRoot, "dist/whatsapp");
 
+function copyLibDeps() {
+  const logSrc = join(backendRoot, "src/lib/log.js");
+  const logDestDir = join(backendRoot, "dist/lib");
+  if (!existsSync(logSrc)) return;
+  mkdirSync(logDestDir, { recursive: true });
+  cpSync(logSrc, join(logDestDir, "log.js"));
+}
+
 function copyJsFiles(srcDir, destDir) {
   if (!existsSync(srcDir)) return;
   mkdirSync(destDir, { recursive: true });
@@ -23,4 +31,5 @@ function copyJsFiles(srcDir, destDir) {
   }
 }
 
+copyLibDeps();
 copyJsFiles(srcRoot, distRoot);
