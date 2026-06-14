@@ -636,6 +636,15 @@ export class WhatsAppClient extends EventEmitter {
     return this.sendChatMedia(to, imageUrl, "image", caption);
   }
 
+  async sendImageBuffer(
+    to: string,
+    buffer: Buffer,
+    mimetype: string,
+    caption?: string,
+  ): Promise<string | undefined> {
+    return this.sendChatMediaBuffer(to, buffer, mimetype, "image", caption);
+  }
+
   private messageForDownload(waMessage: WAMessage): WAMessage {
     const key = waMessage.key;
     if (!key?.id) return waMessage;
@@ -711,9 +720,19 @@ export class WhatsAppClient extends EventEmitter {
     mediaType: WhatsAppMediaType,
     caption?: string
   ): Promise<string | undefined> {
+    const { buffer, mimetype } = await this.loadRemoteMedia(mediaUrl, mediaType);
+    return this.sendChatMediaBuffer(to, buffer, mimetype, mediaType, caption);
+  }
+
+  async sendChatMediaBuffer(
+    to: string,
+    buffer: Buffer,
+    mimetype: string,
+    mediaType: WhatsAppMediaType,
+    caption?: string,
+  ): Promise<string | undefined> {
     if (!this.sock) throw new Error("Socket not connected");
     const jid = this.resolveSendJid(to);
-    const { buffer, mimetype } = await this.loadRemoteMedia(mediaUrl, mediaType);
     const cap = caption?.trim() || undefined;
     const content =
       mediaType === "image"
