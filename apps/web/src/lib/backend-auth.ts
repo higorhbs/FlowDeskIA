@@ -59,7 +59,7 @@ async function parseJson(res: Response): Promise<AuthJson> {
   return (await res.json().catch(() => ({}))) as AuthJson;
 }
 
-function fail(data: AuthJson, status: number) {
+function fail(data: AuthJson, status: number): never {
   const err = new Error("error" in data && data.error ? data.error : `Erro ${status}`);
   if ("code" in data && data.code) (err as { code?: string }).code = data.code;
   throw err;
@@ -75,12 +75,7 @@ function readVerifiedPayload(data: AuthJson, status: number): VerifiedPayload {
       status,
     );
   }
-  const customToken =
-    typeof data.customToken === "string"
-      ? data.customToken.trim()
-      : typeof (data as { token?: string }).token === "string"
-        ? (data as { token: string }).token.trim()
-        : "";
+  const customToken = data.customToken?.trim() ?? "";
   if (!customToken) {
     throw new Error(
       "Backend retornou login sem customToken. Dokploy: FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY + FIREBASE_PROJECT_ID. Redeploy backend.",
