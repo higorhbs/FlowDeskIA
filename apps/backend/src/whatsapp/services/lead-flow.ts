@@ -190,14 +190,14 @@ export async function handleLeadFlowMessage(
   if (!picked) {
     const invalid = node.invalidReply?.trim() || DEFAULT_LEAD_FLOW_INVALID_REPLY;
     const text = renderTemplate(invalid, flowVars(business, ctx.customerName));
-    const vars = flowVars(business, ctx.customerName);
-    const out: BotResponse[] = [{ text }];
-    if (node.buttons.length) {
-      out.push({
-        text: renderTemplate(node.text, vars),
-        buttons: node.buttons.map((b) => ({ id: b.id, label: b.label })),
-      });
-    }
+    const out: BotResponse[] = [
+      {
+        text,
+        ...(node.buttons.length
+          ? { buttons: node.buttons.map((b) => ({ id: b.id, label: b.label })) }
+          : {}),
+      },
+    ];
     await saveAndReturn(business.id, conversation.id, out);
     return out;
   }

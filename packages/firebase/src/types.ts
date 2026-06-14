@@ -149,6 +149,11 @@ export interface Conversation {
 
 export type MessageMediaType = "image" | "video" | "audio";
 
+export interface MessageButton {
+  id: string;
+  label: string;
+}
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -157,6 +162,7 @@ export interface Message {
   mediaUrl?: string;
   mediaStoragePath?: string;
   mediaType?: MessageMediaType;
+  buttons?: MessageButton[];
   waMessageId?: string;
   createdAt: string;
 }

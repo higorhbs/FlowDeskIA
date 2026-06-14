@@ -1151,6 +1151,7 @@ async function saveAndReturn(
       role: "IA" as const,
       content: r.text,
       ...(r.imageUrl ? { mediaUrl: r.imageUrl, mediaType: "image" as const } : {}),
+      ...(r.buttons?.length ? { buttons: r.buttons } : {}),
     })),
   );
 }

@@ -1,6 +1,6 @@
 export const LEAD_FLOW_MAX_BUTTONS = 3;
 export const DEFAULT_LEAD_FLOW_INVALID_REPLY =
-  "👇 Por favor, clique em um dos botões acima pra continuar 😊";
+  "👇 Por favor, clique em um dos botões abaixo pra continuar 😊";
 
 export interface LeadFlowButton {
   id: string;
