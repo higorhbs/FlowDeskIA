@@ -34,7 +34,7 @@ WORKDIR /app/apps/backend
 
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=512"
-ENV PORT=9031
+ENV PORT=3001
 ENV HOST=0.0.0.0
 
 RUN apt-get update \
@@ -50,7 +50,7 @@ COPY --from=builder --chown=flowdesk:flowdesk /prod/packages /app/packages
 COPY --from=builder --chown=flowdesk:flowdesk /prod/node_modules /app/node_modules
 
 USER flowdesk
-EXPOSE 9031
+EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD curl -fsS "http://127.0.0.1:${PORT}/health" || exit 1
