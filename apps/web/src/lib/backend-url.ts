@@ -3,23 +3,25 @@ function isLocalDevHost() {
   return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 }
 
-function shouldProxyAuthViaWeb() {
-  if (typeof window === "undefined") return false;
-  if (process.env.NEXT_PUBLIC_AUTH_VIA_PROXY === "true") return true;
-  if (process.env.NEXT_PUBLIC_AUTH_VIA_PROXY === "false") return false;
-  if (isLocalDevHost()) {
-    const api =
-      process.env.NEXT_PUBLIC_API_URL?.trim() ||
-      process.env.NEXT_PUBLIC_BACKEND_URL?.trim();
-    if (!api) return false;
-    try {
-      const host = new URL(api).hostname;
-      return host !== "localhost" && host !== "127.0.0.1";
-    } catch {
-      return false;
-    }
+function remoteApiInDev() {
+  const api =
+    process.env.NEXT_PUBLIC_API_URL?.trim() ||
+    process.env.NEXT_PUBLIC_BACKEND_URL?.trim();
+  if (!api) return false;
+  try {
+    const host = new URL(api).hostname;
+    return host !== "localhost" && host !== "127.0.0.1";
+  } catch {
+    return false;
   }
-  return false;
+}
+
+export function shouldProxyViaWeb() {
+  if (typeof window === "undefined") return false;
+  if (process.env.NEXT_PUBLIC_API_VIA_PROXY === "true") return true;
+  if (process.env.NEXT_PUBLIC_API_VIA_PROXY === "false") return false;
+  if (isLocalDevHost()) return remoteApiInDev();
+  return true;
 }
 
 export function resolveBackendBaseUrl() {
@@ -47,20 +49,33 @@ export function resolveWaApiBaseUrl() {
 
 let cached: string | undefined;
 let waCached: string | undefined;
+let clientCached: string | undefined;
+
+export function getClientBackendBaseUrl() {
+  if (typeof window === "undefined") return resolveBackendBaseUrl();
+  if (!clientCached) {
+    clientCached = shouldProxyViaWeb()
+      ? `${window.location.origin}/api/backend`
+      : resolveBackendBaseUrl();
+  }
+  return clientCached;
+}
 
 export function getBackendBaseUrl() {
+  if (typeof window !== "undefined") return getClientBackendBaseUrl();
   if (!cached) cached = resolveBackendBaseUrl();
   return cached;
 }
 
 export function getAuthApiBaseUrl() {
-  if (shouldProxyAuthViaWeb()) {
-    return `${window.location.origin}/api/backend`;
-  }
-  return getBackendBaseUrl();
+  return getClientBackendBaseUrl();
 }
 
 export function getWaApiBaseUrl() {
+  if (typeof window !== "undefined") {
+    if (!waCached) waCached = getClientBackendBaseUrl();
+    return waCached;
+  }
   if (!waCached) waCached = resolveWaApiBaseUrl();
   return waCached;
 }

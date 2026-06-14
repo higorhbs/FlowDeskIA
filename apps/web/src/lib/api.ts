@@ -18,7 +18,7 @@ import {
   backendRepostStory,
   type ScheduledStatus,
 } from "./backend-stories-whatsapp";
-import { getBackendBaseUrl } from "./backend-url";
+import { getBackendBaseUrl, getClientBackendBaseUrl } from "./backend-url";
 import { setToken } from "./auth";
 import { getClientAuth } from "@flowdesk/firebase/client";
 import { webApi } from "./web-api";
@@ -43,6 +43,7 @@ export function resolveChatMediaUrl(mediaUrl: string | undefined): string | unde
 }
 
 function resolveApiBaseUrl() {
+  if (typeof window !== "undefined") return getClientBackendBaseUrl();
   const url = process.env.NEXT_PUBLIC_API_URL?.trim();
   const onLocal = isLocalDevHost();
   if (url && !(url.includes("localhost") && !onLocal)) return url.replace(/\/$/, "");
@@ -50,8 +51,7 @@ function resolveApiBaseUrl() {
     return getBackendBaseUrl();
   } catch {
     if (onLocal) return url || "http://localhost:3001";
-    if (typeof window === "undefined") return url || "http://127.0.0.1:3001";
-    throw new Error("URL do backend não configurada para produção.");
+    return url || "http://127.0.0.1:3001";
   }
 }
 
@@ -87,6 +87,7 @@ function getStripePortalLink() {
 
 export const api = axios.create({
   timeout: 90_000,
+  withCredentials: true,
 });
 
 async function ensureTenantRecord(name?: string) {
