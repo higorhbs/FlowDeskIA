@@ -105,8 +105,13 @@ function LeadFlowHelpItem({
   );
 }
 
+function parseLeadFlowSnapshot(snapshot: string): LeadCaptureFlow {
+  return normalizeLeadCaptureFlow(JSON.parse(snapshot) as LeadCaptureFlow);
+}
+
 export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props) {
   const queryClient = useQueryClient();
+  const editorRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const savedSnapshotRef = useRef(
     serializeLeadFlowDraft(
@@ -121,15 +126,17 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
   const [keywordsDraft, setKeywordsDraft] = useState(
     () => normalizeLeadCaptureFlow(initialFlow).triggerKeywords.join(", "),
   );
+  const [editing, setEditing] = useState(false);
 
   const draftSnapshot = useMemo(
     () => serializeLeadFlowDraft(flow, keywordsDraft),
     [flow, keywordsDraft],
   );
-  const debouncedSnapshot = useDebouncedValue(draftSnapshot, 700);
+  const debouncedSnapshot = useDebouncedValue(draftSnapshot, 1500);
   const hasChanges = draftSnapshot !== savedSnapshotRef.current;
 
   useEffect(() => {
+    if (draftSnapshot !== savedSnapshotRef.current) return;
     const normalized = normalizeLeadCaptureFlow(initialFlow);
     setFlow(normalized);
     setKeywordsDraft(normalized.triggerKeywords.join(", "));
@@ -137,7 +144,7 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
       normalized,
       normalized.triggerKeywords.join(", "),
     );
-  }, [initialFlow]);
+  }, [initialFlow, draftSnapshot]);
 
   const { data: tenant } = useQuery({
     queryKey: ["tenant"],
@@ -164,15 +171,19 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
   });
 
   useEffect(() => {
+    if (editing) return;
     if (debouncedSnapshot === savedSnapshotRef.current) return;
     const snapshot = debouncedSnapshot;
     saveMutation.mutate(undefined, {
       onSuccess: () => {
         savedSnapshotRef.current = snapshot;
-        void queryClient.invalidateQueries({ queryKey: ["business", businessId] });
+        const savedFlow = parseLeadFlowSnapshot(snapshot);
+        queryClient.setQueryData(["business", businessId], (prev: Record<string, unknown> | undefined) =>
+          prev ? { ...prev, leadFlow: savedFlow } : prev,
+        );
       },
     });
-  }, [debouncedSnapshot]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [debouncedSnapshot, editing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const uploadMutation = useMutation({
     mutationFn: ({ nodeId, file }: { nodeId: string; file: File }) =>
@@ -278,7 +289,15 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
   const previewStart = flow.nodes.find((n) => n.id === flow.startNodeId) ?? flow.nodes[0];
 
   return (
-    <div className="space-y-6">
+    <div
+      ref={editorRef}
+      className="space-y-6"
+      onFocusCapture={() => setEditing(true)}
+      onBlurCapture={(e) => {
+        const next = e.relatedTarget as Node | null;
+        if (!next || !editorRef.current?.contains(next)) setEditing(false);
+      }}
+    >
       <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -670,6 +689,8 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
           <span>
             {saveMutation.isPending
               ? "Salvando..."
+              : editing
+                ? "Digitando..."
               : hasChanges
                 ? "Alterações pendentes..."
                 : saveMutation.isSuccess

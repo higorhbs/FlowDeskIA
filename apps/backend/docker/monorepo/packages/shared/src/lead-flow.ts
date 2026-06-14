@@ -77,7 +77,8 @@ function normalizeLeadFlowNode(raw: Partial<LeadFlowNode>, index: number): LeadF
     normalizeLeadFlowButton(btn, btnIndex)
   );
   const imageUrl = raw.imageUrl?.trim() || undefined;
-  const mediaType = normalizeLeadFlowMediaType(raw.mediaType, imageUrl);
+  const imageStoragePath = raw.imageStoragePath?.trim() || undefined;
+  const mediaType = normalizeLeadFlowMediaType(raw.mediaType, imageUrl, imageStoragePath);
   return {
     id,
     text: raw.text?.trim() || "",
@@ -92,12 +93,13 @@ function normalizeLeadFlowNode(raw: Partial<LeadFlowNode>, index: number): LeadF
 function normalizeLeadFlowMediaType(
   raw: unknown,
   imageUrl?: string,
+  imageStoragePath?: string,
 ): LeadFlowMediaType | undefined {
   if (!imageUrl) return undefined;
+  const hint = `${imageUrl} ${imageStoragePath ?? ""}`.toLowerCase();
+  if (hint.includes(".gif")) return "gif";
+  if (hint.includes(".mp4") || hint.includes(".mov")) return "video";
   if (raw === "video" || raw === "gif" || raw === "image") return raw;
-  const lower = imageUrl.toLowerCase();
-  if (lower.includes(".gif")) return "gif";
-  if (lower.includes(".mp4") || lower.includes(".mov")) return "video";
   return "image";
 }
 

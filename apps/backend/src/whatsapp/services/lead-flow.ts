@@ -89,17 +89,18 @@ export function leadFlowNodeToResponses(
 ): BotResponse[] {
   const text = renderTemplate(node.text, vars);
   const out: BotResponse[] = [];
+  const hasButtons = node.buttons.length > 0;
   if (node.imageUrl) {
     out.push({
-      text: "",
+      text: text.trim(),
       imageUrl: node.imageUrl,
       imageStoragePath: node.imageStoragePath,
       mediaType: node.mediaType ?? "image",
     });
   }
-  if (node.buttons.length) {
+  if (hasButtons) {
     out.push({
-      text,
+      text: node.imageUrl ? "👇 Toque em uma opção" : text,
       buttons: node.buttons.map((b) => ({ id: b.id, label: b.label })),
     });
   } else if (text.trim()) {
