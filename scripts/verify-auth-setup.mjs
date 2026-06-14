@@ -47,5 +47,6 @@ if (passed < results.length) {
   process.exit(1);
 }
 
-console.log("Backend + proxy ok. Se login ainda falha:");
-console.log("→ Browser key HTTP referrers: pnpm google:oauth-setup (passo 1)\n");
+console.log("Backend + proxy ok. Se login falha:");
+console.log("→ Network: POST /auth/google deve retornar { status, customToken, uid }");
+console.log("→ Se customToken ausente: FIREBASE_PRIVATE_KEY no Dokploy + redeploy backend\n");

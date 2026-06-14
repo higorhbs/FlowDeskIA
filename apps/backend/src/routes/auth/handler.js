@@ -59,6 +59,9 @@ function readCredentials(body) {
 async function issueVerifiedSession(c, uid, profile) {
   await ensureServerTenant(uid, profile)
   const customToken = await getAdminAuth().createCustomToken(uid)
+  if (!customToken?.trim()) {
+    throw new Error('Falha ao gerar customToken Firebase.')
+  }
   return { status: 'VERIFIED', customToken, uid }
 }
 

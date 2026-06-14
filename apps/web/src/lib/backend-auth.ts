@@ -65,6 +65,30 @@ function fail(data: AuthJson, status: number) {
   throw err;
 }
 
+function readVerifiedPayload(data: AuthJson, status: number): VerifiedPayload {
+  if (!("status" in data) || data.status !== "VERIFIED") {
+    fail(
+      {
+        error:
+          "Resposta de login inválida (sem customToken). Confira FIREBASE_PRIVATE_KEY no backend e redeploy.",
+      },
+      status,
+    );
+  }
+  const customToken =
+    typeof data.customToken === "string"
+      ? data.customToken.trim()
+      : typeof (data as { token?: string }).token === "string"
+        ? (data as { token: string }).token.trim()
+        : "";
+  if (!customToken) {
+    throw new Error(
+      "Backend retornou login sem customToken. Dokploy: FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY + FIREBASE_PROJECT_ID. Redeploy backend.",
+    );
+  }
+  return { status: "VERIFIED", customToken, uid: data.uid };
+}
+
 export async function backendRegister(name: string, email: string, password: string) {
   const res = await fetch(`${getAuthApiBaseUrl()}/register`, {
     method: "POST",
@@ -89,7 +113,7 @@ export async function backendLogin(email: string, password: string) {
     return data;
   }
   if (!res.ok) fail(data, res.status);
-  return data as VerifiedPayload;
+  return readVerifiedPayload(data, res.status);
 }
 
 export async function backendGoogle(accessToken: string) {
@@ -101,7 +125,7 @@ export async function backendGoogle(accessToken: string) {
   });
   const data = await parseJson(res);
   if (!res.ok) fail(data, res.status);
-  return data as VerifiedPayload;
+  return readVerifiedPayload(data, res.status);
 }
 
 export async function backendResendVerification(email: string, password: string) {
@@ -124,7 +148,7 @@ export async function backendConfirmVerification(email: string, password: string
   });
   const data = await parseJson(res);
   if (!res.ok) fail(data, res.status);
-  return data as VerifiedPayload;
+  return readVerifiedPayload(data, res.status);
 }
 
 export async function backendResendVerificationSession(idToken: string) {
@@ -145,7 +169,7 @@ export async function backendConfirmVerificationSession(idToken: string) {
   });
   const data = await parseJson(res);
   if (!res.ok) fail(data, res.status);
-  return data as VerifiedPayload;
+  return readVerifiedPayload(data, res.status);
 }
 
 export async function backendUpdateProfileName(name: string) {
