@@ -1,16 +1,16 @@
 function isLocalDevHost() {
-  if (typeof window === "undefined") return false;
+  if (typeof window === "undefined") return process.env.NODE_ENV !== "production";
   return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 }
 
-export function resolveBackendBaseUrl() {
-  const onLocal = isLocalDevHost();
-  const dedicated = process.env.NEXT_PUBLIC_BACKEND_URL?.trim();
+const LOCAL_BACKEND = "http://localhost:3001";
 
-  if (onLocal) {
-    return (dedicated || "http://localhost:3001").replace(/\/$/, "");
+export function resolveBackendBaseUrl() {
+  if (isLocalDevHost()) {
+    return LOCAL_BACKEND;
   }
 
+  const dedicated = process.env.NEXT_PUBLIC_BACKEND_URL?.trim();
   if (dedicated) return dedicated.replace(/\/$/, "");
 
   const api = process.env.NEXT_PUBLIC_API_URL?.trim();
@@ -21,6 +21,9 @@ export function resolveBackendBaseUrl() {
 }
 
 export function resolveWaApiBaseUrl() {
+  if (isLocalDevHost()) {
+    return LOCAL_BACKEND;
+  }
   const wa = process.env.NEXT_PUBLIC_WA_API_URL?.trim();
   if (wa) return wa.replace(/\/$/, "");
   return resolveBackendBaseUrl();
