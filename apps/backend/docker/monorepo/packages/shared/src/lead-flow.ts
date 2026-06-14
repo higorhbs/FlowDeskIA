@@ -1,6 +1,6 @@
 export const LEAD_FLOW_MAX_BUTTONS = 3;
 export const LEAD_FLOW_MEDIA_ACCEPT =
-  "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime";
+  "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,.jpg,.jpeg,.png,.webp,.gif,.mp4,.mov";
 export const DEFAULT_LEAD_FLOW_INVALID_REPLY =
   "👇 Responda com o número da opção (ex: *1*, *2* ou *3*) ou toque em um botão 😊";
 
