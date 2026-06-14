@@ -37,7 +37,7 @@ ENV NODE_OPTIONS="--max-old-space-size=512"
 ENV PORT=3001
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl tini \
+    && apt-get install -y --no-install-recommends curl tini ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system --gid 1001 flowdesk \
     && useradd --system --uid 1001 --gid flowdesk flowdesk \

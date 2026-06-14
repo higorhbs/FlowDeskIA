@@ -22,6 +22,7 @@ export type { WaAuthFileStore } from "./remote-auth-state.js";
 import NodeCache from "@cacheable/node-cache";
 import { Boom } from "@hapi/boom";
 import sharp from "sharp";
+import { gifFirstFrameJpeg, gifToMp4Buffer } from "./gif-media.js";
 import { createWaLogger } from "./wa-logger.js";
 import { waLog } from "./wa-app-log.js";
 import { toDataURL } from "qrcode";
@@ -739,50 +740,43 @@ export class WhatsAppClient extends EventEmitter {
     await this.ensurePreKeys();
 
     if (mediaType === "gif") {
-      const mime = mimetype || "image/gif";
       let lastErr: unknown;
-      try {
-        const imageResult = await this.sock.sendMessage(jid, {
-          image: buffer,
-          mimetype: mime,
-          caption: cap,
-        });
-        if (imageResult?.key?.id) {
-          this.stashSentMessage(imageResult);
-          return imageResult.key.id;
+      const thumb = await gifFirstFrameJpeg(buffer).catch(() => null);
+      const thumbB64 = thumb?.length ? thumb.toString("base64") : undefined;
+      const mp4 = await gifToMp4Buffer(buffer);
+      if (mp4) {
+        try {
+          const mp4Result = await this.sock.sendMessage(jid, {
+            video: mp4,
+            mimetype: "video/mp4",
+            gifPlayback: true,
+            caption: cap,
+            jpegThumbnail: thumbB64,
+          });
+          if (mp4Result?.key?.id) {
+            this.stashSentMessage(mp4Result);
+            return mp4Result.key.id;
+          }
+        } catch (err) {
+          lastErr = err;
         }
-      } catch (err) {
-        lastErr = err;
       }
-      try {
-        const gifResult = await this.sock.sendMessage(jid, {
-          video: buffer,
-          mimetype: mime,
-          gifPlayback: true,
-          caption: cap,
-        });
-        if (gifResult?.key?.id) {
-          this.stashSentMessage(gifResult);
-          return gifResult.key.id;
+      if (thumb) {
+        try {
+          const imageResult = await this.sock.sendMessage(jid, {
+            image: thumb,
+            mimetype: "image/jpeg",
+            caption: cap,
+          });
+          if (imageResult?.key?.id) {
+            this.stashSentMessage(imageResult);
+            return imageResult.key.id;
+          }
+        } catch (err) {
+          lastErr = err;
         }
-      } catch (err) {
-        lastErr = err;
       }
-      try {
-        const mp4Result = await this.sock.sendMessage(jid, {
-          video: buffer,
-          mimetype: "video/mp4",
-          gifPlayback: true,
-          caption: cap,
-        });
-        if (mp4Result?.key?.id) {
-          this.stashSentMessage(mp4Result);
-          return mp4Result.key.id;
-        }
-      } catch (err) {
-        lastErr = err;
-      }
-      throw lastErr instanceof Error ? lastErr : new Error("Falha ao enviar GIF.");
+      throw lastErr instanceof Error ? lastErr : new Error("Falha ao enviar GIF (instale ffmpeg no servidor).");
     }
 
     const content =
