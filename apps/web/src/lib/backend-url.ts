@@ -19,7 +19,7 @@ function shouldProxyAuthViaWeb() {
       return false;
     }
   }
-  return true;
+  return false;
 }
 
 export function resolveBackendBaseUrl() {

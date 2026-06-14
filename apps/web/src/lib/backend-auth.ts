@@ -78,8 +78,9 @@ function readVerifiedPayload(data: AuthJson, status: number): VerifiedPayload {
   const payload = data as VerifiedPayload & { token?: string };
   const customToken = payload.customToken?.trim() || payload.token?.trim() || "";
   if (!customToken) {
+    const keys = Object.keys(data as object).join(", ") || "(vazio)";
     throw new Error(
-      "Backend retornou login sem customToken. Rode: curl https://flowdesk.victorsouza.dev/health/auth — Dokploy: FIREBASE_PRIVATE_KEY em uma linha com \\n, redeploy backend.",
+      `Backend retornou login sem customToken (campos: ${keys}). Confira rede: login deve ir direto para NEXT_PUBLIC_BACKEND_URL, não proxy Vercel.`,
     );
   }
   return { status: "VERIFIED", customToken, uid: payload.uid };

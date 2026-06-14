@@ -13,7 +13,10 @@ const HOP_BY_HOP = new Set([
   "upgrade",
   "host",
   "content-length",
+  "content-encoding",
 ]);
+
+export const dynamic = "force-dynamic";
 
 function resolveServerBackendUrl() {
   const internal = process.env.BACKEND_INTERNAL_URL?.trim();
@@ -25,12 +28,15 @@ function resolveServerBackendUrl() {
   return "http://127.0.0.1:3001";
 }
 
-function forwardHeaders(req: NextRequest) {
+function forwardHeaders(req: NextRequest, backendUrl: URL) {
   const headers = new Headers();
   req.headers.forEach((value, key) => {
-    if (HOP_BY_HOP.has(key.toLowerCase())) return;
+    const lower = key.toLowerCase();
+    if (HOP_BY_HOP.has(lower)) return;
+    if (lower === "host") return;
     headers.set(key, value);
   });
+  headers.set("host", backendUrl.host);
   return headers;
 }
 
@@ -56,13 +62,13 @@ async function proxy(req: NextRequest, path: string[]) {
 
   const res = await fetch(url, {
     method,
-    headers: forwardHeaders(req),
+    headers: forwardHeaders(req, url),
     body: body?.byteLength ? body : undefined,
     cache: "no-store",
   });
 
-  const text = await res.text();
-  return new NextResponse(text, {
+  const bodyBytes = await res.arrayBuffer();
+  return new NextResponse(bodyBytes, {
     status: res.status,
     headers: responseHeaders(res),
   });
