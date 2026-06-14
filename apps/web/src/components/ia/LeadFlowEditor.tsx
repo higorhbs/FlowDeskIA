@@ -32,6 +32,8 @@ import {
   DEFAULT_LEAD_FLOW_INVALID_REPLY,
   LEAD_FLOW_MAX_BUTTONS,
   LEAD_FLOW_MEDIA_ACCEPT,
+  LEAD_FLOW_MAX_MEDIA_BYTES,
+  LEAD_FLOW_MAX_MEDIA_LABEL,
   countLeadFlowMediaNodes,
   getLeadFlowMediaLimit,
   leadFlowMediaQuotaMessage,
@@ -252,6 +254,10 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
 
   function onPickFile(nodeId: string, file: File | null) {
     if (!file) return;
+    if (file.size > LEAD_FLOW_MAX_MEDIA_BYTES) {
+      toast.error(`Arquivo muito grande (máx. ${LEAD_FLOW_MAX_MEDIA_LABEL}).`);
+      return;
+    }
     if (!isAllowedLeadFlowFile(file)) {
       toast.error("Use JPEG, PNG, WebP, GIF ou MP4");
       return;
@@ -463,7 +469,7 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
 
                   <div>
                     <Label className="text-xs text-gray-500">
-                      Mídia (opcional) — imagem, GIF ou vídeo
+                      Mídia (opcional) — imagem, GIF ou vídeo (até {LEAD_FLOW_MAX_MEDIA_LABEL})
                     </Label>
                     <input
                       ref={fileRef}

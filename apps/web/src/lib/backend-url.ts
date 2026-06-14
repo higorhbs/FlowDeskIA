@@ -67,6 +67,12 @@ export function getBackendBaseUrl() {
   return cached;
 }
 
+export function getClientDirectBackendBaseUrl() {
+  if (typeof window === "undefined") return resolveBackendBaseUrl();
+  if (shouldProxyViaWeb()) return resolveBackendBaseUrl();
+  return getClientBackendBaseUrl();
+}
+
 export function getAuthApiBaseUrl() {
   return getClientBackendBaseUrl();
 }
