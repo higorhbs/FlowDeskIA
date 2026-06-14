@@ -35,6 +35,13 @@ export function defaultWorkingHours(): WorkingHoursValue {
   return h;
 }
 
+export const ALL_DAY_HOURS: [string, string] = ["00:00", "24:00"];
+
+export function isAllDayHours(slot: [string, string] | null | undefined): boolean {
+  if (!slot) return false;
+  return slot[0] === "00:00" && (slot[1] === "24:00" || slot[1] === "23:59");
+}
+
 // ── TimePicker ────────────────────────────────────────────────────────────────
 function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const parts = value.split(":");
@@ -186,6 +193,13 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
 }
 
 // ── WorkingHoursEditor ────────────────────────────────────────────────────────
+export type ScheduleCommitSnapshot = {
+  workingHours: WorkingHoursValue;
+  specialHours: SpecialHoursValue;
+  lunchBreak: LunchBreakValue;
+  lunchMsg: string;
+};
+
 type Props = {
   value: WorkingHoursValue;
   onChange: (value: WorkingHoursValue) => void;
@@ -195,7 +209,7 @@ type Props = {
   onLunchBreakChange: (value: LunchBreakValue) => void;
   lunchMsg: string;
   onLunchMsgChange: (value: string) => void;
-  onCommit?: () => void;
+  onCommit?: (snapshot: ScheduleCommitSnapshot) => void;
 };
 
 export function WorkingHoursEditor({
@@ -216,6 +230,15 @@ export function WorkingHoursEditor({
   const [specialClosed, setSpecialClosed] = useState(false);
   const [todayCloseAt, setTodayCloseAt] = useState("18:00");
 
+  function commit(next?: Partial<ScheduleCommitSnapshot>) {
+    onCommit?.({
+      workingHours: next?.workingHours ?? value,
+      specialHours: next?.specialHours ?? specialHours,
+      lunchBreak: next?.lunchBreak ?? lunchBreak,
+      lunchMsg: next?.lunchMsg ?? lunchMsg,
+    });
+  }
+
   function setDay(day: string, slot: [string, string] | null) {
     onChange({ ...value, [day]: slot });
   }
@@ -233,6 +256,7 @@ export function WorkingHoursEditor({
   }
 
   const openCount = DAY_KEYS.filter((d) => value[d] !== null && value[d] !== undefined).length;
+  const is24hActive = DAY_KEYS.every((d) => isAllDayHours(value[d]));
   const specialEntries = Object.entries(specialHours).sort(([a], [b]) => a.localeCompare(b));
 
   function dateKeyFromOffset(days: number) {
@@ -255,15 +279,17 @@ export function WorkingHoursEditor({
     const dayKey = dayKeyFromDate(today);
     const baseSlot = specialHours[todayKey] ?? value[dayKey] ?? ["09:00", "18:00"];
     const openAt = baseSlot ? baseSlot[0] : "09:00";
-    onSpecialHoursChange({ ...specialHours, [todayKey]: [openAt, time] });
-    onCommit?.();
+    const nextSpecial = { ...specialHours, [todayKey]: [openAt, time] as [string, string] };
+    onSpecialHoursChange(nextSpecial);
+    commit({ specialHours: nextSpecial });
   }
 
   function addSpecialDay() {
     if (!specialDate) return;
     const slot: [string, string] | null = specialClosed ? null : [specialOpen, specialClose];
-    onSpecialHoursChange({ ...specialHours, [specialDate]: slot });
-    onCommit?.();
+    const nextSpecial = { ...specialHours, [specialDate]: slot };
+    onSpecialHoursChange(nextSpecial);
+    commit({ specialHours: nextSpecial });
     setSpecialDate("");
     setSpecialClosed(false);
   }
@@ -360,7 +386,7 @@ export function WorkingHoursEditor({
                         variant="ghost"
                         onClick={() => {
                           setEditingDay(null);
-                          onCommit?.();
+                          commit();
                         }}
                         className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-800 h-auto px-0"
                       >
@@ -372,9 +398,15 @@ export function WorkingHoursEditor({
                 ) : (
                   /* ── Display mode ───────────────────────────── */
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="text-sm font-mono font-semibold text-gray-700">{slot[0]}</span>
-                    <ArrowRight className="w-3 h-3 text-gray-300 flex-shrink-0" />
-                    <span className="text-sm font-mono font-semibold text-gray-700">{slot[1]}</span>
+                    {isAllDayHours(slot) ? (
+                      <span className="text-sm font-semibold text-brand-700">24 horas</span>
+                    ) : (
+                      <>
+                        <span className="text-sm font-mono font-semibold text-gray-700">{slot[0]}</span>
+                        <ArrowRight className="w-3 h-3 text-gray-300 flex-shrink-0" />
+                        <span className="text-sm font-mono font-semibold text-gray-700">{slot[1]}</span>
+                      </>
+                    )}
                     <Button
                       type="button"
                       variant="ghost"
@@ -397,17 +429,30 @@ export function WorkingHoursEditor({
       {/* Quick actions */}
       <div className="flex gap-2 flex-wrap pt-0.5">
         {[
+          {
+            label: "Aberto 24h (todos os dias)",
+            active: is24hActive,
+            action: () => {
+              applyToAll(ALL_DAY_HOURS);
+              setEditingDay(null);
+            },
+          },
           { label: "Dias úteis 09h–18h", action: () => { applyToWeekdays(["09:00", "18:00"]); setEditingDay(null); } },
           { label: "Todos os dias 09h–18h", action: () => { applyToAll(["09:00", "18:00"]); setEditingDay(null); } },
           { label: "Restaurar padrão", action: () => { onChange(defaultWorkingHours()); setEditingDay(null); } },
-        ].map(({ label, action }) => (
+        ].map(({ label, action, active }) => (
           <Button
             key={label}
             type="button"
-            variant="outline"
+            variant={active ? "default" : "outline"}
             size="xs"
             onClick={action}
-            className="text-xs text-gray-500 hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50 h-auto"
+            className={cn(
+              "text-xs h-auto",
+              active
+                ? "bg-brand-600 text-white hover:bg-brand-700"
+                : "text-gray-500 hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50",
+            )}
           >
             {label}
           </Button>
@@ -425,8 +470,9 @@ export function WorkingHoursEditor({
           <Switch
             checked={lunchBreak !== null}
             onCheckedChange={(enabled) => {
-              onLunchBreakChange(enabled ? lunchBreak ?? ["12:00", "13:00"] : null);
-              onCommit?.();
+              const nextLunch = enabled ? lunchBreak ?? ["12:00", "13:00"] : null;
+              onLunchBreakChange(nextLunch);
+              commit({ lunchBreak: nextLunch });
             }}
           />
         </div>
@@ -445,7 +491,7 @@ export function WorkingHoursEditor({
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => onCommit?.()}
+                onClick={() => commit()}
                 className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-800 h-auto px-0"
               >
                 <Check className="w-3.5 h-3.5" />
@@ -526,8 +572,9 @@ export function WorkingHoursEditor({
             variant="destructive"
             size="xs"
             onClick={() => {
-              onSpecialHoursChange({ ...specialHours, [dateKeyFromOffset(0)]: null });
-              onCommit?.();
+              const nextSpecial = { ...specialHours, [dateKeyFromOffset(0)]: null };
+              onSpecialHoursChange(nextSpecial);
+              commit({ specialHours: nextSpecial });
             }}
             className="text-xs h-auto"
           >
@@ -564,7 +611,7 @@ export function WorkingHoursEditor({
                     const next = { ...specialHours };
                     delete next[day];
                     onSpecialHoursChange(next);
-                    onCommit?.();
+                    commit({ specialHours: next });
                   }}
                   className="text-xs text-red-600 hover:text-red-700 h-auto px-0"
                 >

@@ -36,6 +36,7 @@ import {
   type WorkingHoursValue,
   type SpecialHoursValue,
   type LunchBreakValue,
+  type ScheduleCommitSnapshot,
 } from "@/components/business/WorkingHoursEditor";
 import { useBusinessId } from "@/lib/use-business-id";
 import { persistBusinessSnapshot } from "@/lib/business-route";
@@ -66,6 +67,7 @@ const schema = z
   });
 
 type FormData = z.infer<typeof schema>;
+type SavePayload = { form: FormData; schedule?: ScheduleCommitSnapshot };
 
 function normalizeWorkingHours(raw: unknown): WorkingHoursValue {
   if (!raw || typeof raw !== "object") return defaultWorkingHours();
@@ -230,30 +232,40 @@ export default function SettingsPage() {
   }, [business, reset]);
 
   const saveMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      if (lunchBreak && lunchMsg.trim().length < 5) {
+    mutationFn: async ({ form, schedule }: SavePayload) => {
+      const nextWorkingHours = schedule?.workingHours ?? workingHours;
+      const nextSpecialHours = schedule?.specialHours ?? specialHours;
+      const nextLunchBreak = schedule?.lunchBreak ?? lunchBreak;
+      const nextLunchMsg = schedule?.lunchMsg ?? lunchMsg;
+      if (nextLunchBreak && nextLunchMsg.trim().length < 5) {
         throw new Error("A mensagem de almoço precisa ter pelo menos 5 caracteres.");
       }
       const updated = await businessApi.update(businessId, {
-        ...data,
-        typeLabel: data.type === "OTHER" ? data.typeLabel?.trim() : undefined,
-        workingHours,
-        specialHours,
-        lunchBreak,
-        lunchMsg: lunchBreak ? lunchMsg.trim() : undefined,
+        ...form,
+        typeLabel: form.type === "OTHER" ? form.typeLabel?.trim() : undefined,
+        workingHours: nextWorkingHours,
+        specialHours: nextSpecialHours,
+        lunchBreak: nextLunchBreak,
+        lunchMsg: nextLunchBreak ? nextLunchMsg.trim() : undefined,
       });
       await scheduleApi.put(businessId, {
         timezone: business?.timezone ?? "America/Sao_Paulo",
-        workingHours,
-        specialHours,
-        lunchBreak,
-        lunchMsg: lunchBreak ? lunchMsg.trim() : undefined,
+        workingHours: nextWorkingHours,
+        specialHours: nextSpecialHours,
+        lunchBreak: nextLunchBreak,
+        lunchMsg: nextLunchBreak ? nextLunchMsg.trim() : undefined,
       });
       return updated;
     },
     onSuccess: (_data, variables) => {
+      if (variables.schedule) {
+        setWorkingHours(variables.schedule.workingHours);
+        setSpecialHours(variables.schedule.specialHours);
+        setLunchBreak(variables.schedule.lunchBreak);
+        setLunchMsg(variables.schedule.lunchMsg);
+      }
       setHoursDirty(false);
-      persistBusinessSnapshot({ id: businessId, type: variables.type });
+      persistBusinessSnapshot({ id: businessId, type: variables.form.type });
       queryClient.invalidateQueries({ queryKey: ["business", businessId] });
       queryClient.invalidateQueries({ queryKey: ["schedule", businessId] });
       queryClient.invalidateQueries({ queryKey: ["businesses"] });
@@ -313,7 +325,7 @@ export default function SettingsPage() {
 
       {/* ── Form ────────────────────────────────────────────────────────── */}
       <form
-        onSubmit={handleSubmit((d) => saveMutation.mutate(d))}
+        onSubmit={handleSubmit((d) => saveMutation.mutate({ form: d }))}
         className={cn(W, "pt-6 space-y-4")}
       >
         {/* Informações básicas */}
@@ -409,9 +421,9 @@ export default function SettingsPage() {
             onLunchBreakChange={(v) => { setLunchBreak(v); setHoursDirty(true); }}
             lunchMsg={lunchMsg}
             onLunchMsgChange={(v) => { setLunchMsg(v); setHoursDirty(true); }}
-            onCommit={() => {
+            onCommit={(schedule) => {
               if (saveMutation.isPending) return;
-              void handleSubmit((d) => saveMutation.mutate(d))();
+              void handleSubmit((form) => saveMutation.mutate({ form, schedule }))();
             }}
           />
         </SectionCard>
@@ -489,7 +501,7 @@ export default function SettingsPage() {
       <div className="fixed bottom-24 right-4 sm:right-6 lg:bottom-8 z-50">
         <Button
           type="button"
-          onClick={handleSubmit((d) => saveMutation.mutate(d))}
+          onClick={handleSubmit((d) => saveMutation.mutate({ form: d }))}
           disabled={saveMutation.isPending || !hasChanges}
           className={cn(
             "h-auto flex items-center gap-2.5 rounded-full px-5 py-3 text-sm font-semibold",
