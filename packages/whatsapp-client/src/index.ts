@@ -573,11 +573,10 @@ export class WhatsAppClient extends EventEmitter {
       type: 1 as const,
     }));
     if (!items.length) return this.sendText(to, text);
-    const result = await this.sock.sendMessage(jid, {
-      text,
-      buttons: items,
-      headerType: 1,
-    });
+    const result = await this.sock.sendMessage(
+      jid,
+      { text, buttons: items, headerType: 1 } as Parameters<WASocket["sendMessage"]>[1]
+    );
     this.stashSentMessage(result);
     return result?.key.id ?? undefined;
   }

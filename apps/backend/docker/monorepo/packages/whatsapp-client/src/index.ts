@@ -20,8 +20,9 @@ export type { WAMessage };
 export type { WaAuthFileStore } from "./remote-auth-state.js";
 import NodeCache from "@cacheable/node-cache";
 import { Boom } from "@hapi/boom";
-import pino from "pino";
 import sharp from "sharp";
+import { createWaLogger } from "./wa-logger.js";
+import { waLog } from "./wa-app-log.js";
 import { toDataURL } from "qrcode";
 import EventEmitter from "events";
 import { useRemoteAuthState, type WaAuthFileStore } from "./remote-auth-state.js";
@@ -46,6 +47,8 @@ type MsgKey = proto.IMessageKey;
 function messageStoreKey(key: MsgKey): string {
   return `${key.remoteJid ?? ""}|${key.id ?? ""}|${key.fromMe ? 1 : 0}`;
 }
+
+const MESSAGE_STORE_MAX = 400;
 
 function pnToJid(pn: string): string {
   const raw = pn.trim();
@@ -161,9 +164,7 @@ export class WhatsAppClient extends EventEmitter {
   private sock: WASocket | null = null;
   private boundSock: WASocket | null = null;
   private clearAuthStore?: () => Promise<void>;
-  private logger = pino({
-    level: process.env.WA_LOG_LEVEL?.trim() || "warn",
-  });
+  private logger = createWaLogger();
   private messageStore = new Map<string, proto.IMessage>();
   private msgRetryCounterCache = new NodeCache({ stdTTL: 600, useClones: false });
   private seenInboundIds = new NodeCache({ stdTTL: 86_400, useClones: false });
@@ -198,6 +199,14 @@ export class WhatsAppClient extends EventEmitter {
     }
   }
 
+  private stashInMessageStore(key: string, message: proto.IMessage) {
+    if (this.messageStore.size >= MESSAGE_STORE_MAX) {
+      const first = this.messageStore.keys().next().value;
+      if (first) this.messageStore.delete(first);
+    }
+    this.messageStore.set(key, message);
+  }
+
   private isLiveInbound(msg: WAMessage): boolean {
     const ts = Number(msg.messageTimestamp) || 0;
     if (!ts) return false;
@@ -209,10 +218,7 @@ export class WhatsAppClient extends EventEmitter {
   private tryEmitInbound(msg: WAMessage) {
     if (msg.key.fromMe) return;
     const rawJid = msg.key.remoteJid ?? "";
-    if (!rawJid || shouldSkipJid(rawJid)) {
-      console.log(`[wa:${this.businessId}] skip_jid ${rawJid}`);
-      return;
-    }
+    if (!rawJid || shouldSkipJid(rawJid)) return;
     if (!this.isLiveInbound(msg)) return;
 
     const messageId = msg.key.id ?? "";
@@ -220,14 +226,14 @@ export class WhatsAppClient extends EventEmitter {
     if (messageId) this.seenInboundIds.set(messageId, true);
 
     if (msg.message && messageId) {
-      this.messageStore.set(messageStoreKey(msg.key), msg.message);
+      this.stashInMessageStore(messageStoreKey(msg.key), msg.message);
     }
 
     const mediaType = detectMediaType(msg.message);
     const body = extractBody(msg.message);
     if (!body && !mediaType) {
       const inner = msg.message ? getContentType(extractMessageContent(msg.message) ?? {}) : null;
-      console.log(
+      waLog.debug(
         `[wa:${this.businessId}] empty_body jid=${rawJid} stub=${msg.messageStubType ?? "-"} type=${inner ?? "-"}`
       );
       return;
@@ -279,7 +285,7 @@ export class WhatsAppClient extends EventEmitter {
         this.liveInboundSinceSec = Math.floor(this.connectedAt / 1000);
         this.lastQrDataUrl = undefined;
         this.connecting = false;
-        console.log(`[wa:${this.businessId}] connected`);
+        waLog.info(`[wa:${this.businessId}] connected`);
         this.emit("connected");
       }
 
@@ -291,7 +297,7 @@ export class WhatsAppClient extends EventEmitter {
         this.audiencePreparedAt = 0;
         const code = (lastDisconnect?.error as Boom)?.output?.statusCode;
         const shouldReconnect = code !== DisconnectReason.loggedOut && this.allowReconnect;
-        console.log(`[wa:${this.businessId}] disconnected code=${code ?? "-"} reconnect=${shouldReconnect}`);
+        waLog.info(`[wa:${this.businessId}] disconnected code=${code ?? "-"} reconnect=${shouldReconnect}`);
         this.emit("disconnected", { code, shouldReconnect });
         if (shouldReconnect) {
           this.cancelScheduledReconnect();
@@ -306,15 +312,15 @@ export class WhatsAppClient extends EventEmitter {
 
     this.sock.ev.on("messages.upsert", ({ messages, type }) => {
       if (type && type !== "notify") return;
-      console.log(`[wa:${this.businessId}] upsert type=${type} count=${messages.length}`);
       for (const msg of messages) {
+        const remoteJid = msg.key.remoteJid ?? "";
         if (msg.key.fromMe && msg.message && msg.key.id) {
-          this.messageStore.set(messageStoreKey(msg.key), msg.message);
-          if (isJidStatusBroadcast(msg.key.remoteJid ?? "")) {
-            console.log(`[wa:${this.businessId}] status_upsert id=${msg.key.id}`);
+          if (!shouldSkipJid(remoteJid)) {
+            this.stashInMessageStore(messageStoreKey(msg.key), msg.message);
           }
           continue;
         }
+        if (!remoteJid || shouldSkipJid(remoteJid)) continue;
         this.tryEmitInbound(msg);
       }
     });
@@ -378,7 +384,7 @@ export class WhatsAppClient extends EventEmitter {
         try {
           await persistCreds();
         } catch (err) {
-          console.error(`[wa:${this.businessId}] saveCreds failed:`, err);
+          waLog.error(`[wa:${this.businessId}] saveCreds failed:`, err);
         }
       };
       let version: [number, number, number];
@@ -435,7 +441,7 @@ export class WhatsAppClient extends EventEmitter {
 
   private stashSentMessage(result: WAMessage | undefined) {
     if (result?.message && result.key?.id) {
-      this.messageStore.set(messageStoreKey(result.key), result.message);
+      this.stashInMessageStore(messageStoreKey(result.key), result.message);
     }
   }
 
@@ -484,10 +490,10 @@ export class WhatsAppClient extends EventEmitter {
         { broadcast: true, statusJidList: [ownJid] }
       );
       this.statusChannelReady = true;
-      console.log(`[wa:${this.businessId}] status channel bootstrapped`);
+      waLog.debug(`[wa:${this.businessId}] status channel bootstrapped`);
       await new Promise((r) => setTimeout(r, 4000));
     } catch (err) {
-      console.warn(`[wa:${this.businessId}] status channel bootstrap:`, err);
+      waLog.warn(`[wa:${this.businessId}] status channel bootstrap:`, err);
       if (!isSignalSessionError(err)) throw err;
     }
   }
@@ -553,6 +559,28 @@ export class WhatsAppClient extends EventEmitter {
     return result?.key.id ?? undefined;
   }
 
+  async sendButtons(
+    to: string,
+    text: string,
+    buttons: { id: string; label: string }[],
+  ): Promise<string | undefined> {
+    if (!this.sock) throw new Error("Socket not connected");
+    const jid = this.resolveSendJid(to);
+    await this.ensurePreKeys();
+    const items = buttons.slice(0, 3).map((b) => ({
+      buttonId: b.id,
+      buttonText: { displayText: b.label.slice(0, 20) },
+      type: 1 as const,
+    }));
+    if (!items.length) return this.sendText(to, text);
+    const result = await this.sock.sendMessage(
+      jid,
+      { text, buttons: items, headerType: 1 } as Parameters<WASocket["sendMessage"]>[1]
+    );
+    this.stashSentMessage(result);
+    return result?.key.id ?? undefined;
+  }
+
   async sendImage(to: string, imageUrl: string, caption?: string): Promise<string | undefined> {
     return this.sendChatMedia(to, imageUrl, "image", caption);
   }
@@ -605,7 +633,7 @@ export class WhatsAppClient extends EventEmitter {
         lastErr = err;
       }
     }
-    console.error(`[wa:${this.businessId}] downloadMessageMedia failed after retries:`, lastErr);
+    waLog.error(`[wa:${this.businessId}] downloadMessageMedia failed after retries:`, lastErr);
     return null;
   }
 
@@ -757,7 +785,7 @@ export class WhatsAppClient extends EventEmitter {
       throw new Error("Nenhum contato na audiência do status.");
     }
 
-    console.log(
+    waLog.debug(
       `[wa:${this.businessId}] publishStatus start audience=${statusJidList.length} media=${opts.mediaType}`
     );
 
@@ -791,14 +819,14 @@ export class WhatsAppClient extends EventEmitter {
           mediaUploadTimeoutMs: 240_000,
         });
         this.stashSentMessage(result);
-        console.log(
+        waLog.info(
           `[wa:${this.businessId}] publishStatus ok audience=${statusJidList.length} attempt=${attempt + 1}`
         );
         return result?.key?.id ?? undefined;
       } catch (err) {
         lastErr = err;
         if (!isPublishRetriable(err) || attempt >= 4) throw err;
-        console.warn(`[wa:${this.businessId}] publishStatus retry ${attempt + 1}:`, err);
+        waLog.warn(`[wa:${this.businessId}] publishStatus retry ${attempt + 1}:`, err);
       }
     }
     throw lastErr;
@@ -818,7 +846,7 @@ export class WhatsAppClient extends EventEmitter {
           participant: own,
         },
       });
-      console.log(`[wa:${this.businessId}] deleteStatus ok id=${messageId}`);
+      waLog.debug(`[wa:${this.businessId}] deleteStatus ok id=${messageId}`);
     });
   }
 
