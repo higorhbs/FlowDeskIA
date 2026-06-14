@@ -1319,15 +1319,15 @@ function FAQsEditor({ businessId, businessType }: { businessId: string; business
                     setShowForm(true);
                   }}
                   className={cn(
-                    "h-auto w-full text-left rounded-2xl border-2 p-4 transition-all group",
+                    "h-auto w-full flex flex-col items-start justify-start whitespace-normal text-left rounded-2xl border-2 p-4 transition-all group",
                     s.color
                   )}
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-3 w-full">
                     <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0", s.iconBg)}>
                       {s.icon}
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="font-semibold text-sm text-gray-900 mb-1 group-hover:text-gray-800">
                         {s.question}
                       </p>
