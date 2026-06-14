@@ -56,6 +56,7 @@ import {
 } from "./lead-flow.js";
 import { addMinutes, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 function voc(business: { type?: string }) {
   return getBusinessVocabulary(business.type);
@@ -118,8 +119,29 @@ const conversationState = new Map<
 >();
 const botPausedSessions = new Set<string>();
 const closedNoticeClaims = new Map<string, Promise<boolean>>();
-let deferReplyPersistence = false;
+const replyPersistenceStore = new AsyncLocalStorage<{ defer: boolean }>();
 let lastProcessMeta: { businessId: string; conversationId: string } | null = null;
+
+function shouldDeferReplyPersistence() {
+  return replyPersistenceStore.getStore()?.defer === true;
+}
+
+function mapBotResponsesToMessages(responses: BotResponse[]) {
+  return responses.map((r) => ({
+    role: "IA" as const,
+    content:
+      r.text.trim() ||
+      (r.imageUrl ? (r.mediaType === "gif" ? "[gif]" : r.mediaType === "video" ? "[video]" : "[imagem]") : ""),
+    ...(r.imageUrl
+      ? {
+          mediaUrl: r.imageUrl,
+          mediaType:
+            r.mediaType === "video" || r.mediaType === "gif" ? r.mediaType : ("image" as const),
+        }
+      : {}),
+    ...(r.buttons?.length ? { buttons: r.buttons } : {}),
+  }));
+}
 
 export function takeLastProcessMeta() {
   const meta = lastProcessMeta;
@@ -133,7 +155,7 @@ export async function persistBotReplies(
   responses: BotResponse[],
 ): Promise<void> {
   if (!conversationId || !responses.length) return;
-  await saveAndReturn(businessId, conversationId, responses);
+  await createMessages(businessId, conversationId, mapBotResponsesToMessages(responses));
 }
 
 async function claimClosedNotice(businessId: string, customerPhone: string): Promise<boolean> {
@@ -163,9 +185,12 @@ async function replyWhenClosed(
 }
 
 export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
+  return replyPersistenceStore.run({ defer: ctx.persistReplies === false }, () => processMessageInner(ctx));
+}
+
+async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
   const { businessId, customerPhone, customerName, messageBody, replyJid, mediaUrl, mediaType } = ctx;
   const sessionKey = `${businessId}:${customerPhone}`;
-  deferReplyPersistence = ctx.persistReplies === false;
   lastProcessMeta = null;
 
   try {
@@ -397,8 +422,6 @@ export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
       return [{ text: fallback }];
     }
   }
-  } finally {
-    deferReplyPersistence = false;
   }
 }
 
@@ -1181,21 +1204,6 @@ async function saveAndReturn(
   conversationId: string,
   responses: BotResponse[],
 ): Promise<void> {
-  if (deferReplyPersistence) return;
-  await createMessages(
-    businessId,
-    conversationId,
-    responses.map((r) => ({
-      role: "IA" as const,
-      content: r.text,
-      ...(r.imageUrl
-        ? {
-            mediaUrl: r.imageUrl,
-            mediaType:
-              r.mediaType === "video" || r.mediaType === "gif" ? r.mediaType : ("image" as const),
-          }
-        : {}),
-      ...(r.buttons?.length ? { buttons: r.buttons } : {}),
-    })),
-  );
+  if (shouldDeferReplyPersistence()) return;
+  await createMessages(businessId, conversationId, mapBotResponsesToMessages(responses));
 }

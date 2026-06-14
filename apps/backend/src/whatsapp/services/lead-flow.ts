@@ -89,24 +89,25 @@ export function leadFlowNodeToResponses(
   node: LeadFlowNode,
   vars: Record<string, string>,
 ): BotResponse[] {
-  const text = renderTemplate(node.text, vars);
+  const text = renderTemplate(node.text, vars).trim();
   const out: BotResponse[] = [];
   const hasButtons = node.buttons.length > 0;
+  if (node.imageUrl && text) out.push({ text });
   if (node.imageUrl) {
     out.push({
-      text: text.trim(),
+      text: "",
       imageUrl: node.imageUrl,
       imageStoragePath: node.imageStoragePath,
       mediaType: node.mediaType ?? "image",
     });
+  } else if (text && !hasButtons) {
+    out.push({ text });
   }
   if (hasButtons) {
     out.push({
-      text: node.imageUrl ? "👇 Toque em uma opção" : text,
+      text: node.imageUrl ? "👇 Toque em uma opção" : text || "👇 Toque em uma opção",
       buttons: node.buttons.map((b) => ({ id: b.id, label: b.label })),
     });
-  } else if (text.trim()) {
-    out.push({ text });
   }
   return out;
 }

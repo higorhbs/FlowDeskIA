@@ -120,7 +120,7 @@ export async function deliverBotResponses(
         await deliverLeadFlowMedia(client, dest, resp);
       } else if (resp.buttons?.length) {
         await client.sendButtons(dest, resp.text, resp.buttons)
-      } else if (resp.text) {
+      } else if (resp.text?.trim()) {
         await client.sendText(dest, resp.text)
       }
       if (conversationId) {
@@ -128,11 +128,12 @@ export async function deliverBotResponses(
       }
     } catch (err) {
       log.error(`[whatsapp] deliver response failed business=${businessId}:`, err)
-      if (resp.imageUrl && resp.text?.trim()) {
+      if (resp.text?.trim()) {
         try {
           await client.sendText(dest, resp.text)
+          if (conversationId) await persistBotReplies(businessId, conversationId, [{ text: resp.text }])
         } catch (fallbackErr) {
-          log.error(`[whatsapp] media text fallback failed business=${businessId}:`, fallbackErr)
+          log.error(`[whatsapp] text fallback failed business=${businessId}:`, fallbackErr)
         }
       }
     }
