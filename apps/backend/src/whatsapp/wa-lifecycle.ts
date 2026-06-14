@@ -63,6 +63,28 @@ function resolveLeadFlowDeliveryMediaType(resp: BotResponse): "image" | "video" 
   return "image";
 }
 
+async function resolveLeadFlowMediaBuffer(resp: BotResponse): Promise<{ buffer: Buffer; mimetype: string } | null> {
+  const local = await downloadBusinessMedia(resp.imageUrl, resp.imageStoragePath);
+  if (local?.buffer?.length) return local;
+  if (!resp.imageUrl) return null;
+  try {
+    const res = await fetch(resp.imageUrl, { redirect: "follow" });
+    if (!res.ok) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    if (!buffer.length) return null;
+    const hint = `${resp.imageUrl} ${resp.imageStoragePath ?? ""}`.toLowerCase();
+    const header = res.headers.get("content-type")?.split(";")[0]?.trim();
+    const mimetype = hint.includes(".gif")
+      ? "image/gif"
+      : header?.startsWith("image/") || header?.startsWith("video/")
+        ? header
+        : "application/octet-stream";
+    return { buffer, mimetype };
+  } catch {
+    return null;
+  }
+}
+
 async function deliverLeadFlowMedia(
   client: WhatsAppClient,
   dest: string,
@@ -71,17 +93,15 @@ async function deliverLeadFlowMedia(
   if (!resp.imageUrl) return undefined;
   const mediaType = resolveLeadFlowDeliveryMediaType(resp);
   const caption = resp.text?.trim() || undefined;
-  const local = await downloadBusinessMedia(resp.imageUrl, resp.imageStoragePath);
+  const local = await resolveLeadFlowMediaBuffer(resp);
   const attempts: Array<() => Promise<string | undefined>> = [];
 
   if (mediaType === "gif") {
     if (local) {
       const mime = local.mimetype || "image/gif";
-      attempts.push(() => client.sendImageBuffer(dest, local.buffer, mime, caption));
       attempts.push(() => client.sendChatMediaBuffer(dest, local.buffer, mime, "gif", caption));
     }
     attempts.push(() => client.sendChatMedia(dest, resp.imageUrl!, "gif", caption));
-    attempts.push(() => client.sendImage(dest, resp.imageUrl!, caption));
   } else {
     if (local) {
       attempts.push(() =>
