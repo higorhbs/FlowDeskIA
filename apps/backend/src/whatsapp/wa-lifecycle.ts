@@ -12,7 +12,7 @@ import {
 } from '@flowdesk/firebase'
 import { log } from '../lib/log.js'
 import { saveChatMedia } from './chat-media.js'
-import { processMessage } from './services/bot.js'
+import { persistBotReplies, processMessage, takeLastProcessMeta, type BotResponse } from './services/bot.js'
 import { waManager } from './wa-manager.js'
 
 const lifecycleAttached = new WeakSet<WhatsAppClient>()
@@ -54,6 +54,28 @@ export function attachWhatsAppLifecycle(businessId: string, client: WhatsAppClie
   })
 }
 
+export async function deliverBotResponses(
+  businessId: string,
+  client: WhatsAppClient,
+  dest: string,
+  conversationId: string | undefined,
+  responses: BotResponse[],
+): Promise<void> {
+  for (const resp of responses) {
+    if (resp.imageUrl) {
+      await client.sendImage(dest, resp.imageUrl, resp.text || undefined)
+    } else if (resp.buttons?.length) {
+      await client.sendButtons(dest, resp.text, resp.buttons)
+    } else if (resp.text) {
+      await client.sendText(dest, resp.text)
+    }
+    if (conversationId) {
+      await persistBotReplies(businessId, conversationId, [resp])
+    }
+    await new Promise((r) => setTimeout(r, 800))
+  }
+}
+
 async function deliverBotReplies(
   businessId: string,
   client: WhatsAppClient,
@@ -68,6 +90,7 @@ async function deliverBotReplies(
     replyJid: msg.replyJid,
     mediaUrl: media?.mediaUrl,
     mediaType: media?.mediaType,
+    persistReplies: false,
   })
 
   if (responses.length === 0) {
@@ -76,16 +99,8 @@ async function deliverBotReplies(
   }
 
   const dest = msg.replyJid || msg.from
-  for (const resp of responses) {
-    if (resp.imageUrl) {
-      await client.sendImage(dest, resp.imageUrl, resp.text || undefined)
-    } else if (resp.buttons?.length) {
-      await client.sendButtons(dest, resp.text, resp.buttons)
-    } else if (resp.text) {
-      await client.sendText(dest, resp.text)
-    }
-    await new Promise((r) => setTimeout(r, 800))
-  }
+  const meta = takeLastProcessMeta()
+  await deliverBotResponses(businessId, client, dest, meta?.conversationId, responses)
   log.debug(`[whatsapp] replied business=${businessId} count=${responses.length}`)
 }
 

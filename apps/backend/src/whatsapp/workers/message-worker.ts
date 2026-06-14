@@ -5,8 +5,8 @@ import {
   type WhatsappJob,
 } from "@flowdesk/firebase";
 import { log } from "../../lib/log.js";
-import { processMessage } from "../services/bot.js";
-import { resolveWhatsAppClient } from "../wa-lifecycle.js";
+import { processMessage, takeLastProcessMeta } from "../services/bot.js";
+import { deliverBotResponses, resolveWhatsAppClient } from "../wa-lifecycle.js";
 
 function intEnv(name: string, fallback: number): number {
   const raw = process.env[name]?.trim();
@@ -34,24 +34,18 @@ async function processInboundJob(job: WhatsappJob): Promise<void> {
     replyJid: payload.replyJid,
     mediaUrl: payload.mediaUrl,
     mediaType: payload.mediaType,
+    persistReplies: false,
   });
+
+  if (responses.length === 0) return;
 
   const client = await resolveWhatsAppClient(businessId, { waitMs: 8_000 });
   if (!client) throw new Error("WhatsApp desconectado");
 
-  for (const resp of responses) {
-    if (resp.imageUrl) {
-      await client.sendImage(dest, resp.imageUrl, resp.text || undefined);
-    } else if (resp.buttons?.length) {
-      await client.sendButtons(dest, resp.text, resp.buttons);
-    } else if (resp.text) {
-      await client.sendText(dest, resp.text);
-    }
-    await new Promise((r) => setTimeout(r, 800));
-  }
-  if (responses.length > 0) {
-    log.info(`[worker] replied business=${businessId} count=${responses.length}`);
-  }
+  const meta = takeLastProcessMeta();
+  await deliverBotResponses(businessId, client, dest, meta?.conversationId, responses);
+
+  log.info(`[worker] replied business=${businessId} count=${responses.length}`);
 }
 
 async function runClaimedJob(job: WhatsappJob): Promise<void> {
