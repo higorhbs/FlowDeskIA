@@ -80,10 +80,27 @@ async function establishSession(
   customToken: string,
 ): Promise<{ token: string; user: User }> {
   const auth = getClientAuth();
-  const cred = await signInWithCustomToken(auth, customToken);
-  const token = await cred.user.getIdToken(true);
-  await syncServerSession(token).catch(() => {});
-  return { token, user: cred.user };
+  try {
+    const cred = await signInWithCustomToken(auth, customToken);
+    const token = await cred.user.getIdToken(true);
+    await syncServerSession(token).catch(() => {});
+    return { token, user: cred.user };
+  } catch (err) {
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? String((err as { code: string }).code)
+        : "";
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "";
+    if (code === "auth/network-request-failed" && origin) {
+      const hint = new Error(
+        `Firebase recusou sessão em ${origin}. Google Cloud → Browser key → HTTP referrers: adicione ${origin}/* . Rode pnpm google:oauth-setup.`,
+      );
+      (hint as { code?: string }).code = code;
+      throw hint;
+    }
+    throw err;
+  }
 }
 
 export type EmailAuthResult =

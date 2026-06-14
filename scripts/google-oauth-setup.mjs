@@ -4,28 +4,42 @@ import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const backendEnvPath = resolve(root, "apps/backend/.env");
-if (existsSync(backendEnvPath)) {
-  for (const line of readFileSync(backendEnvPath, "utf8").split("\n")) {
+
+function loadEnvFile(path) {
+  if (!existsSync(path)) return;
+  for (const line of readFileSync(path, "utf8").split("\n")) {
     const t = line.trim();
     if (!t || t.startsWith("#")) continue;
     const eq = t.indexOf("=");
     if (eq === -1) continue;
     const key = t.slice(0, eq).trim();
-    if (process.env[key] === undefined) process.env[key] = t.slice(eq + 1).trim();
+    if (process.env[key] === undefined) {
+      let val = t.slice(eq + 1).trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      process.env[key] = val;
+    }
   }
 }
 
+loadEnvFile(resolve(root, "apps/backend/.env"));
+loadEnvFile(resolve(root, "apps/web/.env"));
+
 const project = process.env.FIREBASE_PROJECT_ID?.trim();
 if (!project) {
-  console.error("Defina FIREBASE_PROJECT_ID em apps/backend/.env");
+  console.error("Defina FIREBASE_PROJECT_ID em apps/backend/.env ou apps/web/.env");
   process.exit(1);
 }
+
 const clientSuffix = "295076612394-8k6ecbb35gps827lj3um1efvofbj3gj6";
+const PROD_ORIGINS = [
+  "https://flowdesk.ia.br",
+  "https://flow-desk-ia.vercel.app",
+];
 
 const site = `https://${project}.web.app`;
 const firebaseApp = `https://${project}.firebaseapp.com`;
-const siteAuth = `https://${project}.web.app`;
 const handlerFirebase = `${firebaseApp}/__/auth/handler`;
 const handlerWeb = `${site}/__/auth/handler`;
 const handlerLocal = "http://localhost:3000/__/auth/handler";
@@ -34,70 +48,90 @@ const handlerLocal127 = "http://127.0.0.1:3000/__/auth/handler";
 const customOrigin = (process.env.WEB_ORIGIN || process.env.NEXT_PUBLIC_SITE_ORIGIN || "")
   .trim()
   .replace(/\/$/, "");
-const customHandler =
-  customOrigin && !customOrigin.includes("localhost") ? `${customOrigin}/__/auth/handler` : null;
 
-const redirects = [handlerWeb, handlerFirebase, handlerLocal, handlerLocal127];
-if (customHandler && !redirects.includes(customHandler)) redirects.push(customHandler);
+const allOrigins = new Set([
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  site,
+  firebaseApp,
+  ...PROD_ORIGINS,
+]);
+if (customOrigin) allOrigins.add(customOrigin);
 
-const jsOrigins = ["http://localhost:3000", "http://127.0.0.1:3000", site, firebaseApp];
-if (customOrigin && !jsOrigins.includes(customOrigin)) jsOrigins.push(customOrigin);
+const redirects = new Set([handlerWeb, handlerFirebase, handlerLocal, handlerLocal127]);
+for (const o of PROD_ORIGINS) {
+  redirects.add(`${o}/__/auth/handler`);
+}
+if (customOrigin && !customOrigin.includes("localhost")) {
+  redirects.add(`${customOrigin}/__/auth/handler`);
+}
+
+const referrers = new Set([
+  `https://${project}.web.app/*`,
+  `https://${project}.firebaseapp.com/*`,
+  "http://localhost:3000/*",
+  "http://127.0.0.1:3000/*",
+]);
+for (const o of allOrigins) {
+  try {
+    referrers.add(`${new URL(o).origin}/*`);
+  } catch {
+    /* ignore */
+  }
+}
 
 const credentialsUrl = `https://console.cloud.google.com/apis/credentials?project=${project}`;
 const clientUrl = `https://console.cloud.google.com/apis/credentials/oauthclient/${clientSuffix}?project=${project}`;
 const authDomainsUrl = `https://console.firebase.google.com/project/${project}/authentication/settings`;
 
-console.log("\n=== Login Google — Redirect URI (erro mais comum) ===\n");
-console.log("Google Cloud → APIs & Services → Credentials");
-console.log('→ OAuth client "Web client (auto created by Google Service)"');
-console.log("→ Authorized redirect URIs\n");
-console.log("OBRIGATÓRIO (copie exatamente, sem barra no final):");
-console.log(`\n  ${handlerWeb}\n`);
-console.log("Também adicione:");
-redirects.slice(1).forEach((r) => console.log(`  ${r}`));
-console.log("\n--- Authorized JavaScript origins ---");
-jsOrigins.forEach((o) => console.log(`  ${o}`));
-console.log("\n--- Firebase Authorized domains ---");
-console.log("  localhost");
-console.log(`  ${project}.web.app`);
-console.log(`  ${project}.firebaseapp.com`);
-if (customOrigin) {
+console.log("\n=== CHECKLIST LOGIN PRODUÇÃO (copie no Google Cloud / Firebase) ===\n");
+
+console.log("1) Browser key → HTTP referrers (CAUSA #1 auth/network-request-failed)");
+console.log(`   ${credentialsUrl}`);
+console.log('   → "Browser key (auto created by Firebase)"');
+console.log("   → Restrições do aplicativo → Referenciadores HTTP\n");
+for (const r of referrers) console.log(`   ${r}`);
+
+console.log("\n2) OAuth Web client → JavaScript origins");
+console.log(`   ${clientUrl}\n`);
+for (const o of allOrigins) console.log(`   ${o}`);
+
+console.log("\n3) OAuth Web client → Redirect URIs\n");
+for (const r of redirects) console.log(`   ${r}`);
+
+console.log("\n4) Firebase → Authorized domains");
+console.log(`   ${authDomainsUrl}\n`);
+console.log("   localhost");
+console.log(`   ${project}.web.app`);
+console.log(`   ${project}.firebaseapp.com`);
+for (const o of PROD_ORIGINS) {
   try {
-    console.log(`  ${new URL(customOrigin).hostname}`);
+    console.log(`   ${new URL(o).hostname}`);
   } catch {
     /* ignore */
   }
 }
-if (customOrigin) {
-  console.log("\n--- Domínio customizado (WEB_ORIGIN no .env) ---");
-  console.log(`  Origem JS: ${customOrigin}`);
-  if (customHandler) console.log(`  Redirect:  ${customHandler}`);
-}
-console.log(`\n  ${authDomainsUrl}`);
-console.log("\n--- App ---");
-console.log(`NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${project}.web.app`);
-console.log("Dev: http://localhost:3000 (nunca 192.168.x.x)");
-console.log("Produção:", site);
-console.log("\nLink OAuth client:", clientUrl);
-console.log("\n--- API Key (auth/network-request-failed) ---");
-console.log("Google Cloud → Credentials → Browser key (auto created by Firebase)");
-console.log("→ Application restrictions → HTTP referrers, inclua:");
-console.log(`  https://${project}.web.app/*`);
-console.log(`  https://${project}.firebaseapp.com/*`);
-if (customOrigin) {
-  try {
-    const host = new URL(customOrigin).origin;
-    console.log(`  ${host}/*`);
-  } catch {
-    /* ignore */
-  }
-}
-console.log("  http://localhost:3000/*");
-console.log("Salve, aguarde ~2 min, reinicie pnpm dev\n");
+
+console.log("\n5) Dokploy backend (Environment)\n");
+console.log("   FIREBASE_PROJECT_ID=zapflow-higor-2026");
+console.log("   FIREBASE_WEB_API_KEY=(igual NEXT_PUBLIC_FIREBASE_API_KEY)");
+console.log("   FIREBASE_CLIENT_EMAIL=(service account)");
+console.log("   FIREBASE_PRIVATE_KEY=(chave com \\n)");
+console.log("   CORS_ORIGIN=https://flowdesk.ia.br");
+console.log("   WEB_ORIGIN=https://flowdesk.ia.br");
+
+console.log("\n6) Vercel (Production) + REDEPLOY obrigatório\n");
+console.log("   BACKEND_INTERNAL_URL=https://flowdesk.victorsouza.dev");
+console.log("   NEXT_PUBLIC_BACKEND_URL=https://flowdesk.victorsouza.dev");
+console.log("   NEXT_PUBLIC_API_URL=https://flowdesk.victorsouza.dev");
+console.log("   NEXT_PUBLIC_WA_API_URL=https://flowdesk.victorsouza.dev");
+
+console.log("\n7) Validar: pnpm verify:auth\n");
+console.log("Salve Google Cloud, aguarde ~2 min, teste login em https://flowdesk.ia.br\n");
 
 const { execSync } = await import("node:child_process");
 try {
-  execSync(`open "${clientUrl}"`, { stdio: "ignore" });
+  execSync(`open "${credentialsUrl}"`, { stdio: "ignore" });
 } catch {
   /* headless */
 }
