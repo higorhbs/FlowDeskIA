@@ -159,7 +159,8 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
       }));
       toast.success("Imagem enviada!");
     },
-    onError: () => toast.error("Erro ao enviar imagem"),
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "Erro ao enviar imagem"),
   });
 
   function patchFlow(patch: Partial<LeadCaptureFlow>) {

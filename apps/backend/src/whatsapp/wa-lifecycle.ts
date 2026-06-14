@@ -5,6 +5,7 @@ import type {
 } from '@flowdesk/whatsapp-client'
 import {
   createWaAuthFileStore,
+  downloadBusinessMedia,
   enqueueWhatsappInboundJob,
   hasWhatsAppAuth,
   listBusinessIdsWithWhatsAppAuth,
@@ -63,7 +64,12 @@ export async function deliverBotResponses(
 ): Promise<void> {
   for (const resp of responses) {
     if (resp.imageUrl) {
-      await client.sendImage(dest, resp.imageUrl, resp.text || undefined)
+      const local = await downloadBusinessMedia(resp.imageUrl, resp.imageStoragePath)
+      if (local) {
+        await client.sendImageBuffer(dest, local.buffer, local.mimetype, resp.text || undefined)
+      } else {
+        await client.sendImage(dest, resp.imageUrl, resp.text || undefined)
+      }
     } else if (resp.buttons?.length) {
       await client.sendButtons(dest, resp.text, resp.buttons)
     } else if (resp.text) {

@@ -1,4 +1,10 @@
-import { createBusiness, hasAdminCredential, listBusinesses } from '@flowdesk/firebase'
+import {
+  createBusiness,
+  getBusiness,
+  hasAdminCredential,
+  listBusinesses,
+  uploadBusinessMedia,
+} from '@flowdesk/firebase'
 import { json, requireBearerUser } from '../../lib/auth-guard.js'
 
 const BUSINESS_TYPES = new Set([
@@ -89,6 +95,54 @@ export async function createBusinessHandler(c) {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erro ao criar negócio.'
     return json(c, 500, { error: message })
+  }
+}
+
+async function resolveOwnedBusiness(c, businessId) {
+  const auth = await requireBearerUser(c)
+  if (auth.error) return { error: auth.error }
+
+  const business = await getBusiness(businessId, auth.decoded.uid)
+  if (!business) {
+    return { error: json(c, 404, { error: 'Negócio não encontrado.' }) }
+  }
+  return { auth, business }
+}
+
+async function readUploadFile(file) {
+  if (!file || typeof file.arrayBuffer !== 'function') return null
+  const buf = Buffer.from(await file.arrayBuffer())
+  const mimetype = file.type || 'image/jpeg'
+  return { buffer: buf, mimetype }
+}
+
+export async function postLeadFlowMediaHandler(c) {
+  const blocked = requireAdmin(c)
+  if (blocked) return blocked
+
+  const businessId = c.req.param('businessId')
+  const ctx = await resolveOwnedBusiness(c, businessId)
+  if (ctx.error) return ctx.error
+
+  const form = await c.req.parseBody()
+  const upload = await readUploadFile(form.file)
+  if (!upload?.buffer?.length) {
+    return json(c, 400, { error: 'Envie uma imagem.' })
+  }
+
+  try {
+    const saved = await uploadBusinessMedia(
+      businessId,
+      'flow',
+      upload.buffer,
+      upload.mimetype,
+      'image',
+    )
+    return json(c, 200, saved)
+  } catch (err) {
+    return json(c, 400, {
+      error: err instanceof Error ? err.message : 'Upload inválido',
+    })
   }
 }
 
