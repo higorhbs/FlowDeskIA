@@ -2,6 +2,7 @@ import {
   deleteBusinessMedia,
   getDb,
   purgeLegacyWhatsAppAuthFirestore,
+  scheduledStatusHorizonCutoffIso,
 } from '@flowdesk/firebase'
 
 const DEFAULT_RETENTION_DAYS = 7
@@ -11,8 +12,9 @@ async function deleteMessageStorage(msgData) {
   await deleteBusinessMedia(msgData.mediaUrl, msgData.mediaStoragePath).catch(() => undefined)
 }
 
-async function cleanupBusinessScheduledStatusMedia(businessId, cutoffIso, summary) {
+async function cleanupBusinessScheduledStatusMedia(businessId, mediaCutoffIso, docCutoffIso, summary) {
   const db = getDb()
+  const horizonIso = scheduledStatusHorizonCutoffIso()
   const snap = await db
     .collection('businesses')
     .doc(businessId)
@@ -22,10 +24,35 @@ async function cleanupBusinessScheduledStatusMedia(businessId, cutoffIso, summar
   for (const doc of snap.docs) {
     const row = doc.data()
     const status = String(row.status ?? '')
+    const scheduledAt = String(row.scheduledAt ?? '')
+    if (status === 'scheduled' && scheduledAt && scheduledAt > horizonIso) {
+      if (row.mediaStoragePath || row.mediaUrl) {
+        await deleteBusinessMedia(row.mediaUrl, row.mediaStoragePath).catch(() => undefined)
+        summary.deletedStatusMedia += 1
+      }
+      await doc.ref.delete().catch(() => undefined)
+      summary.deletedScheduledStatuses += 1
+      continue
+    }
     if (status === 'scheduled' || status === 'publishing') continue
 
-    const refIso = String(row.publishedAt ?? row.revokedAt ?? row.updatedAt ?? row.createdAt ?? '')
-    if (!refIso || refIso >= cutoffIso) continue
+    const refIso = String(
+      status === 'published'
+        ? (row.publishedAt ?? row.updatedAt ?? row.createdAt ?? '')
+        : (row.revokedAt ?? row.updatedAt ?? row.createdAt ?? ''),
+    )
+
+    if (status === 'published' && refIso && refIso < docCutoffIso) {
+      if (row.mediaStoragePath || row.mediaUrl) {
+        await deleteBusinessMedia(row.mediaUrl, row.mediaStoragePath).catch(() => undefined)
+        summary.deletedStatusMedia += 1
+      }
+      await doc.ref.delete().catch(() => undefined)
+      summary.deletedScheduledStatuses += 1
+      continue
+    }
+
+    if (!refIso || refIso >= mediaCutoffIso) continue
 
     if (row.mediaStoragePath || row.mediaUrl) {
       await deleteBusinessMedia(row.mediaUrl, row.mediaStoragePath).catch(() => undefined)
@@ -130,7 +157,7 @@ export async function runPrivacyRetentionForAllTenants(retentionDays = DEFAULT_R
       }
     }
 
-    await cleanupBusinessScheduledStatusMedia(businessId, statusMediaCutoff, summary)
+    await cleanupBusinessScheduledStatusMedia(businessId, statusMediaCutoff, cutoff, summary)
   }
 
   return summary

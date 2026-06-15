@@ -162,6 +162,18 @@ export async function claimWhatsappInboundJob(workerId: string): Promise<Whatsap
   return null;
 }
 
+export async function whatsappJobReplyAlreadyDelivered(jobId: string): Promise<boolean> {
+  const snap = await jobsCol().doc(jobId).get();
+  return Boolean(snap.data()?.replyDeliveredAt);
+}
+
+export async function markWhatsappJobReplyDelivered(jobId: string): Promise<void> {
+  await jobsCol()
+    .doc(jobId)
+    .update({ replyDeliveredAt: nowIso() })
+    .catch(() => undefined);
+}
+
 export async function completeWhatsappJob(jobId: string): Promise<void> {
   const now = nowIso();
   await jobsCol()

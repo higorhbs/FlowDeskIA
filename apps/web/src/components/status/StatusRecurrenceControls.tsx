@@ -71,7 +71,7 @@ export function StatusRecurrenceControls({
     <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 space-y-3">
       <div className="space-y-1">
         <Label className="text-sm">Recorrência</Label>
-        <p className="text-xs text-gray-500">Automaticamente gera até {MAX_SCHEDULE_DAYS} datas.</p>
+        <p className="text-xs text-gray-500">Gera datas só dentro da janela de {MAX_SCHEDULE_DAYS} dias.</p>
       </div>
 
       <div className="flex flex-wrap gap-2">

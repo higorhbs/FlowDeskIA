@@ -41,7 +41,7 @@ import {
 } from "@/components/status/status-day-groups";
 import { StatusHistoryCarousel } from "@/components/status/StatusHistoryCarousel";
 import { StatusHistoryFolders } from "@/components/status/StatusHistoryFolders";
-import { dateDayKey } from "@flowdesk/firebase/client";
+import { dateDayKey, MAX_SCHEDULE_DAYS, STORIES_HISTORY_RETENTION_DAYS, STORIES_MEDIA_RETENTION_DAYS } from "@flowdesk/firebase/client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -285,6 +285,14 @@ export default function StatusSchedulePage() {
         </div>
       )}
 
+      <div className="flex items-start gap-3 mb-4 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200">
+        <CalendarClock className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
+        <p className="text-xs text-slate-700 leading-relaxed">
+          <span className="font-semibold">Agenda de até {MAX_SCHEDULE_DAYS} dias.</span>{" "}
+          Renove a fila toda semana. No histórico, a prévia some em {STORIES_MEDIA_RETENTION_DAYS} dias e o registro em {STORIES_HISTORY_RETENTION_DAYS} dias — o story no WhatsApp segue as regras do app (24h).
+        </p>
+      </div>
+
       {/* Tab bar */}
       <div className="flex bg-gray-100/80 rounded-2xl p-1 mb-6 gap-1">
         <TabBtn
@@ -490,6 +498,9 @@ export default function StatusSchedulePage() {
       {/* ── Tab: Histórico ── */}
       {activeTab === "historico" && (
         <section>
+          <p className="text-xs text-gray-500 mb-4 px-1 leading-relaxed">
+            Prévia da arte disponível por {STORIES_MEDIA_RETENTION_DAYS} dias após publicar. Depois de {STORIES_HISTORY_RETENTION_DAYS} dias o registro some daqui — salve a arte no celular se precisar guardar.
+          </p>
           {history.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-16 rounded-2xl bg-gray-50 border border-gray-100 border-dashed">
               <History className="w-10 h-10 text-gray-300" />
@@ -562,6 +573,9 @@ export default function StatusSchedulePage() {
               </HelpItem>
               <HelpItem icon={<Trash2 className="w-4 h-4 text-brand-600" />} title="Como apagar um story publicado?">
                 Use <strong className="font-semibold">"Apagar do WhatsApp"</strong> no histórico — apagar pelo celular não funciona para stories publicados via API.
+              </HelpItem>
+              <HelpItem icon={<CalendarClock className="w-4 h-4 text-brand-600" />} title="Por quanto tempo fica salvo aqui?">
+                Você agenda no máximo {MAX_SCHEDULE_DAYS} dias à frente — renove a fila semanalmente. Após publicar, a prévia da arte fica {STORIES_MEDIA_RETENTION_DAYS} dias; o histórico completo some em {STORIES_HISTORY_RETENTION_DAYS} dias. Isso reduz custo de armazenamento. O story no WhatsApp dos contatos segue a regra normal do app (some em 24h).
               </HelpItem>
               <HelpItem icon={<CalendarClock className="w-4 h-4 text-brand-600" />} title="Posso cancelar um agendamento?">
                 Sim. Vá para a aba <strong className="font-semibold">Na fila</strong>, selecione o dia e cancele antes do horário.

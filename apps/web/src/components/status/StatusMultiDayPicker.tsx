@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import {
   MAX_SCHEDULE_DAYS,
   dateDayKey,
+  isDayKeyWithinScheduleHorizon,
   parseDayKey,
 } from "@flowdesk/firebase/client";
 
@@ -121,6 +122,10 @@ export function StatusMultiDayPicker({
 
   function toggleDay(date: Date) {
     const key = dateDayKey(date);
+    if (!isDayKeyWithinScheduleHorizon(key)) {
+      toast.error(`Agende somente nos próximos ${MAX_SCHEDULE_DAYS} dias.`);
+      return;
+    }
     if (selectedDayKeys.includes(key)) {
       onSelectedDayKeysChange(selectedDayKeys.filter((k) => k !== key));
       return;
@@ -173,7 +178,7 @@ export function StatusMultiDayPicker({
     const end = new Date(hi);
     end.setHours(0, 0, 0, 0);
     while (cur.getTime() <= end.getTime()) {
-      if (cur >= today) visited.add(dateDayKey(cur));
+      if (cur >= today && isDayKeyWithinScheduleHorizon(dateDayKey(cur))) visited.add(dateDayKey(cur));
       cur.setDate(cur.getDate() + 1);
     }
   }
@@ -185,7 +190,7 @@ export function StatusMultiDayPicker({
     if (!key) return null;
     const d = parseDayKey(key);
     d.setHours(0, 0, 0, 0);
-    if (d < today) return null;
+    if (d < today || !isDayKeyWithinScheduleHorizon(key)) return null;
     return key;
   }
 
@@ -296,7 +301,7 @@ export function StatusMultiDayPicker({
       <p className="text-xs text-gray-500 mb-3">
         {disableDaySelection
           ? "Datas geradas pela recorrência. Mude para Única/manual para marcar no calendário."
-          : "Clique ou arraste no calendário para marcar vários dias. O mesmo horário vale para todos."}
+          : "Clique ou arraste no calendário. Máximo 7 dias à frente, mesmo horário para todos."}
       </p>
 
       <div className="flex items-center gap-2.5 mb-4 px-4 py-2.5 rounded-xl bg-brand-50 border border-brand-100">
@@ -386,6 +391,7 @@ export function StatusMultiDayPicker({
               if (!date) return <div key={i} />;
               const key = dateDayKey(date);
               const isPast = date < today;
+              const isBeyondHorizon = !isDayKeyWithinScheduleHorizon(key);
               const isMarked = selectedDayKeys.includes(key);
               const isDragPaint = dragVisited.includes(key);
               const isTodayCell = date.toDateString() === today.toDateString();
@@ -394,17 +400,18 @@ export function StatusMultiDayPicker({
                   key={i}
                   type="button"
                   data-day-key={key}
-                  disabled={isPast || disableDaySelection}
+                  disabled={isPast || isBeyondHorizon || disableDaySelection}
                   tabIndex={-1}
                   className={cn(
                     "aspect-square text-xs rounded-lg flex items-center justify-center transition-colors font-medium",
-                    isPast && "text-gray-300 cursor-not-allowed",
+                    (isPast || isBeyondHorizon) && "text-gray-300 cursor-not-allowed",
                     !isPast &&
+                      !isBeyondHorizon &&
                       !isMarked &&
                       !isDragPaint &&
                       !disableDaySelection &&
                       "text-gray-700 hover:bg-brand-100 hover:text-brand-800 cursor-cell",
-                    !isPast && !isMarked && !isDragPaint && disableDaySelection && "text-gray-500",
+                    !isPast && !isBeyondHorizon && !isMarked && !isDragPaint && disableDaySelection && "text-gray-500",
                     isTodayCell && !isMarked && !isDragPaint && "text-brand-600 font-bold ring-1 ring-brand-300",
                     (isMarked || (isDragPaint && calendarDragRef.current?.mode === "select")) &&
                       "bg-brand-600 text-white shadow-md scale-105",

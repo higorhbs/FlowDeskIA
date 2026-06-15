@@ -16,13 +16,15 @@ COPY docker/monorepo/packages ./packages
 COPY . /tmp/backend
 RUN mkdir -p apps/backend \
     && cp -a /tmp/backend/. apps/backend/ \
-    && rm -rf apps/backend/docker/monorepo /tmp/backend
+    && rm -rf /tmp/backend
 
 ENV NODE_OPTIONS="--max-old-space-size=768"
 
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @flowdesk/backend... \
-    && pnpm --filter @flowdesk/backend run build:docker \
+    && pnpm --filter @flowdesk/backend run build:deps \
+    && pnpm --filter @flowdesk/backend run build:whatsapp \
+    && node --check apps/backend/src/index.js \
     && mkdir -p apps/backend/dist/lib \
     && cp apps/backend/src/lib/*.js apps/backend/dist/lib/ \
     && test -f apps/backend/dist/lib/log.js \

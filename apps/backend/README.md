@@ -217,6 +217,8 @@ Após deploy: **Open Terminal** no app → `curl -s http://127.0.0.1:9031/health
 
 Rebuild com **Clean Cache ON** se build mostrar tudo `CACHED` e código novo não aplicou.
 
+Antes de push que muda `packages/*`, rodar na máquina local: `cd apps/backend && pnpm run sync:docker` (atualiza `docker/monorepo` usado no build Dokploy).
+
 ### Container parado (`is not running`)
 
 O container **subiu e morreu**. No Raspberry (SSH ou Dokploy **Logs**):

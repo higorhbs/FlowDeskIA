@@ -1,7 +1,34 @@
 const MIN_LEAD_MS = 60_000;
 export const IMMEDIATE_LEAD_MS = 0;
-export const MAX_SCHEDULE_DAYS = 62;
+export const MAX_SCHEDULE_DAYS = 7;
+export const STORIES_MEDIA_RETENTION_DAYS = 2;
+export const STORIES_HISTORY_RETENTION_DAYS = 7;
 export const DEFAULT_SCHEDULE_TZ = "America/Sao_Paulo";
+
+function scheduleHorizonStart(from = new Date()): Date {
+  const d = new Date(from);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+export function maxScheduleDayKey(from = new Date()): string {
+  const d = scheduleHorizonStart(from);
+  d.setDate(d.getDate() + MAX_SCHEDULE_DAYS - 1);
+  return dateDayKey(d);
+}
+
+export function isDayKeyWithinScheduleHorizon(dayKey: string, from = new Date()): boolean {
+  const start = scheduleHorizonStart(from).getTime();
+  const end = parseDayKey(maxScheduleDayKey(from)).getTime();
+  const target = parseDayKey(dayKey);
+  target.setHours(0, 0, 0, 0);
+  const at = target.getTime();
+  return at >= start && at <= end;
+}
+
+export function scheduledStatusHorizonCutoffIso(fromMs = Date.now()): string {
+  return new Date(fromMs + MAX_SCHEDULE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+}
 
 export type RecurrenceMode = "none" | "interval" | "weekdays";
 
@@ -72,6 +99,10 @@ export function buildScheduledAtsFromDayKeys(
   if (unique.length > MAX_SCHEDULE_DAYS) {
     throw new Error(`Selecione no máximo ${MAX_SCHEDULE_DAYS} dias por vez.`);
   }
+  const beyondHorizon = unique.filter((key) => !isDayKeyWithinScheduleHorizon(key));
+  if (beyondHorizon.length > 0) {
+    throw new Error(`Agende somente nos próximos ${MAX_SCHEDULE_DAYS} dias.`);
+  }
 
   const minAt = Date.now() + minLeadMs;
   const out: string[] = [];
@@ -130,7 +161,9 @@ export function buildRecurringDayKeysByInterval(
   }
   const out: string[] = [];
   for (let i = 0; i < maxCount; i++) {
-    out.push(addDaysToDayKey(startDayKey, i * everyDays));
+    const key = addDaysToDayKey(startDayKey, i * everyDays);
+    if (!isDayKeyWithinScheduleHorizon(key)) break;
+    out.push(key);
   }
   return out;
 }
@@ -152,7 +185,11 @@ export function buildRecurringDayKeysByWeekdays(
   const cursor = new Date(start);
   let guard = 0;
   while (out.length < maxCount && guard < 730) {
-    if (weekdays.includes(cursor.getDay())) out.push(dateDayKey(cursor));
+    if (weekdays.includes(cursor.getDay())) {
+      const key = dateDayKey(cursor);
+      if (!isDayKeyWithinScheduleHorizon(key)) break;
+      out.push(key);
+    }
     cursor.setDate(cursor.getDate() + 1);
     guard++;
   }
