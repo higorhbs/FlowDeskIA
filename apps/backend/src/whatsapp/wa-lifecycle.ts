@@ -76,12 +76,15 @@ async function deliverLeadFlowMedia(
   const signedUrl = await getBusinessMediaReadUrl(resp.imageUrl, resp.imageStoragePath);
 
   if (mediaType === "gif") {
-    return client.sendFlowGif(dest, {
-      buffer: local?.buffer,
-      mediaUrl: signedUrl ?? resp.imageUrl,
-      altUrl: signedUrl && signedUrl !== resp.imageUrl ? resp.imageUrl : undefined,
-      caption,
-    });
+    const buffer = local?.buffer?.length ? local.buffer : undefined;
+    const mediaUrl = signedUrl ?? resp.imageUrl;
+    const altUrl = signedUrl && signedUrl !== resp.imageUrl ? resp.imageUrl : undefined;
+    if (!buffer?.length) {
+      log.warn(
+        `[whatsapp] lead flow gif without local buffer business media=${resp.imageStoragePath ?? resp.imageUrl}`,
+      );
+    }
+    return client.sendFlowGif(dest, { buffer, mediaUrl, altUrl, caption });
   }
 
   const attempts: Array<() => Promise<string | undefined>> = [];
@@ -141,7 +144,19 @@ export async function deliverBotResponses(
       }
     } catch (err) {
       log.error(`[whatsapp] deliver response failed business=${businessId}:`, err);
-      if (resp.text?.trim() && !resp.imageUrl) {
+      if (resp.imageUrl) {
+        const link = resp.imageUrl.trim();
+        const fallback = resp.text?.trim() ? `${resp.text.trim()}\n\n${link}` : link;
+        try {
+          const waMessageId = await client.sendText(dest, fallback);
+          if (conversationId && waMessageId) {
+            await persistBotReplies(businessId, conversationId, [{ text: fallback }]);
+          }
+          continue;
+        } catch (fallbackErr) {
+          log.error(`[whatsapp] media text fallback failed business=${businessId}:`, fallbackErr);
+        }
+      } else if (resp.text?.trim()) {
         try {
           const waMessageId = await client.sendText(dest, resp.text);
           if (conversationId && waMessageId) {

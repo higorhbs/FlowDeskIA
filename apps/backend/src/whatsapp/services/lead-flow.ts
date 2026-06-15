@@ -92,19 +92,18 @@ export function leadFlowNodeToResponses(
   const text = renderTemplate(node.text, vars).trim();
   const out: BotResponse[] = [];
   const hasButtons = node.buttons.length > 0;
-  if (node.imageUrl && text) out.push({ text });
   if (node.imageUrl) {
     const hint = `${node.imageUrl} ${node.imageStoragePath ?? ""}`.toLowerCase();
     const mediaType =
       node.mediaType ??
       (hint.includes(".gif") ? "gif" : hint.includes(".mp4") || hint.includes(".mov") ? "video" : "image");
     out.push({
-      text: "",
+      text,
       imageUrl: node.imageUrl,
       imageStoragePath: node.imageStoragePath,
       mediaType,
     });
-  } else if (text && !hasButtons) {
+  } else if (text) {
     out.push({ text });
   }
   if (hasButtons) {

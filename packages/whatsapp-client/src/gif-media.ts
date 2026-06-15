@@ -8,7 +8,15 @@ import ffmpegPath from "ffmpeg-static";
 import sharp from "sharp";
 
 const execFileAsync = promisify(execFile);
-const ffmpegBin = (typeof ffmpegPath === "string" && ffmpegPath) || "ffmpeg";
+
+function resolveFfmpegBin(): string {
+  const env = process.env.FFMPEG_PATH?.trim();
+  if (env) return env;
+  if (typeof ffmpegPath === "string" && ffmpegPath) return ffmpegPath;
+  return "ffmpeg";
+}
+
+const ffmpegBin = resolveFfmpegBin();
 
 export async function gifFirstFrameJpeg(buffer: Buffer, maxWidth = 480): Promise<Buffer> {
   return sharp(buffer, { pages: 1 })
@@ -33,14 +41,18 @@ export async function gifToMp4Buffer(gifBuffer: Buffer): Promise<Buffer | null> 
         "faststart",
         "-pix_fmt",
         "yuv420p",
+        "-profile:v",
+        "baseline",
+        "-level",
+        "3.0",
         "-vf",
-        "scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,fps=12",
+        "scale='min(480,iw)':-2:flags=lanczos,fps=15",
         "-an",
         "-t",
-        "12",
+        "30",
         output,
       ],
-      { timeout: 60_000, maxBuffer: 32 * 1024 * 1024 },
+      { timeout: 90_000, maxBuffer: 48 * 1024 * 1024 },
     );
     const mp4 = await readFile(output);
     return mp4.length ? mp4 : null;

@@ -22,7 +22,7 @@ export type { WaAuthFileStore } from "./remote-auth-state.js";
 import NodeCache from "@cacheable/node-cache";
 import { Boom } from "@hapi/boom";
 import sharp from "sharp";
-import { gifFirstFrameJpeg, gifToMp4Buffer } from "./gif-media.js";
+import { gifToMp4Buffer } from "./gif-media.js";
 import { createWaLogger } from "./wa-logger.js";
 import { waLog } from "./wa-app-log.js";
 import { toDataURL } from "qrcode";
@@ -789,80 +789,78 @@ export class WhatsAppClient extends EventEmitter {
         .filter((u): u is string => Boolean(u)),
     )];
     let lastErr: unknown;
-    const buffer = opts.buffer?.length ? opts.buffer : undefined;
-    const thumb = buffer ? await gifFirstFrameJpeg(buffer).catch(() => null) : null;
-    const thumbB64 = thumb?.length ? thumb.toString("base64") : undefined;
+    let buffer = opts.buffer?.length ? opts.buffer : undefined;
 
-    if (buffer) {
-      const mp4 = await gifToMp4Buffer(buffer);
-      if (mp4) {
+    if (!buffer) {
+      for (const url of urls) {
         try {
-          const id = stash(
-            await this.sock.sendMessage(jid, {
-              video: mp4,
-              mimetype: "video/mp4",
-              gifPlayback: true,
-              caption: cap,
-              jpegThumbnail: thumbB64,
-            }),
-          );
-          if (id) return id;
-        } catch (err) {
-          lastErr = err;
-        }
-      }
-
-      try {
-        const id = stash(
-          await this.sock.sendMessage(jid, {
-            image: buffer,
-            mimetype: "image/gif",
-            caption: cap,
-          }),
-        );
-        if (id) return id;
-      } catch (err) {
-        lastErr = err;
-      }
-
-      if (thumb) {
-        try {
-          const id = stash(
-            await this.sock.sendMessage(jid, {
-              image: thumb,
-              mimetype: "image/jpeg",
-              caption: cap,
-            }),
-          );
-          if (id) return id;
+          ({ buffer } = await this.loadRemoteMedia(url, "gif"));
+          if (buffer?.length) break;
         } catch (err) {
           lastErr = err;
         }
       }
     }
 
-    for (const url of urls) {
-      try {
-        const id = stash(
-          await this.sock.sendMessage(jid, {
-            image: { url },
+    const attempts: Array<() => Promise<string | undefined>> = [];
+
+    if (buffer?.length) {
+      const mp4 = await gifToMp4Buffer(buffer);
+      if (mp4?.length) {
+        attempts.push(async () =>
+          stash(
+            await this.sock!.sendMessage(jid, {
+              video: mp4,
+              gifPlayback: true,
+              caption: cap,
+            }),
+          ),
+        );
+        attempts.push(async () =>
+          stash(
+            await this.sock!.sendMessage(jid, {
+              video: mp4,
+              mimetype: "video/mp4",
+              gifPlayback: true,
+              caption: cap,
+            }),
+          ),
+        );
+      }
+      attempts.push(async () =>
+        stash(
+          await this.sock!.sendMessage(jid, {
+            image: buffer,
+            mimetype: "image/gif",
             caption: cap,
           }),
-        );
-        if (id) return id;
-      } catch (err) {
-        lastErr = err;
-      }
+        ),
+      );
+    }
 
-      try {
-        const id = stash(
-          await this.sock.sendMessage(jid, {
+    for (const url of urls) {
+      attempts.push(async () =>
+        stash(
+          await this.sock!.sendMessage(jid, {
             video: { url },
-            mimetype: "video/mp4",
             gifPlayback: true,
             caption: cap,
           }),
-        );
+        ),
+      );
+      attempts.push(async () =>
+        stash(
+          await this.sock!.sendMessage(jid, {
+            image: { url },
+            caption: cap,
+          }),
+        ),
+      );
+    }
+
+    for (const attempt of attempts) {
+      try {
+        const id = await attempt();
         if (id) return id;
       } catch (err) {
         lastErr = err;

@@ -39,6 +39,7 @@ ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=512"
 ENV PORT=9031
 ENV HOST=0.0.0.0
+ENV FFMPEG_PATH=/usr/bin/ffmpeg
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl tini ffmpeg \
