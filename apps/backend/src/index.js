@@ -75,14 +75,15 @@ async function startWhatsAppWorkers() {
 }
 
 const retentionRaw = process.env.PRIVACY_RETENTION_INTERVAL_HOURS?.trim()
-const retentionIntervalHours = retentionRaw ? Number(retentionRaw) : 0
+const retentionIntervalHours = retentionRaw ? Number(retentionRaw) : 7 * 24
 if (retentionIntervalHours > 0) {
   const runRetention = async () => {
     try {
       const { runPrivacyRetentionForAllTenants } = await import(
         './services/privacy-compliance.js'
       )
-      const result = await runPrivacyRetentionForAllTenants(365)
+      const retentionDays = Number(process.env.PRIVACY_RETENTION_DAYS?.trim()) || 7
+      const result = await runPrivacyRetentionForAllTenants(retentionDays)
       log.debug('[privacy] retention run completed', result)
     } catch (err) {
       log.error('[privacy] retention run failed:', err)

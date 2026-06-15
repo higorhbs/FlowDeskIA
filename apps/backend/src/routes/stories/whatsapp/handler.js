@@ -5,11 +5,13 @@ import {
   expandRecurrenceToDayKeys,
   getBusiness,
   getScheduledStatus,
+  getTenant,
   hasAdminCredential,
   listScheduledStatuses,
   repostScheduledStatus,
   revokePublishedScheduledStatus,
 } from '@flowdesk/firebase'
+import { planAllowsStatusVideo } from '@flowdesk/shared'
 import { json, requireBearerUser } from '../../../lib/auth-guard.js'
 import { saveStatusMedia } from '../../../whatsapp/status-media.js'
 import { isWhatsAppRuntime } from '../../../whatsapp/wa-manager.js'
@@ -216,6 +218,17 @@ export async function postStoriesHandler(c) {
     const upload = await readUploadFile(form.file)
     if (!upload?.buffer?.length) {
       return json(c, 400, { error: 'Arquivo obrigatório.' })
+    }
+
+    const tenant = await getTenant(ctx.business.tenantId)
+    const plan = tenant?.plan ?? 'STARTER'
+    const isVideo =
+      upload.mimetype.startsWith('video/') ||
+      upload.mimetype === 'video/quicktime'
+    if (isVideo && !planAllowsStatusVideo(plan)) {
+      return json(c, 403, {
+        error: 'Vídeo em stories está disponível apenas no plano Unlimited.',
+      })
     }
 
     try {

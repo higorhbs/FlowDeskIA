@@ -5,13 +5,16 @@ import type {
 } from '@flowdesk/whatsapp-client'
 import {
   createWaAuthFileStore,
+  getBusiness,
   getBusinessMediaReadUrl,
+  getTenant,
   enqueueWhatsappInboundJob,
   hasWhatsAppAuth,
   listBusinessIdsWithWhatsAppAuth,
   resolveBusinessMediaBuffer,
   setBusinessConnected,
 } from '@flowdesk/firebase'
+import { planAllowsChatMediaStorage } from '@flowdesk/shared'
 import { log } from '../lib/log.js'
 import { saveChatMedia } from './chat-media.js'
 import { persistBotReplies, processMessage, takeLastProcessMeta, type BotResponse } from './services/bot.js'
@@ -199,6 +202,13 @@ async function deliverBotReplies(
   log.debug(`[whatsapp] replied business=${businessId} count=${responses.length}`)
 }
 
+async function shouldPersistChatMedia(businessId: string): Promise<boolean> {
+  const business = await getBusiness(businessId)
+  if (!business?.tenantId) return false
+  const tenant = await getTenant(business.tenantId)
+  return planAllowsChatMediaStorage(tenant?.plan ?? 'STARTER')
+}
+
 async function resolveInboundMedia(
   businessId: string,
   client: WhatsAppClient,
@@ -206,6 +216,9 @@ async function resolveInboundMedia(
   raw: WAMessage
 ) {
   if (!msg.mediaType) return {}
+  if (!(await shouldPersistChatMedia(businessId))) {
+    return { mediaType: msg.mediaType }
+  }
   const downloaded = await client.downloadMessageMedia(raw)
   if (!downloaded) {
     log.warn(

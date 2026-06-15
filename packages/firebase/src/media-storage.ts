@@ -134,6 +134,21 @@ export async function downloadBusinessMedia(
   }
 }
 
+export async function deleteBusinessMedia(
+  mediaUrl?: string,
+  mediaStoragePath?: string,
+): Promise<boolean> {
+  const storagePath =
+    mediaStoragePath?.trim() || (mediaUrl ? parseFirebaseStoragePath(mediaUrl) : null);
+  if (!storagePath) return false;
+  try {
+    await getStorageBucket().file(storagePath).delete();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function resolveBusinessMediaBuffer(
   mediaUrl?: string,
   mediaStoragePath?: string,

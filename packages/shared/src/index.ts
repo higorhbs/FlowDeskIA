@@ -367,6 +367,14 @@ export function leadFlowMediaQuotaMessage(plan: PlanTier): string {
     : `Seu plano inclui até ${limit} mídias por fluxo (imagem, GIF ou vídeo).`;
 }
 
+export function planAllowsChatMediaStorage(plan: PlanTier): boolean {
+  return plan === "UNLIMITED";
+}
+
+export function planAllowsStatusVideo(plan: PlanTier): boolean {
+  return plan === "UNLIMITED";
+}
+
 export function assertStoriesPublishQuota(plan: PlanTier, publishedCount: number): void {
   const limit = PLAN_LIMITS[plan].scheduledStoriesPerMonth;
   if (!Number.isFinite(limit)) return;

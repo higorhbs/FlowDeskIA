@@ -2,10 +2,12 @@ import {
   createMessage,
   getBusiness,
   getConversation,
+  getTenant,
   hasAdminCredential,
   setBusinessConnected,
   upsertConversation,
 } from '@flowdesk/firebase'
+import { planAllowsChatMediaStorage } from '@flowdesk/shared'
 import { json, requireBearerUser } from '../../../lib/auth-guard.js'
 import { saveChatMedia } from '../../../whatsapp/chat-media.js'
 import { connectForQr, readWhatsAppStatus } from '../../../whatsapp/wa-connect.js'
@@ -187,6 +189,13 @@ export async function postMessageMediaHandler(c) {
 
   const conv = await getConversation(businessId, conversationId)
   if (!conv) return json(c, 404, { error: 'Conversa não encontrada.' })
+
+  const tenant = await getTenant(ctx.business.tenantId)
+  if (!planAllowsChatMediaStorage(tenant?.plan ?? 'STARTER')) {
+    return json(c, 403, {
+      error: 'Armazenamento de mídia no chat está disponível apenas no plano Unlimited.',
+    })
+  }
 
   const client = await resolveWhatsAppClient(businessId, { waitMs: 12_000 })
   if (!client) {
