@@ -33,6 +33,8 @@ import {
   LEAD_FLOW_MEDIA_ACCEPT,
   LEAD_FLOW_MAX_MEDIA_BYTES,
   LEAD_FLOW_MAX_MEDIA_LABEL,
+  DEFAULT_LEAD_FLOW_IDLE_FOLLOW_UP_MINUTES,
+  DEFAULT_LEAD_FLOW_IDLE_FOLLOW_UP_MESSAGE,
   countLeadFlowMediaNodes,
   getLeadFlowMediaLimit,
   leadFlowMediaQuotaMessage,
@@ -707,6 +709,59 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
                       </div>
                     ))}
                   </div>
+
+                  <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Lembrete de silêncio</p>
+                        <p className="text-xs text-gray-500">
+                          Opcional em qualquer passo — 1 lembrete se o cliente ficar mudo após ver este passo
+                        </p>
+                      </div>
+                      <Switch
+                        checked={node.idleFollowUpEnabled === true}
+                        onCheckedChange={(idleFollowUpEnabled) =>
+                          patchNode(node.id, { idleFollowUpEnabled })
+                        }
+                      />
+                    </div>
+                    {node.idleFollowUpEnabled && (
+                      <>
+                        <div>
+                          <Label className="text-xs text-gray-500">Aguardar (minutos)</Label>
+                          <input
+                            type="number"
+                            min={5}
+                            max={1440}
+                            value={node.idleFollowUpMinutes ?? DEFAULT_LEAD_FLOW_IDLE_FOLLOW_UP_MINUTES}
+                            onChange={(e) => {
+                              const n = Number(e.target.value);
+                              patchNode(node.id, {
+                                idleFollowUpMinutes: Number.isFinite(n) ? n : undefined,
+                              });
+                            }}
+                            className="mt-1.5 w-full max-w-[140px] rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-gray-500">Mensagem do lembrete</Label>
+                          <div className="mt-1.5">
+                            <TemplateMessageField
+                              value={
+                                node.idleFollowUpMessage ?? DEFAULT_LEAD_FLOW_IDLE_FOLLOW_UP_MESSAGE
+                              }
+                              onChange={(idleFollowUpMessage) =>
+                                patchNode(node.id, { idleFollowUpMessage })
+                              }
+                              rows={2}
+                              placeholder={DEFAULT_LEAD_FLOW_IDLE_FOLLOW_UP_MESSAGE}
+                              className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -802,6 +857,11 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
                 Cliente digita <strong className="font-semibold text-gray-800">voltar</strong> para retornar ao passo
                 anterior. No primeiro passo, a IA avisa que já está no início. Texto fora dos botões recebe o aviso
                 configurado em cada etapa.
+              </LeadFlowHelpItem>
+              <LeadFlowHelpItem icon={<Zap className="h-4 w-4 text-brand-600" />} title="Lembrete de silêncio">
+                Em <strong className="font-semibold text-gray-800">qualquer passo</strong>, ative o toggle para mandar
+                1 mensagem se o cliente ficar mudo (minutos e texto configuráveis por passo). Dispara só 1 vez por
+                visita ao passo; cliente responde → cancela.
               </LeadFlowHelpItem>
               <div className="rounded-xl border border-teal-100 bg-teal-50/40 px-3.5 py-3">
                 <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-gray-900">

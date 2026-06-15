@@ -716,6 +716,143 @@ export async function tryClaimChatGreetingReply(
   }
 }
 
+export type LeadFlowIdleFollowUpStatus = "pending" | "sent" | "cancelled";
+
+export interface LeadFlowIdleFollowUp {
+  businessId: string;
+  conversationId: string;
+  customerPhone: string;
+  replyJid: string;
+  customerName?: string;
+  nodeId?: string;
+  visitId?: string;
+  dueAt: string;
+  anchorAt: string;
+  message: string;
+  status: LeadFlowIdleFollowUpStatus;
+}
+
+function leadFlowIdleFollowUpsCol(businessId: string) {
+  return businessRef(businessId).collection("leadFlowIdleFollowUps");
+}
+
+export async function scheduleLeadFlowIdleFollowUp(
+  businessId: string,
+  data: Omit<LeadFlowIdleFollowUp, "businessId" | "status">
+): Promise<void> {
+  const ts = nowIso();
+  await leadFlowIdleFollowUpsCol(businessId)
+    .doc(data.conversationId)
+    .set({
+      ...data,
+      businessId,
+      status: "pending" satisfies LeadFlowIdleFollowUpStatus,
+      updatedAt: ts,
+    });
+}
+
+export async function clearLeadFlowIdleFollowUp(
+  businessId: string,
+  conversationId: string
+): Promise<void> {
+  const ref = leadFlowIdleFollowUpsCol(businessId).doc(conversationId);
+  const snap = await ref.get();
+  if (!snap.exists) return;
+  const status = String(snap.data()?.status ?? "");
+  if (status !== "pending") return;
+  await ref.update({ status: "cancelled", updatedAt: nowIso() }).catch(() => undefined);
+}
+
+export async function markLeadFlowIdleFollowUpSent(
+  businessId: string,
+  conversationId: string
+): Promise<void> {
+  await leadFlowIdleFollowUpsCol(businessId)
+    .doc(conversationId)
+    .update({ status: "sent", sentAt: nowIso(), updatedAt: nowIso() })
+    .catch(() => undefined);
+}
+
+export async function tryClaimLeadFlowIdleFollowUp(
+  businessId: string,
+  conversationId: string
+): Promise<LeadFlowIdleFollowUp | null> {
+  const ref = leadFlowIdleFollowUpsCol(businessId).doc(conversationId);
+  const now = nowIso();
+  try {
+    return await getDb().runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) return null;
+      const row = snap.data()!;
+      if (String(row.status ?? "") !== "pending") return null;
+      if (String(row.dueAt ?? "") > now) return null;
+      const ts = nowIso();
+      tx.update(ref, { status: "sent", sentAt: ts, updatedAt: ts });
+      return {
+        businessId,
+        conversationId: String(row.conversationId ?? conversationId),
+        customerPhone: String(row.customerPhone ?? ""),
+        replyJid: String(row.replyJid ?? row.customerPhone ?? ""),
+        customerName: row.customerName ? String(row.customerName) : undefined,
+        nodeId: row.nodeId ? String(row.nodeId) : undefined,
+        visitId: row.visitId ? String(row.visitId) : undefined,
+        dueAt: String(row.dueAt ?? ""),
+        anchorAt: String(row.anchorAt ?? ""),
+        message: String(row.message ?? ""),
+        status: "sent",
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function hasCustomerMessageSince(
+  businessId: string,
+  conversationId: string,
+  sinceIso: string
+): Promise<boolean> {
+  const snap = await messagesCol(businessId, conversationId)
+    .where("role", "==", "CUSTOMER")
+    .where("createdAt", ">", sinceIso)
+    .limit(1)
+    .get();
+  return !snap.empty;
+}
+
+export async function listDueLeadFlowIdleFollowUps(limit = 25): Promise<LeadFlowIdleFollowUp[]> {
+  const now = nowIso();
+  const businessSnap = await businesses().select().get();
+  const out: LeadFlowIdleFollowUp[] = [];
+
+  for (const businessDoc of businessSnap.docs) {
+    if (out.length >= limit) break;
+    const snap = await leadFlowIdleFollowUpsCol(businessDoc.id)
+      .where("status", "==", "pending")
+      .where("dueAt", "<=", now)
+      .limit(limit - out.length)
+      .get();
+    for (const doc of snap.docs) {
+      const row = doc.data();
+      out.push({
+        businessId: businessDoc.id,
+        conversationId: String(row.conversationId ?? doc.id),
+        customerPhone: String(row.customerPhone ?? ""),
+        replyJid: String(row.replyJid ?? row.customerPhone ?? ""),
+        customerName: row.customerName ? String(row.customerName) : undefined,
+        nodeId: row.nodeId ? String(row.nodeId) : undefined,
+        visitId: row.visitId ? String(row.visitId) : undefined,
+        dueAt: String(row.dueAt ?? ""),
+        anchorAt: String(row.anchorAt ?? ""),
+        message: String(row.message ?? ""),
+        status: "pending",
+      });
+    }
+  }
+
+  return out.sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+}
+
 export async function createMessage(
   businessId: string,
   conversationId: string,

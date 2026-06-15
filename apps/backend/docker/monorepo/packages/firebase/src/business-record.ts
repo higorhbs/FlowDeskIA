@@ -21,6 +21,9 @@ export function serializeLeadFlowForFirestore(flow: LeadCaptureFlow): Record<str
         imageStoragePath: node.imageStoragePath,
         mediaType: node.mediaType,
         entryKeywords: node.entryKeywords?.length ? node.entryKeywords : undefined,
+        idleFollowUpEnabled: node.idleFollowUpEnabled ? true : undefined,
+        idleFollowUpMinutes: node.idleFollowUpMinutes,
+        idleFollowUpMessage: node.idleFollowUpMessage,
         buttons: node.buttons.map((btn) =>
           stripUndefined({
             id: btn.id,

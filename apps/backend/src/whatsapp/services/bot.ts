@@ -20,6 +20,7 @@ import {
   clearOutsideHoursNotice,
   tryClaimOutsideHoursNotice,
   setConversationBotFlowState,
+  clearLeadFlowIdleFollowUp,
 } from "@flowdesk/firebase";
 import {
   APP_DISPLAY_NAME,
@@ -216,6 +217,7 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
     content: messageBody,
     ...(mediaUrl ? { mediaUrl, mediaType } : {}),
   });
+  void clearLeadFlowIdleFollowUp(businessId, conversation.id).catch(() => undefined);
 
   if (business.botAutoReplyEnabled === false) return [];
 

@@ -1,4 +1,6 @@
 import {
+  DEFAULT_LEAD_FLOW_IDLE_FOLLOW_UP_MESSAGE,
+  DEFAULT_LEAD_FLOW_IDLE_FOLLOW_UP_MINUTES,
   DEFAULT_LEAD_FLOW_INVALID_REPLY,
   findLeadFlowButtonMatch,
   findLeadFlowNode,
@@ -17,6 +19,10 @@ import {
 import type { Conversation } from "@flowdesk/firebase";
 import {
   clearConversationBotFlowState,
+  clearLeadFlowIdleFollowUp,
+  newId,
+  nowIso,
+  scheduleLeadFlowIdleFollowUp,
   setConversationBotFlowState,
 } from "@flowdesk/firebase";
 import type { BotContext, BotResponse } from "./bot.js";
@@ -122,16 +128,46 @@ function leadFlowState(
   return { step: "LEAD_FLOW", data: { nodeId, history: serializeHistory(history) } };
 }
 
+async function maybeScheduleIdleFollowUp(
+  business: { id: string; name: string },
+  conversation: Conversation,
+  node: LeadFlowNode,
+  customerName?: string
+) {
+  if (!node.idleFollowUpEnabled) return;
+  const minutes = node.idleFollowUpMinutes ?? DEFAULT_LEAD_FLOW_IDLE_FOLLOW_UP_MINUTES;
+  const template = node.idleFollowUpMessage?.trim() || DEFAULT_LEAD_FLOW_IDLE_FOLLOW_UP_MESSAGE;
+  const vars = flowVars(business, customerName ?? conversation.customerName);
+  const anchorAt = nowIso();
+  await scheduleLeadFlowIdleFollowUp(business.id, {
+    conversationId: conversation.id,
+    customerPhone: conversation.customerPhone,
+    replyJid: conversation.replyJid?.trim() || conversation.customerPhone,
+    customerName: customerName ?? conversation.customerName,
+    nodeId: node.id,
+    visitId: newId(),
+    dueAt: new Date(Date.now() + minutes * 60_000).toISOString(),
+    anchorAt,
+    message: renderTemplate(template, vars),
+  });
+}
+
 async function sendLeadFlowNode(
   business: { id: string; name: string },
   conversation: Conversation,
   node: LeadFlowNode,
   vars: Record<string, string>,
   saveAndReturn: (businessId: string, conversationId: string, responses: BotResponse[]) => Promise<void>,
+  customerName?: string,
 ): Promise<BotResponse[]> {
   const out = leadFlowNodeToResponses(node, vars);
   if (!out.length) return [];
   await saveAndReturn(business.id, conversation.id, out);
+  if (node.idleFollowUpEnabled) {
+    await maybeScheduleIdleFollowUp(business, conversation, node, customerName);
+  } else {
+    await clearLeadFlowIdleFollowUp(business.id, conversation.id);
+  }
   return out;
 }
 
@@ -242,7 +278,7 @@ export async function startLeadFlow(
   const node = resolveLeadFlowEntryNode(flow, messageBody) ?? findLeadFlowNode(flow, flow.startNodeId);
   if (!node) return [];
   await persistFlowState(business.id, conversation.id, sessionKey, conversationState, leadFlowState(node.id));
-  return sendLeadFlowNode(business, conversation, node, flowVars(business, customerName), saveAndReturn);
+  return sendLeadFlowNode(business, conversation, node, flowVars(business, customerName), saveAndReturn, customerName);
 }
 
 async function handleLeadFlowBack(
@@ -264,12 +300,12 @@ async function handleLeadFlowBack(
       const start = findLeadFlowNode(flow, flow.startNodeId);
       if (!start) return [];
       await persistFlowState(business.id, conversation.id, sessionKey, conversationState, leadFlowState(start.id));
-      return sendLeadFlowNode(business, conversation, start, vars, saveAndReturn);
+      return sendLeadFlowNode(business, conversation, start, vars, saveAndReturn, ctx.customerName);
     }
     const start = findLeadFlowNode(flow, flow.startNodeId);
     if (!start) return [];
     await persistFlowState(business.id, conversation.id, sessionKey, conversationState, leadFlowState(start.id));
-    return sendLeadFlowNode(business, conversation, start, vars, saveAndReturn);
+    return sendLeadFlowNode(business, conversation, start, vars, saveAndReturn, ctx.customerName);
   }
 
   const prevId = history[history.length - 1]!;
@@ -285,7 +321,7 @@ async function handleLeadFlowBack(
     );
     const start = findLeadFlowNode(flow, flow.startNodeId);
     if (!start) return [];
-    return sendLeadFlowNode(business, conversation, start, vars, saveAndReturn);
+    return sendLeadFlowNode(business, conversation, start, vars, saveAndReturn, ctx.customerName);
   }
 
   await persistFlowState(
@@ -295,7 +331,7 @@ async function handleLeadFlowBack(
     conversationState,
     leadFlowState(prev.id, trimmed),
   );
-  return sendLeadFlowNode(business, conversation, prev, vars, saveAndReturn);
+  return sendLeadFlowNode(business, conversation, prev, vars, saveAndReturn, ctx.customerName);
 }
 
 export async function handleLeadFlowMessage(
@@ -340,7 +376,7 @@ export async function handleLeadFlowMessage(
       conversationState,
       leadFlowState(target.id),
     );
-    return sendLeadFlowNode(business, conversation, target, flowVars(business, ctx.customerName), saveAndReturn);
+    return sendLeadFlowNode(business, conversation, target, flowVars(business, ctx.customerName), saveAndReturn, ctx.customerName);
   }
 
   if (isLeadFlowBackIntent(node, ctx.messageBody, flow)) {
@@ -427,5 +463,5 @@ export async function handleLeadFlowMessage(
     conversationState,
     leadFlowState(next.id, history),
   );
-  return sendLeadFlowNode(business, conversation, next, flowVars(business, ctx.customerName), saveAndReturn);
+  return sendLeadFlowNode(business, conversation, next, flowVars(business, ctx.customerName), saveAndReturn, ctx.customerName);
 }

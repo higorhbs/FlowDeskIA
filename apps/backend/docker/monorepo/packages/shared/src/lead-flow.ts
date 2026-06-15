@@ -5,6 +5,9 @@ export const LEAD_FLOW_MEDIA_ACCEPT =
   "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,.jpg,.jpeg,.png,.webp,.gif,.mp4,.mov";
 export const DEFAULT_LEAD_FLOW_INVALID_REPLY =
   "👇 Responda com o número da opção (ex: *1*, *2* ou *3*) ou toque em um botão 😊";
+export const DEFAULT_LEAD_FLOW_IDLE_FOLLOW_UP_MINUTES = 60;
+export const DEFAULT_LEAD_FLOW_IDLE_FOLLOW_UP_MESSAGE =
+  "Oi {nome}! Ficou com alguma dúvida sobre o {negocio}? Estou por aqui se precisar 😊";
 
 export type LeadFlowMediaType = "image" | "video" | "gif";
 
@@ -23,6 +26,9 @@ export interface LeadFlowNode {
   buttons: LeadFlowButton[];
   invalidReply?: string;
   entryKeywords?: string[];
+  idleFollowUpEnabled?: boolean;
+  idleFollowUpMinutes?: number;
+  idleFollowUpMessage?: string;
 }
 
 export interface LeadCaptureFlow {
@@ -90,8 +96,18 @@ function normalizeLeadFlowNode(raw: Partial<LeadFlowNode>, index: number): LeadF
     entryKeywords: (raw.entryKeywords ?? [])
       .map((k) => k.trim().toLowerCase())
       .filter(Boolean),
+    idleFollowUpEnabled: raw.idleFollowUpEnabled === true,
+    idleFollowUpMinutes: normalizeIdleFollowUpMinutes(raw.idleFollowUpMinutes),
+    idleFollowUpMessage: raw.idleFollowUpMessage?.trim() || undefined,
     buttons,
   };
+}
+
+function normalizeIdleFollowUpMinutes(raw: unknown): number | undefined {
+  if (raw === undefined || raw === null || raw === "") return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return undefined;
+  return Math.min(1440, Math.max(5, Math.round(n)));
 }
 
 function normalizeLeadFlowMediaType(
