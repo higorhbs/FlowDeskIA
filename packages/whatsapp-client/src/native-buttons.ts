@@ -28,8 +28,8 @@ function toInteractiveContent(text: string, footer: string | undefined, buttons:
       nativeFlowMessage: {
         buttons: interactiveButtons,
       },
-      body: text ? { text } : undefined,
-      footer: footer ? { text: footer } : undefined,
+      body: text.trim() ? { text: text.trim() } : undefined,
+      footer: footer?.trim() ? { text: footer.trim() } : undefined,
     },
   } satisfies proto.IMessage;
 }
@@ -39,7 +39,7 @@ export async function sendNativeButtons(
   jid: string,
   text: string,
   buttons: QuickButton[],
-  footer = "Toque em uma opção",
+  footer?: string,
 ): Promise<proto.IWebMessageInfo> {
   if (!sock?.relayMessage) throw new Error("Socket relayMessage unavailable");
 

@@ -619,7 +619,8 @@ export class WhatsAppClient extends EventEmitter {
     for (const jid of targets) {
       try {
         await this.ensurePreKeys();
-        const result = await sendNativeButtons(this.sock, jid, text, items);
+        const footer = text.trim() ? undefined : "Toque em uma opção";
+        const result = await sendNativeButtons(this.sock, jid, text, items, footer);
         this.stashSentMessage(result as WAMessage);
         return result?.key?.id ?? undefined;
       } catch (err) {
@@ -861,7 +862,7 @@ export class WhatsAppClient extends EventEmitter {
     for (const attempt of attempts) {
       try {
         const id = await attempt();
-        if (id) return id;
+        return id ?? "delivered";
       } catch (err) {
         lastErr = err;
       }

@@ -116,7 +116,7 @@ async function deliverLeadFlowMedia(
   for (const attempt of attempts) {
     try {
       const id = await attempt();
-      if (id) return id;
+      return id ?? "delivered";
     } catch (err) {
       lastErr = err;
       log.warn(`[whatsapp] lead flow media attempt failed type=${mediaType}:`, err);

@@ -2,6 +2,8 @@ import {
   claimWhatsappInboundJob,
   completeWhatsappJob,
   failWhatsappJob,
+  markWhatsappJobReplyDelivered,
+  whatsappJobReplyAlreadyDelivered,
   type WhatsappJob,
 } from "@flowdesk/firebase";
 import { log } from "../../lib/log.js";
@@ -39,11 +41,17 @@ async function processInboundJob(job: WhatsappJob): Promise<void> {
 
   if (responses.length === 0) return;
 
+  if (await whatsappJobReplyAlreadyDelivered(job.id)) {
+    log.info(`[worker] skip duplicate delivery job=${job.id}`);
+    return;
+  }
+
   const client = await resolveWhatsAppClient(businessId, { waitMs: 8_000 });
   if (!client) throw new Error("WhatsApp desconectado");
 
   const meta = takeLastProcessMeta();
   await deliverBotResponses(businessId, client, dest, meta?.conversationId, responses);
+  await markWhatsappJobReplyDelivered(job.id);
 
   log.info(`[worker] replied business=${businessId} count=${responses.length}`);
 }

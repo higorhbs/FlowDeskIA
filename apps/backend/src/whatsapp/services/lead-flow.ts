@@ -108,7 +108,7 @@ export function leadFlowNodeToResponses(
   }
   if (hasButtons) {
     out.push({
-      text: node.imageUrl ? "👇 Toque em uma opção" : text || "👇 Toque em uma opção",
+      text: node.imageUrl ? "👇 Toque em uma opção" : text || "👇 Escolha uma opção",
       buttons: node.buttons.map((b) => ({ id: b.id, label: b.label })),
     });
   }
@@ -393,14 +393,14 @@ export async function handleLeadFlowMessage(
     const vars = flowVars(business, ctx.customerName);
     const invalid = node.invalidReply?.trim() || DEFAULT_LEAD_FLOW_INVALID_REPLY;
     const invalidText = renderTemplate(invalid, vars);
-    const out = leadFlowNodeToResponses(node, vars);
-    if (out.length) {
-      const btnMsg = out.find((r) => r.buttons?.length) ?? out[out.length - 1];
-      if (btnMsg?.buttons?.length) btnMsg.text = invalidText;
-      else out.unshift({ text: invalidText });
-    } else {
-      out.push({ text: invalidText });
-    }
+    const out: BotResponse[] = node.buttons.length
+      ? [
+          {
+            text: invalidText,
+            buttons: node.buttons.map((b) => ({ id: b.id, label: b.label })),
+          },
+        ]
+      : [{ text: invalidText }];
     await saveAndReturn(business.id, conversation.id, out);
     return out;
   }
