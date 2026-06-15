@@ -813,11 +813,13 @@ export async function hasCustomerMessageSince(
   sinceIso: string
 ): Promise<boolean> {
   const snap = await messagesCol(businessId, conversationId)
-    .where("role", "==", "CUSTOMER")
-    .where("createdAt", ">", sinceIso)
-    .limit(1)
+    .orderBy("createdAt", "desc")
+    .limit(30)
     .get();
-  return !snap.empty;
+  return snap.docs.some((doc) => {
+    const row = doc.data();
+    return row.role === "CUSTOMER" && String(row.createdAt ?? "") > sinceIso;
+  });
 }
 
 export async function listDueLeadFlowIdleFollowUps(limit = 25): Promise<LeadFlowIdleFollowUp[]> {
@@ -829,11 +831,12 @@ export async function listDueLeadFlowIdleFollowUps(limit = 25): Promise<LeadFlow
     if (out.length >= limit) break;
     const snap = await leadFlowIdleFollowUpsCol(businessDoc.id)
       .where("status", "==", "pending")
-      .where("dueAt", "<=", now)
-      .limit(limit - out.length)
       .get();
     for (const doc of snap.docs) {
+      if (out.length >= limit) break;
       const row = doc.data();
+      const dueAt = String(row.dueAt ?? "");
+      if (!dueAt || dueAt > now) continue;
       out.push({
         businessId: businessDoc.id,
         conversationId: String(row.conversationId ?? doc.id),

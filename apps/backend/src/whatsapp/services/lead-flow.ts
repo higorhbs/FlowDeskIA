@@ -139,6 +139,7 @@ async function maybeScheduleIdleFollowUp(
   const template = node.idleFollowUpMessage?.trim() || DEFAULT_LEAD_FLOW_IDLE_FOLLOW_UP_MESSAGE;
   const vars = flowVars(business, customerName ?? conversation.customerName);
   const anchorAt = nowIso();
+  const dueAt = new Date(Date.now() + minutes * 60_000).toISOString();
   await scheduleLeadFlowIdleFollowUp(business.id, {
     conversationId: conversation.id,
     customerPhone: conversation.customerPhone,
@@ -146,7 +147,7 @@ async function maybeScheduleIdleFollowUp(
     customerName: customerName ?? conversation.customerName,
     nodeId: node.id,
     visitId: newId(),
-    dueAt: new Date(Date.now() + minutes * 60_000).toISOString(),
+    dueAt,
     anchorAt,
     message: renderTemplate(template, vars),
   });

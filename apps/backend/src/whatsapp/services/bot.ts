@@ -217,7 +217,7 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
     content: messageBody,
     ...(mediaUrl ? { mediaUrl, mediaType } : {}),
   });
-  void clearLeadFlowIdleFollowUp(businessId, conversation.id).catch(() => undefined);
+  await clearLeadFlowIdleFollowUp(businessId, conversation.id).catch(() => undefined);
 
   if (business.botAutoReplyEnabled === false) return [];
 
