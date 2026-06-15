@@ -3,9 +3,11 @@ import {
   completeWhatsappJob,
   failWhatsappJob,
   markWhatsappJobReplyDelivered,
+  tryClaimChatGreetingReply,
   whatsappJobReplyAlreadyDelivered,
   type WhatsappJob,
 } from "@flowdesk/firebase";
+import { isChatGreeting } from "@flowdesk/shared";
 import { log } from "../../lib/log.js";
 import { processMessage, takeLastProcessMeta } from "../services/bot.js";
 import { deliverBotResponses, resolveWhatsAppClient } from "../wa-lifecycle.js";
@@ -40,6 +42,14 @@ async function processInboundJob(job: WhatsappJob): Promise<void> {
   });
 
   if (responses.length === 0) return;
+
+  if (isChatGreeting(payload.messageBody)) {
+    const claimed = await tryClaimChatGreetingReply(businessId, payload.customerPhone);
+    if (!claimed) {
+      log.info(`[worker] skip duplicate greeting business=${businessId} job=${job.id}`);
+      return;
+    }
+  }
 
   if (await whatsappJobReplyAlreadyDelivered(job.id)) {
     log.info(`[worker] skip duplicate delivery job=${job.id}`);

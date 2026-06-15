@@ -103,7 +103,7 @@ export function leadFlowNodeToResponses(
       imageStoragePath: node.imageStoragePath,
       mediaType,
     });
-  } else if (text) {
+  } else if (text && !hasButtons) {
     out.push({ text });
   }
   if (hasButtons) {

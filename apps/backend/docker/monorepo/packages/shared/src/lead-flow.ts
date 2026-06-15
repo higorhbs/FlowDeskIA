@@ -266,3 +266,32 @@ export function resolveLeadFlowEntryNode(
 
   return findLeadFlowNode(flow, flow.startNodeId);
 }
+
+const CHAT_GREETINGS = [
+  "oi",
+  "olá",
+  "ola",
+  "bom dia",
+  "boa tarde",
+  "boa noite",
+  "hello",
+  "hi",
+  "hey",
+  "e aí",
+  "e ai",
+  "salve",
+  "menu",
+] as const;
+
+export function isChatGreeting(text: string): boolean {
+  const normalized = text
+    .toLowerCase()
+    .trim()
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]/gu, "")
+    .replace(/^[!?.,"']+|[!?.,"']+$/g, "")
+    .trim();
+  if (!normalized) return false;
+  return CHAT_GREETINGS.some(
+    (g) => normalized === g || normalized.startsWith(`${g} `) || normalized.startsWith(`${g},`)
+  );
+}

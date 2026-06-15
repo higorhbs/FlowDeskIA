@@ -40,6 +40,7 @@ import {
   getBusinessVocabulary,
   businessRequiresBookingApproval,
   getBookingStatusLabel,
+  isChatGreeting,
   type BotMenuAction,
   PLAN_LIMITS,
 } from "@flowdesk/shared";
@@ -245,11 +246,18 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
   }
 
   const flowConfig = getLeadFlowConfig(business);
-  const greetingHit = isGreeting(messageBody);
+  const greetingHit = isChatGreeting(messageBody);
   if (
     flowConfig &&
     matchesLeadFlowRestartTrigger(flowConfig, messageBody, greetingHit)
   ) {
+    if (greetingHit) {
+      const active = conversationState.get(sessionKey) ?? conversation.botFlowState;
+      if (isLeadFlowActive(active)) {
+        const nodeId = String(active?.data?.nodeId ?? "");
+        if (!nodeId || nodeId === flowConfig.startNodeId) return [];
+      }
+    }
     conversationState.delete(sessionKey);
     return restartLeadFlowFromStart(
       business,
@@ -1151,36 +1159,6 @@ function buildFallbackMessage(business?: { botMenu?: unknown[]; botMenuEnabled?:
     return `Não entendi. 😅\n\nDigite um número de *1* a *${n}*, *menu* ou *sair*.`;
   }
   return "Não entendi. 😅\n\nDigite *menu* ou descreva o que precisa.";
-}
-
-function isGreeting(text: string): boolean {
-  const normalized = text
-    .toLowerCase()
-    .trim()
-    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]/gu, "")
-    .replace(/^[!?.,"']+|[!?.,"']+$/g, "")
-    .trim();
-  if (!normalized) return false;
-
-  const greetings = [
-    "oi",
-    "olá",
-    "ola",
-    "bom dia",
-    "boa tarde",
-    "boa noite",
-    "hello",
-    "hi",
-    "hey",
-    "e aí",
-    "e ai",
-    "salve",
-    "menu",
-  ];
-
-  return greetings.some(
-    (g) => normalized === g || normalized.startsWith(`${g} `) || normalized.startsWith(`${g},`)
-  );
 }
 
 function looksLikeAppointmentDate(text: string): boolean {

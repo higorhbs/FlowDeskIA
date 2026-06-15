@@ -685,6 +685,37 @@ export async function tryClaimOutsideHoursNotice(
   }
 }
 
+function botGreetingReplyLockRef(businessId: string, customerKey: string) {
+  const safe = customerKey.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
+  return businessRef(businessId).collection("botLocks").doc(`greet_${safe}`);
+}
+
+const CHAT_GREETING_REPLY_COOLDOWN_MS = 120_000;
+
+export async function tryClaimChatGreetingReply(
+  businessId: string,
+  customerPhone: string,
+  cooldownMs = CHAT_GREETING_REPLY_COOLDOWN_MS
+): Promise<boolean> {
+  const customerKey = customerConversationKey(customerPhone);
+  const ref = botGreetingReplyLockRef(businessId, customerKey);
+  const now = Date.now();
+  try {
+    return await getDb().runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const last = String(snap.data()?.repliedAt ?? "");
+      if (last) {
+        const lastMs = new Date(last).getTime();
+        if (Number.isFinite(lastMs) && now - lastMs < cooldownMs) return false;
+      }
+      tx.set(ref, { repliedAt: new Date(now).toISOString(), customerKey }, { merge: true });
+      return true;
+    });
+  } catch {
+    return false;
+  }
+}
+
 export async function createMessage(
   businessId: string,
   conversationId: string,
