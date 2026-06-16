@@ -69,11 +69,15 @@ async function proxy(req: NextRequest, path: string[]) {
     });
 
     const bodyBytes = await res.arrayBuffer();
-    if (!res.ok && (res.status === 530 || res.status === 502 || res.status === 503)) {
-      const hint =
-        res.status === 530
-          ? "Servidor WhatsApp inacessível (530). Backend offline ou BACKEND_INTERNAL_URL errado na Vercel."
-          : "Servidor WhatsApp indisponível.";
+    if (!res.ok && (res.status === 413 || res.status === 530 || res.status === 502 || res.status === 503)) {
+      let hint: string;
+      if (res.status === 530) {
+        hint = "Servidor WhatsApp inacessível (530). Backend offline ou BACKEND_INTERNAL_URL errado na Vercel.";
+      } else if (res.status === 413) {
+        hint = "Arquivo muito grande. Reduza o tamanho da imagem ou vídeo e tente novamente.";
+      } else {
+        hint = "Servidor WhatsApp indisponível.";
+      }
       return NextResponse.json({ error: hint }, { status: res.status });
     }
     return new NextResponse(bodyBytes, {
