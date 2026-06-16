@@ -76,8 +76,9 @@ export function wordsSimilar(a: string, b: string): boolean {
   if (maxLen < 3) return false;
 
   const dist = levenshtein(a, b);
-  if (maxLen <= 4) return dist <= 1;
-  if (maxLen <= 8) return dist <= 2;
+  const lenDiff = Math.abs(a.length - b.length);
+  if (maxLen <= 5) return dist <= 1 && lenDiff === 0;
+  if (maxLen <= 8) return dist <= 2 && lenDiff <= 1;
   return dist / maxLen <= 0.28;
 }
 
