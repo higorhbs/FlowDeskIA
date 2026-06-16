@@ -228,10 +228,22 @@ export default function StatusSchedulePage() {
     return [...counts.entries()].filter(([, n]) => n > 1);
   }, [pending]);
 
+  const MAX_FILE_MB = 16;
+  const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
+
   function onPickFile(f: File | null) {
-    setFile(f);
     if (preview) URL.revokeObjectURL(preview);
-    if (!f) { setPreview(null); return; }
+    if (!f) { setFile(null); setPreview(null); return; }
+    if (f.size > MAX_FILE_BYTES) {
+      toast.error(
+        `Arquivo muito grande (${(f.size / 1024 / 1024).toFixed(1)} MB). O limite é ${MAX_FILE_MB} MB.`,
+      );
+      if (fileRef.current) fileRef.current.value = "";
+      setFile(null);
+      setPreview(null);
+      return;
+    }
+    setFile(f);
     setPreview(URL.createObjectURL(f));
   }
 
@@ -350,7 +362,7 @@ export default function StatusSchedulePage() {
                   <>
                     <Upload className="w-8 h-8 text-gray-400" />
                     <span className="text-sm text-gray-500">Toque para escolher arquivo</span>
-                    <span className="text-xs text-gray-400">WebP é convertido para JPEG</span>
+                    <span className="text-xs text-gray-400">JPEG, PNG, MP4 · máx. {MAX_FILE_MB} MB · WebP é convertido para JPEG</span>
                   </>
                 )}
               </button>

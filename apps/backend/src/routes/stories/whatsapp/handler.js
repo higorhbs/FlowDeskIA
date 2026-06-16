@@ -205,15 +205,15 @@ export async function postStoriesHandler(c) {
   let parsed
 
   if (contentType.includes('multipart/form-data')) {
-    if (!isWhatsAppRuntime()) {
+    const form = await c.req.parseBody()
+    const schedule = parseScheduleFields(form)
+    if (schedule.error) return json(c, 400, { error: schedule.error })
+
+    if (schedule.publishNow && !isWhatsAppRuntime()) {
       return json(c, 503, {
         error: 'WhatsApp indisponível (ENABLE_WORKERS=true).',
       })
     }
-
-    const form = await c.req.parseBody()
-    const schedule = parseScheduleFields(form)
-    if (schedule.error) return json(c, 400, { error: schedule.error })
 
     const upload = await readUploadFile(form.file)
     if (!upload?.buffer?.length) {
