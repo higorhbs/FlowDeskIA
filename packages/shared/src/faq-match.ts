@@ -120,10 +120,17 @@ function faqQuestionWordOverlap(message: string, question: string): boolean {
   return hits.length / qq.length >= 0.65;
 }
 
+function faqKeywordExactMatch(message: string, keyword: string): boolean {
+  const kwWords = significantWords(keyword);
+  if (!kwWords.length) return false;
+  const msgWords = new Set(significantWords(message));
+  return kwWords.every((kw) => msgWords.has(kw));
+}
+
 export function faqEntryMatches(message: string, faq: FaqMatchInput): boolean {
   const keywords = Array.isArray(faq.keywords) ? faq.keywords : [];
   for (const kw of keywords) {
-    if (faqTextsMatch(message, String(kw))) return true;
+    if (faqKeywordExactMatch(message, String(kw))) return true;
   }
 
   const question = String(faq.question ?? "").trim();
