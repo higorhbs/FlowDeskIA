@@ -76,8 +76,9 @@ export function wordsSimilar(a: string, b: string): boolean {
   if (maxLen < 3) return false;
 
   const dist = levenshtein(a, b);
-  if (maxLen <= 4) return dist <= 1;
-  if (maxLen <= 8) return dist <= 2;
+  const lenDiff = Math.abs(a.length - b.length);
+  if (maxLen <= 5) return dist <= 1 && lenDiff === 0;
+  if (maxLen <= 8) return dist <= 2 && lenDiff <= 1;
   return dist / maxLen <= 0.28;
 }
 
@@ -119,10 +120,17 @@ function faqQuestionWordOverlap(message: string, question: string): boolean {
   return hits.length / qq.length >= 0.65;
 }
 
+function faqKeywordExactMatch(message: string, keyword: string): boolean {
+  const kwWords = significantWords(keyword);
+  if (!kwWords.length) return false;
+  const msgWords = new Set(significantWords(message));
+  return kwWords.every((kw) => msgWords.has(kw));
+}
+
 export function faqEntryMatches(message: string, faq: FaqMatchInput): boolean {
   const keywords = Array.isArray(faq.keywords) ? faq.keywords : [];
   for (const kw of keywords) {
-    if (faqTextsMatch(message, String(kw))) return true;
+    if (faqKeywordExactMatch(message, String(kw))) return true;
   }
 
   const question = String(faq.question ?? "").trim();
