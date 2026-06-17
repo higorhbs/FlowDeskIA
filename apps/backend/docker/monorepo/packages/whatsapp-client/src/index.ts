@@ -51,6 +51,7 @@ function messageStoreKey(key: MsgKey): string {
 }
 
 const MESSAGE_STORE_MAX = 400;
+const OUTBOUND_TYPING_MS = 500;
 
 function phoneDigitsMatch(a: string, b: string): boolean {
   const da = a.replace(/\D/g, "");
@@ -626,6 +627,16 @@ export class WhatsAppClient extends EventEmitter {
     if (typeof fn === "function") await fn.call(this.sock);
   }
 
+  private async showTypingBeforeSend(jid: string): Promise<void> {
+    if (!this.sock || !jid || jid === "status@broadcast") return;
+    try {
+      await this.sock.sendPresenceUpdate("composing", jid);
+    } catch (err) {
+      waLog.warn(`[wa:${this.businessId}] typing start failed jid=${jid}:`, err);
+    }
+    await new Promise((r) => setTimeout(r, OUTBOUND_TYPING_MS));
+  }
+
   getOwnJid(): string | undefined {
     const id = this.sock?.user?.id;
     if (!id) return undefined;
@@ -663,6 +674,7 @@ export class WhatsAppClient extends EventEmitter {
     if (!this.sock) throw new Error("Socket not connected");
     const jid = this.resolveSendJid(to);
     await this.ensurePreKeys();
+    await this.showTypingBeforeSend(jid);
     const result = await this.sock.sendMessage(jid, { text });
     this.stashSentMessage(result);
     return result?.key.id ?? undefined;
@@ -748,6 +760,7 @@ export class WhatsAppClient extends EventEmitter {
     for (const jid of targets) {
       try {
         await this.ensurePreKeys();
+        await this.showTypingBeforeSend(jid);
         const footer = text.trim() ? undefined : "Toque em uma opção";
         const result = await sendNativeButtons(this.sock, jid, text, items, footer);
         this.stashSentMessage(result as WAMessage);
@@ -883,6 +896,7 @@ export class WhatsAppClient extends EventEmitter {
     for (const jid of targets) {
       try {
         await this.ensurePreKeys();
+        await this.showTypingBeforeSend(jid);
         const result = await this.sock.sendMessage(jid, {
           document: buffer,
           mimetype,
@@ -927,6 +941,7 @@ export class WhatsAppClient extends EventEmitter {
               mimetype,
               ptt: mimetype.includes("ogg") || mimetype.includes("opus"),
             };
+    await this.showTypingBeforeSend(jid);
     const result = await this.sock.sendMessage(jid, content);
     if (!result?.key?.id) throw new Error("WhatsApp não confirmou envio da mídia.");
     this.stashSentMessage(result);
@@ -1023,8 +1038,13 @@ export class WhatsAppClient extends EventEmitter {
       );
     }
 
+    let typed = false;
     for (const attempt of attempts) {
       try {
+        if (!typed) {
+          await this.showTypingBeforeSend(jid);
+          typed = true;
+        }
         const id = await attempt();
         return id ?? "delivered";
       } catch (err) {

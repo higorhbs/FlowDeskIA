@@ -21,6 +21,8 @@ export const dynamic = "force-dynamic";
 function resolveServerBackendUrl() {
   const internal = process.env.BACKEND_INTERNAL_URL?.trim();
   if (internal) return internal.replace(/\/$/, "");
+  const wa = process.env.NEXT_PUBLIC_WA_API_URL?.trim();
+  if (wa) return wa.replace(/\/$/, "");
   const dedicated = process.env.NEXT_PUBLIC_BACKEND_URL?.trim();
   if (dedicated) return dedicated.replace(/\/$/, "");
   const api = process.env.NEXT_PUBLIC_API_URL?.trim();
@@ -109,5 +111,9 @@ export async function PUT(req: NextRequest, ctx: RouteCtx) {
 }
 
 export async function DELETE(req: NextRequest, ctx: RouteCtx) {
+  return proxy(req, (await ctx.params).path);
+}
+
+export async function OPTIONS(req: NextRequest, ctx: RouteCtx) {
   return proxy(req, (await ctx.params).path);
 }

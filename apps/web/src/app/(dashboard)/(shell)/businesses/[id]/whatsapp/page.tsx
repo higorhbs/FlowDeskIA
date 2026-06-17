@@ -207,8 +207,8 @@ export default function WhatsAppPage() {
             <p className="font-medium">WhatsApp indisponível neste ambiente</p>
             <p className="mt-0.5 text-amber-800 text-xs">
               WhatsApp exige backend com processo contínuo (<code>ENABLE_WORKERS=true</code>).
-              Em produção, configure <code>NEXT_PUBLIC_WA_API_URL</code> no front apontando para
-              sua VM (não use a URL serverless da Vercel).
+              Confira <code>BACKEND_INTERNAL_URL</code> na Vercel e se a VM responde em{" "}
+              <code>/health</code> (porta 9031 no Dokploy).
             </p>
           </div>
         </div>

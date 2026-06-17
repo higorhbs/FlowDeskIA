@@ -228,7 +228,11 @@ function isWithinTimeRange(currentMinutes: number, range: [string, string]): boo
   const [startH, startM] = range[0].split(":").map(Number);
   const [endH, endM] = range[1].split(":").map(Number);
   const startMinutes = startH * 60 + startM;
-  const endMinutes = endH * 60 + endM;
+  let endMinutes = endH * 60 + endM;
+  if (endMinutes >= 24 * 60) endMinutes = 24 * 60;
+  if (endMinutes <= startMinutes && startMinutes === 0 && endMinutes === 24 * 60) {
+    return currentMinutes >= 0 && currentMinutes < 24 * 60;
+  }
   return currentMinutes >= startMinutes && currentMinutes < endMinutes;
 }
 
