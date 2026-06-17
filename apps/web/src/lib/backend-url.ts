@@ -80,11 +80,14 @@ export function getAuthApiBaseUrl() {
   return getClientBackendBaseUrl();
 }
 
+export function getClientWaApiBaseUrl() {
+  if (typeof window === "undefined") return resolveWaApiBaseUrl();
+  if (!waCached) waCached = resolveWaApiBaseUrl();
+  return waCached;
+}
+
 export function getWaApiBaseUrl() {
-  if (typeof window !== "undefined") {
-    if (!waCached) waCached = getClientBackendBaseUrl();
-    return waCached;
-  }
+  if (typeof window !== "undefined") return getClientWaApiBaseUrl();
   if (!waCached) waCached = resolveWaApiBaseUrl();
   return waCached;
 }

@@ -6,15 +6,16 @@ services:
       no_cache: true
     restart: unless-stopped
     ports:
-      - "9031:3001"
+      - "9031:9031"
     environment:
       NODE_ENV: production
-      PORT: "3001"
+      PORT: "9031"
+      HOST: "0.0.0.0"
       ENABLE_WORKERS: "true"
     volumes:
       - backend-data:/app/data
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3001/health"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9031/health"]
       interval: 30s
       timeout: 5s
       retries: 3
