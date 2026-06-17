@@ -240,6 +240,12 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
   if (open) {
     await clearOutsideHoursNotice(businessId, customerPhone);
   } else {
+    const faqHit = matchFaq(messageBody, business.faqs);
+    if (faqHit) {
+      conversationState.delete(sessionKey);
+      await saveAndReturn(business.id, conversation.id, [{ text: faqHit.answer }]);
+      return [{ text: faqHit.answer }];
+    }
     return replyWhenClosed(business, conversation, customerName, sessionKey);
   }
 
