@@ -257,6 +257,26 @@ function resolveLeadFlowButtonExact(
   return null;
 }
 
+function leadFlowEntryKeywordHit(messageBody: string, keywords: string[]): boolean {
+  const body = messageBody.trim().toLowerCase();
+  if (!body) return false;
+  return keywords.some((kw) => {
+    const k = kw.trim().toLowerCase();
+    return k.length > 0 && (body === k || body.includes(k));
+  });
+}
+
+export function findLeadFlowEntryByKeyword(
+  flow: LeadCaptureFlow,
+  messageBody: string,
+): LeadFlowNode | null {
+  for (const node of flow.nodes) {
+    const keywords = node.entryKeywords ?? [];
+    if (keywords.length && leadFlowEntryKeywordHit(messageBody, keywords)) return node;
+  }
+  return null;
+}
+
 export function resolveLeadFlowEntryNode(
   flow: LeadCaptureFlow,
   messageBody: string,
@@ -266,7 +286,7 @@ export function resolveLeadFlowEntryNode(
 
   for (const node of flow.nodes) {
     const keywords = node.entryKeywords ?? [];
-    if (keywords.some((kw) => body === kw || body.includes(kw))) {
+    if (leadFlowEntryKeywordHit(messageBody, keywords)) {
       return node;
     }
   }

@@ -6,6 +6,7 @@ import {
   findLeadFlowNode,
   isLeadFlowBackCommand,
   isLeadFlowBackIntent,
+  findLeadFlowEntryByKeyword,
   leadFlowTriggerMatch,
   matchesLeadFlowRestartTrigger,
   normalizeLeadCaptureFlow,
@@ -381,19 +382,16 @@ export async function handleLeadFlowMessage(
     );
   }
 
-  const body = ctx.messageBody.trim().toLowerCase();
-  for (const target of flow.nodes) {
-    const keywords = target.entryKeywords ?? [];
-    if (!keywords.some((kw) => body === kw || body.includes(kw))) continue;
-    if (target.id === node.id) break;
+  const entryNode = findLeadFlowEntryByKeyword(flow, ctx.messageBody);
+  if (entryNode && entryNode.id !== node.id) {
     await persistFlowState(
       business.id,
       conversation.id,
       sessionKey,
       conversationState,
-      leadFlowState(target.id),
+      leadFlowState(entryNode.id),
     );
-    return sendLeadFlowNode(business, conversation, target, flowVars(business, ctx.customerName), saveAndReturn, ctx.customerName);
+    return sendLeadFlowNode(business, conversation, entryNode, flowVars(business, ctx.customerName), saveAndReturn, ctx.customerName);
   }
 
   if (isLeadFlowBackIntent(node, ctx.messageBody, flow)) {

@@ -38,6 +38,7 @@ import {
   isExitCommand,
   buildBotMenuEntries,
   findMatchingFaq,
+  findLeadFlowEntryByKeyword,
   getBusinessVocabulary,
   businessRequiresBookingApproval,
   getBookingStatusLabel,
@@ -187,6 +188,40 @@ async function replyWhenClosed(
   return [{ text: response }];
 }
 
+async function tryProgrammedQuickReply(
+  ctx: BotContext,
+  business: { id: string; name: string; faqs?: any[]; leadFlow?: unknown },
+  conversation: Conversation,
+  sessionKey: string,
+): Promise<BotResponse[] | null> {
+  const faqHit = matchFaq(ctx.messageBody, business.faqs);
+  if (faqHit) {
+    conversationState.delete(sessionKey);
+    const responses = [{ text: faqHit.answer }];
+    await saveAndReturn(business.id, conversation.id, responses);
+    return responses;
+  }
+
+  const flow = getLeadFlowConfig(business);
+  if (flow) {
+    const node = findLeadFlowEntryByKeyword(flow, ctx.messageBody);
+    if (node) {
+      conversationState.delete(sessionKey);
+      const vars = {
+        nome: ctx.customerName ?? "cliente",
+        negocio: business.name,
+      };
+      const responses = leadFlowNodeToResponses(node, vars);
+      if (responses.length) {
+        await saveAndReturn(business.id, conversation.id, responses);
+        return responses;
+      }
+    }
+  }
+
+  return null;
+}
+
 export async function processMessage(ctx: BotContext): Promise<BotResponse[]> {
   return replyPersistenceStore.run({ defer: ctx.persistReplies === false }, () => processMessageInner(ctx));
 }
@@ -222,6 +257,12 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
 
   if (business.botAutoReplyEnabled === false) return [];
 
+  const state = conversationState.get(sessionKey);
+  if (state?.step !== "FAQ_SELECT") {
+    const quick = await tryProgrammedQuickReply(ctx, business, conversation, sessionKey);
+    if (quick) return quick;
+  }
+
   if (conversation.status === "ATTENDING" && !isExitCommand(messageBody))
     return [];
 
@@ -240,12 +281,6 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
   if (open) {
     await clearOutsideHoursNotice(businessId, customerPhone);
   } else {
-    const faqHit = matchFaq(messageBody, business.faqs);
-    if (faqHit) {
-      conversationState.delete(sessionKey);
-      await saveAndReturn(business.id, conversation.id, [{ text: faqHit.answer }]);
-      return [{ text: faqHit.answer }];
-    }
     return replyWhenClosed(business, conversation, customerName, sessionKey);
   }
 
@@ -280,8 +315,6 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
       { sendGreeting: flowConfig.startOnGreeting && greetingHit },
     );
   }
-
-  const state = conversationState.get(sessionKey);
 
   if (!isLeadFlowActive(state)) {
     const recovered = await recoverLeadFlowFromButton(
@@ -319,17 +352,6 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
       conversationState,
       saveAndReturn,
     );
-  }
-
-  if (state?.step !== "FAQ_SELECT") {
-    const faqHit = matchFaq(messageBody, business.faqs);
-    if (faqHit) {
-      if (state) conversationState.delete(sessionKey);
-      await saveAndReturn(business.id, conversation.id, [
-        { text: faqHit.answer },
-      ]);
-      return [{ text: faqHit.answer }];
-    }
   }
 
   const intent = detectIntent(messageBody, business.type);
