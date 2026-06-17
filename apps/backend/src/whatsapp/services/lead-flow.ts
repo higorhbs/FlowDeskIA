@@ -1,7 +1,6 @@
 import {
   DEFAULT_LEAD_FLOW_IDLE_FOLLOW_UP_MESSAGE,
   DEFAULT_LEAD_FLOW_IDLE_FOLLOW_UP_MINUTES,
-  DEFAULT_LEAD_FLOW_INVALID_REPLY,
   findLeadFlowButtonMatch,
   findLeadFlowNode,
   isLeadFlowBackCommand,
@@ -440,21 +439,7 @@ export async function handleLeadFlowMessage(
     }
   }
 
-  if (!picked) {
-    const vars = flowVars(business, ctx.customerName);
-    const invalid = node.invalidReply?.trim() || DEFAULT_LEAD_FLOW_INVALID_REPLY;
-    const invalidText = renderTemplate(invalid, vars);
-    const out: BotResponse[] = node.buttons.length
-      ? [
-          {
-            text: invalidText,
-            buttons: node.buttons.map((b) => ({ id: b.id, label: b.label })),
-          },
-        ]
-      : [{ text: invalidText }];
-    await saveAndReturn(business.id, conversation.id, out);
-    return out;
-  }
+  if (!picked) return [];
 
   if (!picked.nextNodeId) {
     await clearFlowState(business.id, conversation.id, sessionKey, conversationState);

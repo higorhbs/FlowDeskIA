@@ -349,7 +349,7 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
       conversationState,
     );
     if (recovered) {
-      return handleLeadFlowMessage(
+      const leadOut = await handleLeadFlowMessage(
         ctx,
         business,
         conversation,
@@ -358,7 +358,23 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
         conversationState,
         saveAndReturn,
       );
+      if (leadOut.length) return leadOut;
     }
+  }
+
+  const activeFlow = conversationState.get(sessionKey) ?? conversation.botFlowState;
+  if (isLeadFlowActive(activeFlow) && shouldStartResumeFlow(business, messageBody)) {
+    conversationState.delete(sessionKey);
+    await clearConversationBotFlowState(business.id, conversation.id).catch(() => undefined);
+    await clearLeadFlowIdleFollowUp(business.id, conversation.id).catch(() => undefined);
+    return startResumeFlow(
+      business,
+      conversation,
+      customerName,
+      sessionKey,
+      conversationState,
+      saveAndReturn,
+    );
   }
 
   if (isLeadFlowActive(state)) {
@@ -367,7 +383,7 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
       if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
       return sendPresentation(business, conversation, customerName);
     }
-    return handleLeadFlowMessage(
+    const leadOut = await handleLeadFlowMessage(
       ctx,
       business,
       conversation,
@@ -376,6 +392,7 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
       conversationState,
       saveAndReturn,
     );
+    if (leadOut.length) return leadOut;
   }
 
   if (isResumeFlowActive(state)) {
