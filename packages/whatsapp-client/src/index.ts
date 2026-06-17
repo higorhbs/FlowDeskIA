@@ -671,7 +671,6 @@ export class WhatsAppClient extends EventEmitter {
     for (const jid of targets) {
       try {
         await this.ensurePreKeys();
-        await this.assertAudienceSessions([jid], false);
         const footer = text.trim() ? undefined : "Toque em uma opção";
         const result = await sendNativeButtons(this.sock, jid, text, items, footer);
         this.stashSentMessage(result as WAMessage);
@@ -682,9 +681,8 @@ export class WhatsAppClient extends EventEmitter {
       }
     }
 
-    waLog.warn(`[wa:${this.businessId}] sendButtons fallback to text:`, lastErr);
-    const fallback = `${text}\n\n${items.map((b, i) => `*${i + 1}* — ${b.label}`).join("\n")}\n\n_Responda com o número da opção._`;
-    return this.sendText(to, fallback);
+    waLog.error(`[wa:${this.businessId}] sendButtons exhausted targets:`, lastErr);
+    throw lastErr instanceof Error ? lastErr : new Error("Falha ao enviar botoes");
   }
 
   async sendImage(to: string, imageUrl: string, caption?: string): Promise<string | undefined> {
