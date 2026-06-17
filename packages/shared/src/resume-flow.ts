@@ -12,7 +12,9 @@ export const DEFAULT_RESUME_FLOW_KEYWORDS = [
 
 export const DEFAULT_RESUME_EDIT_KEYWORDS = [
   "editar documento",
+  "editar dados",
   "corrigir documento",
+  "corrigir dados",
   "atualizar documento",
   "alterar documento",
   "editar pdf",
@@ -236,6 +238,21 @@ export function resumeEditTriggerMatch(text: string, keywords = DEFAULT_RESUME_E
   const normalized = text.toLowerCase().trim();
   if (!normalized) return false;
   return keywords.some((kw) => normalized.includes(kw));
+}
+
+export function isResumeReviewEditReply(text: string, editKeywords = DEFAULT_RESUME_EDIT_KEYWORDS): boolean {
+  const lower = text.trim().toLowerCase();
+  if (!lower) return false;
+  if (lower === "doc_editar" || lower === "editar dados") return true;
+  if (lower.includes("editar") || lower.includes("corrigir") || lower.includes("alterar")) return true;
+  return resumeEditTriggerMatch(text, editKeywords);
+}
+
+export function isResumeReviewConfirmReply(text: string): boolean {
+  const lower = text.trim().toLowerCase();
+  if (!lower) return false;
+  if (lower === "doc_confirmar") return true;
+  return lower.includes("gerar");
 }
 
 export const RESUME_EDIT_FIELDS: { num: number; stepId: ResumeFlowStepId; label: string; clearsExperiences?: boolean }[] = [

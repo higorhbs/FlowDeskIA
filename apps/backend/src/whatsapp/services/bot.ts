@@ -69,7 +69,9 @@ import {
   startResumeFlow,
   handleResumeFlowMessage,
   openResumeReview,
+  getResumeFlowConfig,
 } from "./resume-flow.js";
+import { buildResumeEditKeywords, isResumeReviewEditReply } from "@flowdesk/shared";
 import { addMinutes, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -337,6 +339,19 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
         saveAndReturn,
       );
       if (responses.length) return responses;
+      const cfg = getResumeFlowConfig(business);
+      const editKeywords = buildResumeEditKeywords(cfg?.documentLabel);
+      if (isResumeReviewEditReply(messageBody, editKeywords)) {
+        return openResumeReview(
+          business,
+          conversation,
+          customerName,
+          sessionKey,
+          conversationState,
+          saveAndReturn,
+          resumeState.data.fields ?? "{}",
+        );
+      }
       const archived = resumeState.data.fields;
       if (archived) {
         await setConversationBotFlowState(business.id, conversation.id, {

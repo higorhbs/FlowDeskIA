@@ -11,6 +11,8 @@ import {
   parseResumeData,
   renderTemplate,
   resolveResumeEditChoice,
+  isResumeReviewConfirmReply,
+  isResumeReviewEditReply,
   resumeEditTriggerMatch,
   resumeFlowTemplateVars,
   resumeFlowStartKeywords,
@@ -114,7 +116,7 @@ export function shouldEditResumeDocument(
 ): boolean {
   const cfg = getResumeFlowConfig(business);
   if (!cfg) return false;
-  if (!resumeEditTriggerMatch(messageBody, buildResumeEditKeywords(cfg.documentLabel))) return false;
+  if (!isResumeReviewEditReply(messageBody, buildResumeEditKeywords(cfg.documentLabel))) return false;
   return Boolean(resumeArchivedFields(state));
 }
 
@@ -275,7 +277,7 @@ export async function handleResumeFlowMessage(
   const editKeywords = buildResumeEditKeywords(cfg.documentLabel);
 
   if (stepId === "finalizado") {
-    if (resumeEditTriggerMatch(reply, editKeywords)) {
+    if (isResumeReviewEditReply(reply, editKeywords)) {
       return openResumeReview(
         business,
         conversation,
@@ -300,8 +302,7 @@ export async function handleResumeFlowMessage(
   }
 
   if (stepId === "revisao") {
-    const lower = reply.toLowerCase();
-    if (lower === "doc_confirmar" || lower.includes("gerar")) {
+    if (isResumeReviewConfirmReply(reply)) {
       return finishResumeFlow(
         business,
         conversation,
@@ -312,7 +313,7 @@ export async function handleResumeFlowMessage(
         saveAndReturn,
       );
     }
-    if (lower === "doc_editar" || lower.includes("editar")) {
+    if (isResumeReviewEditReply(reply, editKeywords)) {
       await persistState(
         business.id,
         conversation.id,
