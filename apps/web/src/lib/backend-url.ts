@@ -56,6 +56,7 @@ let clientCached: string | undefined;
 
 export function getClientBackendBaseUrl() {
   if (typeof window === "undefined") return resolveBackendBaseUrl();
+  if (!isLocalDevHost()) return `${window.location.origin}/api/backend`;
   if (!clientCached) {
     clientCached = shouldProxyViaWeb()
       ? `${window.location.origin}/api/backend`
@@ -81,10 +82,7 @@ export function getAuthApiBaseUrl() {
 }
 
 export function getClientWaApiBaseUrl() {
-  if (typeof window === "undefined") return resolveWaApiBaseUrl();
-  if (!isLocalDevHost()) return `${window.location.origin}/api/backend`;
-  if (!waCached) waCached = resolveWaApiBaseUrl();
-  return waCached;
+  return getClientBackendBaseUrl();
 }
 
 export function getWaApiBaseUrl() {
