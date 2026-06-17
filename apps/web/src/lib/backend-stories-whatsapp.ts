@@ -1,10 +1,10 @@
 import { authFetch } from "./backend-auth";
-import { getWaApiBaseUrl } from "./backend-url";
+import { getBackendBaseUrl } from "./backend-url";
 import type { ScheduledStatus, ScheduledStatusMediaType } from "@flowdesk/firebase/client";
 
 export type { ScheduledStatus, ScheduledStatusMediaType };
 
-const waBase = () => ({ baseUrl: getWaApiBaseUrl() });
+const waBase = () => ({ baseUrl: getBackendBaseUrl() });
 
 export async function backendListStories(businessId: string): Promise<ScheduledStatus[]> {
   return authFetch(`/stories/whatsapp/${businessId}`, { method: "GET", ...waBase() }) as Promise<

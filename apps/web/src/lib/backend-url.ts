@@ -82,11 +82,8 @@ export function getAuthApiBaseUrl() {
 
 export function getClientWaApiBaseUrl() {
   if (typeof window === "undefined") return resolveWaApiBaseUrl();
-  if (!waCached) {
-    waCached = shouldProxyViaWeb()
-      ? `${window.location.origin}/api/backend`
-      : resolveWaApiBaseUrl();
-  }
+  if (!isLocalDevHost()) return `${window.location.origin}/api/backend`;
+  if (!waCached) waCached = resolveWaApiBaseUrl();
   return waCached;
 }
 
