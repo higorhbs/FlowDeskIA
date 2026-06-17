@@ -73,9 +73,14 @@ export interface BotMenuItemConfig {
   action?: "APPOINTMENT" | "CATALOG" | "FAQ" | "PAYMENT" | "HUMAN";
 }
 
-import type { LeadCaptureFlow, LeadFlowButton, LeadFlowNode } from "@flowdesk/shared";
+import type {
+  LeadCaptureFlow,
+  LeadFlowButton,
+  LeadFlowNode,
+  ResumeFlowConfig,
+} from "@flowdesk/shared";
 
-export type { LeadCaptureFlow, LeadFlowButton, LeadFlowNode };
+export type { LeadCaptureFlow, LeadFlowButton, LeadFlowNode, ResumeFlowConfig };
 
 export interface Business {
   id: string;
@@ -106,6 +111,7 @@ export interface Business {
   attendantEnabled?: boolean;
   manualAttendantPrefixEnabled?: boolean;
   leadFlow?: LeadCaptureFlow;
+  resumeFlow?: ResumeFlowConfig;
   isConnected: boolean;
   createdAt: string;
   updatedAt: string;

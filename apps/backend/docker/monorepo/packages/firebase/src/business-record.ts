@@ -1,5 +1,10 @@
 import type { Business, BusinessCreateInput, BusinessType } from "./types.js";
-import { normalizeLeadCaptureFlow, type LeadCaptureFlow } from "@flowdesk/shared";
+import {
+  normalizeLeadCaptureFlow,
+  normalizeResumeFlowConfig,
+  type LeadCaptureFlow,
+  type ResumeFlowConfig,
+} from "@flowdesk/shared";
 
 export function stripUndefined<T extends Record<string, unknown>>(data: T): T {
   return Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined)) as T;
@@ -39,6 +44,23 @@ export function serializeLeadFlowForFirestore(flow: LeadCaptureFlow): Record<str
 function readLeadFlow(raw: unknown): Business["leadFlow"] {
   if (!raw || typeof raw !== "object") return undefined;
   return normalizeLeadCaptureFlow(raw as LeadCaptureFlow);
+}
+
+function readResumeFlow(raw: unknown): Business["resumeFlow"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  return normalizeResumeFlowConfig(raw as ResumeFlowConfig);
+}
+
+export function serializeResumeFlowForFirestore(flow: ResumeFlowConfig): Record<string, unknown> {
+  const normalized = normalizeResumeFlowConfig(flow);
+  return stripUndefined({
+    enabled: normalized.enabled,
+    documentLabel: normalized.documentLabel,
+    triggerKeywords: normalized.triggerKeywords,
+    notifyPhone: normalized.notifyPhone,
+    welcomeMessage: normalized.welcomeMessage,
+    successMessage: normalized.successMessage,
+  });
 }
 
 export function buildBusinessCreateRecord(
@@ -108,6 +130,7 @@ export function normalizeBusiness(id: string, raw: Record<string, unknown>): Bus
     attendantEnabled: raw.attendantEnabled !== false,
     manualAttendantPrefixEnabled: raw.manualAttendantPrefixEnabled !== false,
     leadFlow: readLeadFlow(raw.leadFlow),
+    resumeFlow: readResumeFlow(raw.resumeFlow),
     isConnected: raw.isConnected === true,
   };
 }

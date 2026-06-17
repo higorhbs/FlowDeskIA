@@ -137,6 +137,45 @@ export async function deliverBotResponses(
       let waMessageId: string | undefined;
       if (resp.imageUrl) {
         waMessageId = await deliverLeadFlowMedia(client, dest, resp);
+      } else if (resp.documentBuffer?.length) {
+        const teamPhone = resp.alsoSendDocumentTo?.replace(/\D/g, "");
+        const teamOnly = resp.sendDocumentToTeamOnly === true;
+        if (teamOnly) {
+          if (!teamPhone) {
+            log.warn(`[whatsapp] team document skipped — no notify phone business=${businessId}`);
+          } else {
+            const notifyDest = teamPhone.includes("@") ? teamPhone : `${teamPhone}@s.whatsapp.net`;
+            waMessageId = await client.sendDocument(
+              notifyDest,
+              resp.documentBuffer,
+              resp.documentFilename ?? "documento.pdf",
+              resp.documentMimetype ?? "application/pdf",
+              `Novo ${resp.documentLabel ?? "documento"}: ${resp.documentFilename ?? "documento.pdf"}`,
+            );
+          }
+        } else {
+          waMessageId = await client.sendDocument(
+            dest,
+            resp.documentBuffer,
+            resp.documentFilename ?? "documento.pdf",
+            resp.documentMimetype ?? "application/pdf",
+            resp.text?.trim() || undefined,
+          );
+          if (teamPhone) {
+            const notifyDest = teamPhone.includes("@") ? teamPhone : `${teamPhone}@s.whatsapp.net`;
+            try {
+              await client.sendDocument(
+                notifyDest,
+                resp.documentBuffer,
+                resp.documentFilename ?? "documento.pdf",
+                resp.documentMimetype ?? "application/pdf",
+                `Novo ${resp.documentLabel ?? "documento"}: ${resp.documentFilename ?? "documento.pdf"}`,
+              );
+            } catch (notifyErr) {
+              log.warn(`[whatsapp] resume notify failed business=${businessId}:`, notifyErr);
+            }
+          }
+        }
       } else if (resp.buttons?.length) {
         waMessageId = await client.sendButtons(dest, resp.text, resp.buttons);
       } else if (resp.text?.trim()) {

@@ -79,6 +79,7 @@ export type {
   LeadFlowButton,
   LeadFlowNode,
   LeadCaptureFlow,
+  ResumeFlowConfig,
   CatalogItem,
   FAQ,
   Conversation,

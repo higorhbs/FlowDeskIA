@@ -20,6 +20,7 @@ import {
   clearOutsideHoursNotice,
   tryClaimOutsideHoursNotice,
   setConversationBotFlowState,
+  clearConversationBotFlowState,
   clearLeadFlowIdleFollowUp,
 } from "@flowdesk/firebase";
 import {
@@ -45,6 +46,7 @@ import {
   isChatGreeting,
   type BotMenuAction,
   PLAN_LIMITS,
+  type LeadCaptureFlow,
 } from "@flowdesk/shared";
 import { createPixCharge, resolveAsaasCredentials } from "./pix.js";
 import {
@@ -58,6 +60,16 @@ import {
   resendLeadFlowStartNode,
   matchesLeadFlowRestartTrigger,
 } from "./lead-flow.js";
+import {
+  isResumeFlowActive,
+  isResumeFlowFinalized,
+  resumeArchivedFields,
+  shouldStartResumeFlow,
+  shouldEditResumeDocument,
+  startResumeFlow,
+  handleResumeFlowMessage,
+  openResumeReview,
+} from "./resume-flow.js";
 import { addMinutes, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -113,6 +125,12 @@ export interface BotResponse {
   imageStoragePath?: string;
   mediaType?: "image" | "video" | "gif";
   buttons?: { id: string; label: string }[];
+  documentBuffer?: Buffer;
+  documentFilename?: string;
+  documentMimetype?: string;
+  documentLabel?: string;
+  alsoSendDocumentTo?: string;
+  sendDocumentToTeamOnly?: boolean;
 }
 
 // Estado simples de conversa por sessão (em memória — para MVP)
@@ -144,6 +162,9 @@ function mapBotResponsesToMessages(responses: BotResponse[]) {
         }
       : {}),
     ...(r.buttons?.length ? { buttons: r.buttons } : {}),
+    ...(r.documentBuffer
+      ? { content: r.text?.trim() || `[documento:${r.documentFilename ?? "arquivo.pdf"}]` }
+      : {}),
   }));
 }
 
@@ -190,7 +211,7 @@ async function replyWhenClosed(
 
 async function tryProgrammedQuickReply(
   ctx: BotContext,
-  business: { id: string; name: string; faqs?: any[]; leadFlow?: unknown },
+  business: { id: string; name: string; faqs?: any[]; leadFlow?: LeadCaptureFlow | null },
   conversation: Conversation,
   sessionKey: string,
 ): Promise<BotResponse[] | null> {
@@ -245,6 +266,9 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
   lastProcessMeta = { businessId, conversationId: conversation.id };
 
   if (!conversationState.has(sessionKey) && conversation.botFlowState?.step === "LEAD_FLOW") {
+    conversationState.set(sessionKey, conversation.botFlowState);
+  }
+  if (!conversationState.has(sessionKey) && conversation.botFlowState?.step === "RESUME_FLOW") {
     conversationState.set(sessionKey, conversation.botFlowState);
   }
 
@@ -348,6 +372,77 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
       business,
       conversation,
       state as { step: "LEAD_FLOW"; data: Record<string, string> },
+      sessionKey,
+      conversationState,
+      saveAndReturn,
+    );
+  }
+
+  if (isResumeFlowActive(state)) {
+    if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
+      conversationState.delete(sessionKey);
+      if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
+      return sendPresentation(business, conversation, customerName);
+    }
+    if (isResumeFlowFinalized(state)) {
+      const responses = await handleResumeFlowMessage(
+        ctx,
+        business,
+        conversation,
+        state as { step: "RESUME_FLOW"; data: Record<string, string> },
+        sessionKey,
+        conversationState,
+        saveAndReturn,
+      );
+      if (responses.length) return responses;
+      const archived = state.data.fields;
+      if (archived) {
+        await setConversationBotFlowState(business.id, conversation.id, {
+          step: "RESUME_ARCHIVE",
+          data: { fields: archived },
+        });
+      } else {
+        await clearConversationBotFlowState(business.id, conversation.id).catch(() => undefined);
+      }
+      conversationState.delete(sessionKey);
+    } else {
+      return handleResumeFlowMessage(
+        ctx,
+        business,
+        conversation,
+        state as { step: "RESUME_FLOW"; data: Record<string, string> },
+        sessionKey,
+        conversationState,
+        saveAndReturn,
+      );
+    }
+  }
+
+  if (
+    shouldEditResumeDocument(business, messageBody, conversation.botFlowState ?? state)
+  ) {
+    const fields = resumeArchivedFields(conversation.botFlowState ?? state);
+    if (!fields) return [];
+    if (!conversationState.has(sessionKey) && conversation.botFlowState) {
+      conversationState.set(sessionKey, conversation.botFlowState);
+    }
+    return openResumeReview(
+      business,
+      conversation,
+      customerName,
+      sessionKey,
+      conversationState,
+      saveAndReturn,
+      fields,
+    );
+  }
+
+  if (shouldStartResumeFlow(business, messageBody)) {
+    conversationState.delete(sessionKey);
+    return startResumeFlow(
+      business,
+      conversation,
+      customerName,
       sessionKey,
       conversationState,
       saveAndReturn,

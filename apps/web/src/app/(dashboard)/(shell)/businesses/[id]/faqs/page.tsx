@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import {
   MessageSquare, HelpCircle, Plus, Trash2, Loader2, X,
   ChevronUp, ChevronDown, Eye, Save, Pencil, Check,
-  Sparkles, Hash, MessageCircleQuestion, Zap, GitBranch,
+  Sparkles, Hash, MessageCircleQuestion, Zap, GitBranch, FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import { buildBotMenuEntries, getBusinessVocabulary, renderTemplate, DEFAULT_THA
 import { IaIcon } from "@/lib/ia-brand";
 import { usePlanAllowsPix } from "@/lib/use-plan-allows-pix";
 import { LeadFlowEditor } from "@/components/ia/LeadFlowEditor";
+import { ResumeFlowEditor } from "@/components/ia/ResumeFlowEditor";
 
 const LEGACY_EMOJI: Record<string, string> = {
   APPOINTMENT: "📅",
@@ -91,7 +92,7 @@ const faqSchema = z.object({
 });
 type FAQForm = z.infer<typeof faqSchema>;
 
-type Tab = "menu" | "faqs" | "leadflow";
+type Tab = "menu" | "faqs" | "leadflow" | "resume";
 type PreviewFocus = "greeting" | "menu" | "thanks" | "attendant";
 
 // ── Emoji picker ───────────────────────────────────────────────────────────────
@@ -1484,6 +1485,7 @@ export default function BotPage() {
         { id: "menu" as const, label: "Menu da IA", icon: MessageSquare },
         { id: "faqs" as const, label: "Perguntas & Respostas", icon: HelpCircle },
         { id: "leadflow" as const, label: "Vendas guiadas", icon: GitBranch },
+        { id: "resume" as const, label: "Geração de documentos", icon: FileText },
       ] as const)
     : [];
 
@@ -1500,6 +1502,7 @@ export default function BotPage() {
   const savedMenu = (business as any)?.botMenu as Partial<BotMenuItemConfig>[] | undefined;
   const initialMenu = migrateMenu(savedMenu, business?.type, tenant?.plan);
   const initialLeadFlow = business?.leadFlow;
+  const initialResumeFlow = business?.resumeFlow;
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
@@ -1604,6 +1607,12 @@ export default function BotPage() {
           businessId={businessId}
           businessName={business?.name ?? "Meu Negócio"}
           initialFlow={initialLeadFlow}
+        />
+      ) : tab === "resume" && autoReplyEnabled ? (
+        <ResumeFlowEditor
+          businessId={businessId}
+          businessName={business?.name ?? "Meu Negócio"}
+          initialConfig={initialResumeFlow}
         />
       ) : null}
     </div>

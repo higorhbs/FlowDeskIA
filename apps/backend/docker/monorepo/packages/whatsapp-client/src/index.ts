@@ -788,6 +788,28 @@ export class WhatsAppClient extends EventEmitter {
     return this.sendChatMediaBuffer(to, buffer, mimetype, mediaType, caption);
   }
 
+  async sendDocument(
+    to: string,
+    buffer: Buffer,
+    filename: string,
+    mimetype = "application/pdf",
+    caption?: string,
+  ): Promise<string | undefined> {
+    if (!this.sock) throw new Error("Socket not connected");
+    const jid = this.resolveSendJid(to);
+    const cap = caption?.trim() || undefined;
+    await this.ensurePreKeys();
+    const result = await this.sock.sendMessage(jid, {
+      document: buffer,
+      mimetype,
+      fileName: filename,
+      caption: cap,
+    });
+    if (!result?.key?.id) throw new Error("WhatsApp não confirmou envio do documento.");
+    this.stashSentMessage(result);
+    return result.key.id;
+  }
+
   async sendChatMediaBuffer(
     to: string,
     buffer: Buffer,
