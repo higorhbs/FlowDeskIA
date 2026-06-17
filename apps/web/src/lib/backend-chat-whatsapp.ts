@@ -1,8 +1,8 @@
 import { authFetch } from "./backend-auth";
-import { getWaApiBaseUrl } from "./backend-url";
+import { getBackendBaseUrl } from "./backend-url";
 import type { Message } from "@flowdesk/firebase/client";
 
-const waBase = () => ({ baseUrl: getWaApiBaseUrl() });
+const waBase = () => ({ baseUrl: getBackendBaseUrl() });
 
 export type WhatsAppStatus = {
   connected: boolean;

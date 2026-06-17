@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const maxDuration = 60;
 
+const WA_QR_PATH = /^chat\/whatsapp\/qr-code\//;
+
 const HOP_BY_HOP = new Set([
   "connection",
   "keep-alive",
@@ -77,6 +79,9 @@ async function proxy(req: NextRequest, path: string[]) {
         hint = "Servidor WhatsApp inacessível (530). Backend offline ou BACKEND_INTERNAL_URL errado na Vercel.";
       } else if (res.status === 413) {
         hint = "Arquivo muito grande. Reduza o tamanho da imagem ou vídeo e tente novamente.";
+      } else if (WA_QR_PATH.test(suffix)) {
+        hint =
+          "Servidor WhatsApp indisponível (502). Confira se a VM responde em /health (porta 9031 no Dokploy) e BACKEND_INTERNAL_URL na Vercel.";
       } else {
         hint = "Servidor WhatsApp indisponível.";
       }
