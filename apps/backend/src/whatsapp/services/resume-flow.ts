@@ -237,7 +237,6 @@ async function finishResumeFlow(
   await persistState(business.id, conversation.id, sessionKey, conversationState, resumeState("finalizado", fields));
 
   const out: BotResponse[] = [
-    { text: renderTemplate(success, vars) },
     {
       text: "",
       documentBuffer: buffer,
@@ -248,6 +247,7 @@ async function finishResumeFlow(
       sendDocumentToSelf: notifySelf,
       sendDocumentToTeamOnly: true,
     },
+    { text: renderTemplate(success, vars) },
   ];
   await saveAndReturn(business.id, conversation.id, out);
   return out;

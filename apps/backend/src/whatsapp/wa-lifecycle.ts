@@ -132,82 +132,99 @@ export async function deliverBotResponses(
   conversationId: string | undefined,
   responses: BotResponse[],
 ): Promise<void> {
-  for (const resp of responses) {
+  const ordered = [
+    ...responses.filter((r) => r.documentBuffer?.length),
+    ...responses.filter((r) => !r.documentBuffer?.length),
+  ];
+  let documentFailed = false;
+
+  for (const resp of ordered) {
     try {
       let waMessageId: string | undefined;
+      const docBuffer = resp.documentBuffer?.length
+        ? Buffer.isBuffer(resp.documentBuffer)
+          ? resp.documentBuffer
+          : Buffer.from(resp.documentBuffer as Uint8Array)
+        : undefined;
+
       if (resp.imageUrl) {
         waMessageId = await deliverLeadFlowMedia(client, dest, resp);
-      } else if (resp.documentBuffer?.length) {
+      } else if (docBuffer?.length) {
         const teamPhone = resp.alsoSendDocumentTo?.replace(/\D/g, "");
         const teamOnly = resp.sendDocumentToTeamOnly === true;
+        const caption = `Novo ${resp.documentLabel ?? "documento"}: ${resp.documentFilename ?? "documento.pdf"}`;
         if (teamOnly) {
           if (resp.sendDocumentToSelf) {
-            const own = client.getOwnJid();
-            if (!own) {
-              log.warn(`[whatsapp] self document skipped — own jid unavailable business=${businessId}`);
-            } else {
-              try {
-                waMessageId = await client.sendDocument(
-                  own,
-                  resp.documentBuffer,
-                  resp.documentFilename ?? "documento.pdf",
-                  resp.documentMimetype ?? "application/pdf",
-                  `Novo ${resp.documentLabel ?? "documento"}: ${resp.documentFilename ?? "documento.pdf"}`,
-                );
-              } catch (notifyErr) {
-                log.error(`[whatsapp] self document failed business=${businessId}:`, notifyErr);
-                try {
-                  await client.sendText(
-                    dest,
-                    "⚠️ Seus dados foram salvos, mas não conseguimos enviar o PDF na conversa com você mesmo.",
-                  );
-                } catch {
-                  /* ignore */
-                }
-                throw notifyErr;
-              }
-            }
-          } else if (!teamPhone) {
-            log.warn(`[whatsapp] team document skipped — no notify phone business=${businessId}`);
-          } else {
             try {
               waMessageId = await client.sendDocument(
-                teamPhone,
-                resp.documentBuffer,
+                "",
+                docBuffer,
                 resp.documentFilename ?? "documento.pdf",
                 resp.documentMimetype ?? "application/pdf",
-                `Novo ${resp.documentLabel ?? "documento"}: ${resp.documentFilename ?? "documento.pdf"}`,
+                caption,
+                { self: true },
               );
             } catch (notifyErr) {
-              log.error(`[whatsapp] team document failed business=${businessId} phone=${teamPhone}:`, notifyErr);
+              documentFailed = true;
+              log.error(`[whatsapp] self document failed business=${businessId}:`, notifyErr);
               try {
                 await client.sendText(
                   dest,
-                  "⚠️ Seus dados foram salvos, mas não conseguimos enviar o PDF para a equipe. Confira o número no painel (DDI + DDD, só dígitos).",
+                  "⚠️ Seus dados foram salvos, mas não conseguimos enviar o PDF na conversa com você mesmo. Tente reconectar o WhatsApp no painel.",
                 );
               } catch {
                 /* ignore */
               }
-              throw notifyErr;
+            }
+          } else if (!teamPhone) {
+            documentFailed = true;
+            log.warn(`[whatsapp] team document skipped — no notify phone business=${businessId}`);
+            try {
+              await client.sendText(
+                dest,
+                "⚠️ Seus dados foram salvos, mas o WhatsApp da equipe não está configurado no painel.",
+              );
+            } catch {
+              /* ignore */
+            }
+          } else {
+            try {
+              waMessageId = await client.sendDocument(
+                teamPhone,
+                docBuffer,
+                resp.documentFilename ?? "documento.pdf",
+                resp.documentMimetype ?? "application/pdf",
+                caption,
+              );
+            } catch (notifyErr) {
+              documentFailed = true;
+              log.error(`[whatsapp] team document failed business=${businessId} phone=${teamPhone}:`, notifyErr);
+              try {
+                await client.sendText(
+                  dest,
+                  "⚠️ Seus dados foram salvos, mas não conseguimos enviar o PDF para a equipe. Confira o número no painel ou use *Receber na conversa comigo*.",
+                );
+              } catch {
+                /* ignore */
+              }
             }
           }
         } else {
           waMessageId = await client.sendDocument(
             dest,
-            resp.documentBuffer,
+            docBuffer,
             resp.documentFilename ?? "documento.pdf",
             resp.documentMimetype ?? "application/pdf",
             resp.text?.trim() || undefined,
           );
           if (teamPhone) {
-            const notifyDest = teamPhone.includes("@") ? teamPhone : `${teamPhone}@s.whatsapp.net`;
             try {
               await client.sendDocument(
-                notifyDest,
-                resp.documentBuffer,
+                teamPhone,
+                docBuffer,
                 resp.documentFilename ?? "documento.pdf",
                 resp.documentMimetype ?? "application/pdf",
-                `Novo ${resp.documentLabel ?? "documento"}: ${resp.documentFilename ?? "documento.pdf"}`,
+                caption,
               );
             } catch (notifyErr) {
               log.warn(`[whatsapp] resume notify failed business=${businessId}:`, notifyErr);
@@ -217,6 +234,7 @@ export async function deliverBotResponses(
       } else if (resp.buttons?.length) {
         waMessageId = await client.sendButtons(dest, resp.text, resp.buttons);
       } else if (resp.text?.trim()) {
+        if (documentFailed) continue;
         waMessageId = await client.sendText(dest, resp.text);
       }
       if (conversationId && waMessageId) {

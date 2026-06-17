@@ -631,7 +631,32 @@ export class WhatsAppClient extends EventEmitter {
     if (!id) return undefined;
     const normalized = jidNormalizedUser(id);
     if (normalized?.endsWith("@s.whatsapp.net")) return normalized;
+    if (normalized && isLidUser(normalized)) {
+      const phone = this.lidToPhone.get(normalized);
+      if (phone?.endsWith("@s.whatsapp.net")) return phone;
+      return normalized;
+    }
     return toSendJid(id);
+  }
+
+  getSelfDocumentTargets(): string[] {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const add = (jid?: string) => {
+      if (!jid) return;
+      const normalized = toSendJid(jid);
+      if (!normalized || seen.has(normalized)) return;
+      seen.add(normalized);
+      out.push(normalized);
+    };
+    const rawId = this.sock?.user?.id;
+    if (!rawId) return out;
+    const normalized = jidNormalizedUser(rawId) || toSendJid(rawId);
+    add(normalized);
+    if (isLidUser(normalized)) add(this.lidToPhone.get(normalized));
+    add(this.getOwnJid());
+    for (const jid of this.collectSendTargets(normalized.split("@")[0] ?? "")) add(jid);
+    return out;
   }
 
   async sendText(to: string, text: string): Promise<string | undefined> {
@@ -846,10 +871,14 @@ export class WhatsAppClient extends EventEmitter {
     filename: string,
     mimetype = "application/pdf",
     caption?: string,
+    opts?: { self?: boolean },
   ): Promise<string | undefined> {
     if (!this.sock) throw new Error("Socket not connected");
+    if (!buffer?.length) throw new Error("Documento vazio");
     const cap = caption?.trim() || undefined;
-    const targets = this.collectSendTargets(to);
+    const targets = opts?.self ? this.getSelfDocumentTargets() : this.collectSendTargets(to);
+    if (!targets.length) throw new Error("Nenhum destino válido para o documento");
+    await this.assertAudienceSessions(targets, false);
     let lastErr: unknown;
     for (const jid of targets) {
       try {
@@ -862,6 +891,7 @@ export class WhatsAppClient extends EventEmitter {
         });
         if (!result?.key?.id) throw new Error("WhatsApp não confirmou envio do documento.");
         this.stashSentMessage(result);
+        waLog.info(`[wa:${this.businessId}] sendDocument ok jid=${jid} bytes=${buffer.length}`);
         return result.key.id;
       } catch (err) {
         lastErr = err;
