@@ -250,13 +250,33 @@ export function WorkingHoursEditor({
   }
 
   function applyToAll(template: [string, string]) {
-    const next: WorkingHoursValue = {};
-    DAY_KEYS.forEach((d) => { next[d] = [...template]; });
-    onChange(next);
+    onChange(applyToAllValue(template));
   }
 
   const openCount = DAY_KEYS.filter((d) => value[d] !== null && value[d] !== undefined).length;
   const is24hActive = DAY_KEYS.every((d) => isAllDayHours(value[d]));
+
+  function setOpen24h(enabled: boolean) {
+    if (enabled) {
+      const next = applyToAllValue(ALL_DAY_HOURS);
+      onChange(next);
+      onLunchBreakChange(null);
+      setEditingDay(null);
+      commit({ workingHours: next, lunchBreak: null });
+      return;
+    }
+    const next = defaultWorkingHours();
+    onChange(next);
+    setEditingDay(null);
+    commit({ workingHours: next });
+  }
+
+  function applyToAllValue(template: [string, string]): WorkingHoursValue {
+    const next: WorkingHoursValue = {};
+    DAY_KEYS.forEach((d) => { next[d] = [...template]; });
+    return next;
+  }
+
   const specialEntries = Object.entries(specialHours).sort(([a], [b]) => a.localeCompare(b));
 
   function dateKeyFromOffset(days: number) {
@@ -296,6 +316,16 @@ export function WorkingHoursEditor({
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-gray-900">Aberto 24h, todos os dias</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Atendimento automático sem restrição de horário.
+          </p>
+        </div>
+        <Switch checked={is24hActive} onCheckedChange={setOpen24h} />
+      </div>
+
       {/* Day chip summary */}
       <div className="flex items-center gap-2 flex-wrap">
         {DAY_KEYS.map((day) => {
@@ -433,8 +463,7 @@ export function WorkingHoursEditor({
             label: "Aberto 24h (todos os dias)",
             active: is24hActive,
             action: () => {
-              applyToAll(ALL_DAY_HOURS);
-              setEditingDay(null);
+              setOpen24h(true);
             },
           },
           { label: "Dias úteis 09h–18h", action: () => { applyToWeekdays(["09:00", "18:00"]); setEditingDay(null); } },

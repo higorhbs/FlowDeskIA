@@ -13,7 +13,7 @@ if curl -fsS --max-time 5 "http://127.0.0.1:${BACKEND_PORT}/health"; then
   echo ""
 else
   echo "FALHOU — nginx/Cloudflare apontam pra ${BACKEND_PORT} mas nada escuta aqui."
-  echo "Dokploy: publicar 9031:3001 OU Domains com container port 3001."
+  echo "Dokploy: ports 9031:9031, PORT=9031, Domains → container port 9031."
 fi
 
 echo ""

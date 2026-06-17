@@ -45,12 +45,23 @@ export async function authFetch(
     controller && timeoutMs
       ? setTimeout(() => controller.abort(), timeoutMs)
       : undefined;
-  const res = await fetch(`${baseUrl ?? getBackendBaseUrl()}${path}`, {
-    ...rest,
-    headers,
-    credentials: "include",
-    signal: controller?.signal ?? rest.signal,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrl ?? getBackendBaseUrl()}${path}`, {
+      ...rest,
+      headers,
+      credentials: "include",
+      signal: controller?.signal ?? rest.signal,
+    });
+  } catch (err) {
+    if (timer) clearTimeout(timer);
+    const base = baseUrl ?? getBackendBaseUrl();
+    const msg =
+      err instanceof Error && err.name === "AbortError"
+        ? "A API demorou para responder. Tente de novo."
+        : `Não foi possível conectar à API (${base}). Verifique se a VM está no ar.`;
+    throw new Error(msg);
+  }
   if (timer) clearTimeout(timer);
   const data = await parseJson(res);
   if (!res.ok) fail(data, res.status);
