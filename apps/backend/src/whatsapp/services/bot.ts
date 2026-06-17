@@ -313,6 +313,63 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
     return sendPresentation(business, conversation, customerName);
   }
 
+  const activeFlow = conversationState.get(sessionKey) ?? conversation.botFlowState;
+
+  if (isResumeFlowActive(activeFlow)) {
+    if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
+      conversationState.delete(sessionKey);
+      if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
+      return sendPresentation(business, conversation, customerName);
+    }
+    const resumeState = activeFlow as { step: "RESUME_FLOW"; data: Record<string, string> };
+    if (isResumeFlowFinalized(resumeState)) {
+      const responses = await handleResumeFlowMessage(
+        ctx,
+        business,
+        conversation,
+        resumeState,
+        sessionKey,
+        conversationState,
+        saveAndReturn,
+      );
+      if (responses.length) return responses;
+      const archived = resumeState.data.fields;
+      if (archived) {
+        await setConversationBotFlowState(business.id, conversation.id, {
+          step: "RESUME_ARCHIVE",
+          data: { fields: archived },
+        });
+      } else {
+        await clearConversationBotFlowState(business.id, conversation.id).catch(() => undefined);
+      }
+      conversationState.delete(sessionKey);
+    } else {
+      return handleResumeFlowMessage(
+        ctx,
+        business,
+        conversation,
+        resumeState,
+        sessionKey,
+        conversationState,
+        saveAndReturn,
+      );
+    }
+  }
+
+  if (shouldStartResumeFlow(business, messageBody)) {
+    conversationState.delete(sessionKey);
+    await clearConversationBotFlowState(business.id, conversation.id).catch(() => undefined);
+    await clearLeadFlowIdleFollowUp(business.id, conversation.id).catch(() => undefined);
+    return startResumeFlow(
+      business,
+      conversation,
+      customerName,
+      sessionKey,
+      conversationState,
+      saveAndReturn,
+    );
+  }
+
   const flowConfig = getLeadFlowConfig(business);
   const greetingHit = isChatGreeting(messageBody);
   if (
@@ -340,7 +397,7 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
     );
   }
 
-  if (!isLeadFlowActive(state)) {
+  if (!isLeadFlowActive(activeFlow) && !isResumeFlowActive(activeFlow)) {
     const recovered = await recoverLeadFlowFromButton(
       ctx,
       business,
@@ -362,22 +419,7 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
     }
   }
 
-  const activeFlow = conversationState.get(sessionKey) ?? conversation.botFlowState;
-  if (isLeadFlowActive(activeFlow) && shouldStartResumeFlow(business, messageBody)) {
-    conversationState.delete(sessionKey);
-    await clearConversationBotFlowState(business.id, conversation.id).catch(() => undefined);
-    await clearLeadFlowIdleFollowUp(business.id, conversation.id).catch(() => undefined);
-    return startResumeFlow(
-      business,
-      conversation,
-      customerName,
-      sessionKey,
-      conversationState,
-      saveAndReturn,
-    );
-  }
-
-  if (isLeadFlowActive(state)) {
+  if (isLeadFlowActive(activeFlow)) {
     if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
       conversationState.delete(sessionKey);
       if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
@@ -387,7 +429,7 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
       ctx,
       business,
       conversation,
-      state as { step: "LEAD_FLOW"; data: Record<string, string> },
+      activeFlow as { step: "LEAD_FLOW"; data: Record<string, string> },
       sessionKey,
       conversationState,
       saveAndReturn,
@@ -395,48 +437,8 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
     if (leadOut.length) return leadOut;
   }
 
-  if (isResumeFlowActive(state)) {
-    if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
-      conversationState.delete(sessionKey);
-      if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
-      return sendPresentation(business, conversation, customerName);
-    }
-    if (isResumeFlowFinalized(state)) {
-      const responses = await handleResumeFlowMessage(
-        ctx,
-        business,
-        conversation,
-        state as { step: "RESUME_FLOW"; data: Record<string, string> },
-        sessionKey,
-        conversationState,
-        saveAndReturn,
-      );
-      if (responses.length) return responses;
-      const archived = state.data.fields;
-      if (archived) {
-        await setConversationBotFlowState(business.id, conversation.id, {
-          step: "RESUME_ARCHIVE",
-          data: { fields: archived },
-        });
-      } else {
-        await clearConversationBotFlowState(business.id, conversation.id).catch(() => undefined);
-      }
-      conversationState.delete(sessionKey);
-    } else {
-      return handleResumeFlowMessage(
-        ctx,
-        business,
-        conversation,
-        state as { step: "RESUME_FLOW"; data: Record<string, string> },
-        sessionKey,
-        conversationState,
-        saveAndReturn,
-      );
-    }
-  }
-
   if (
-    shouldEditResumeDocument(business, messageBody, conversation.botFlowState ?? state)
+    shouldEditResumeDocument(business, messageBody, conversation.botFlowState ?? activeFlow)
   ) {
     const fields = resumeArchivedFields(conversation.botFlowState ?? state);
     if (!fields) return [];
@@ -451,18 +453,6 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
       conversationState,
       saveAndReturn,
       fields,
-    );
-  }
-
-  if (shouldStartResumeFlow(business, messageBody)) {
-    conversationState.delete(sessionKey);
-    return startResumeFlow(
-      business,
-      conversation,
-      customerName,
-      sessionKey,
-      conversationState,
-      saveAndReturn,
     );
   }
 

@@ -144,14 +144,26 @@ export async function deliverBotResponses(
           if (!teamPhone) {
             log.warn(`[whatsapp] team document skipped — no notify phone business=${businessId}`);
           } else {
-            const notifyDest = teamPhone.includes("@") ? teamPhone : `${teamPhone}@s.whatsapp.net`;
-            waMessageId = await client.sendDocument(
-              notifyDest,
-              resp.documentBuffer,
-              resp.documentFilename ?? "documento.pdf",
-              resp.documentMimetype ?? "application/pdf",
-              `Novo ${resp.documentLabel ?? "documento"}: ${resp.documentFilename ?? "documento.pdf"}`,
-            );
+            try {
+              waMessageId = await client.sendDocument(
+                teamPhone,
+                resp.documentBuffer,
+                resp.documentFilename ?? "documento.pdf",
+                resp.documentMimetype ?? "application/pdf",
+                `Novo ${resp.documentLabel ?? "documento"}: ${resp.documentFilename ?? "documento.pdf"}`,
+              );
+            } catch (notifyErr) {
+              log.error(`[whatsapp] team document failed business=${businessId} phone=${teamPhone}:`, notifyErr);
+              try {
+                await client.sendText(
+                  dest,
+                  "⚠️ Seus dados foram salvos, mas não conseguimos enviar o PDF para a equipe. Confira o número no painel (DDI + DDD, só dígitos).",
+                );
+              } catch {
+                /* ignore */
+              }
+              throw notifyErr;
+            }
           }
         } else {
           waMessageId = await client.sendDocument(
