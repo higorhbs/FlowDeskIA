@@ -77,13 +77,30 @@ function shouldSkipJid(jid: string): boolean {
 
 function resolveAddress(key: MsgKey, remoteJid: string, lidToPhone: Map<string, string>) {
   const normalized = toSendJid(remoteJid);
-  const extended = key as MsgKey & { senderPn?: string; participantPn?: string };
+  const extended = key as MsgKey & {
+    senderPn?: string;
+    participantPn?: string;
+    remoteJidAlt?: string;
+    participantAlt?: string;
+  };
   const pn = extended.senderPn || extended.participantPn;
   const phoneJid = pn ? pnToJid(pn) : null;
+  const altRaw = extended.remoteJidAlt || extended.participantAlt;
+  const altJid = altRaw ? toSendJid(altRaw) : null;
 
   if (isLidUser(normalized)) {
-    const from = phoneJid ?? lidToPhone.get(normalized) ?? normalized;
-    return { from, replyJid: normalized };
+    const phone =
+      phoneJid ??
+      (altJid && !isLidUser(altJid) ? altJid : null) ??
+      lidToPhone.get(normalized) ??
+      null;
+    if (phone) lidToPhone.set(normalized, phone);
+    const reply = phone ?? normalized;
+    return { from: reply, replyJid: reply };
+  }
+
+  if (altJid && isLidUser(altJid) && normalized.endsWith("@s.whatsapp.net")) {
+    lidToPhone.set(altJid, normalized);
   }
 
   if (phoneJid) return { from: phoneJid, replyJid: phoneJid };
@@ -467,6 +484,10 @@ export class WhatsAppClient extends EventEmitter {
     this.replyJidByContact.set(from, reply);
     this.replyJidByContact.set(reply, reply);
     if (from !== reply) this.replyJidByContact.set(toSendJid(from), reply);
+    if (isLidUser(reply)) {
+      const phone = toSendJid(from);
+      if (phone.endsWith("@s.whatsapp.net")) this.lidToPhone.set(reply, phone);
+    }
   }
 
   private resolveSendJid(to: string): string {
@@ -598,6 +619,42 @@ export class WhatsAppClient extends EventEmitter {
     return result?.key.id ?? undefined;
   }
 
+  private collectButtonSendTargets(to: string): string[] {
+    const seen = new Set<string>();
+    const lids: string[] = [];
+    const phones: string[] = [];
+
+    const add = (jid?: string) => {
+      if (!jid) return;
+      const normalized = toSendJid(jid);
+      if (!normalized || seen.has(normalized)) return;
+      seen.add(normalized);
+      if (isLidUser(normalized)) lids.push(normalized);
+      else if (normalized.endsWith("@s.whatsapp.net")) phones.push(normalized);
+    };
+
+    const raw = to.trim();
+    add(raw.includes("@") ? raw : undefined);
+    add(this.resolveSendJid(raw));
+
+    for (const jid of [...lids, ...phones]) {
+      if (isLidUser(jid)) {
+        add(this.lidToPhone.get(jid));
+      } else {
+        const cached =
+          this.replyJidByContact.get(raw) ??
+          this.replyJidByContact.get(jid) ??
+          this.replyJidByContact.get(toSendJid(raw));
+        if (cached) add(cached);
+        for (const [lid, phone] of this.lidToPhone) {
+          if (phone === jid) add(lid);
+        }
+      }
+    }
+
+    return [...phones, ...lids];
+  }
+
   async sendButtons(
     to: string,
     text: string,
@@ -607,18 +664,14 @@ export class WhatsAppClient extends EventEmitter {
     const items = buttons.slice(0, 3);
     if (!items.length) return this.sendText(to, text);
 
-    const targets = new Set<string>();
-    const primary = this.resolveSendJid(to);
-    targets.add(primary);
-    if (isLidUser(primary)) {
-      const phone = this.lidToPhone.get(primary);
-      if (phone) targets.add(phone);
-    }
+    const targets = this.collectButtonSendTargets(to);
+    if (!targets.length) return this.sendText(to, text);
 
     let lastErr: unknown;
     for (const jid of targets) {
       try {
         await this.ensurePreKeys();
+        await this.assertAudienceSessions([jid], false);
         const footer = text.trim() ? undefined : "Toque em uma opção";
         const result = await sendNativeButtons(this.sock, jid, text, items, footer);
         this.stashSentMessage(result as WAMessage);

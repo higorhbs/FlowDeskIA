@@ -54,6 +54,7 @@ import {
   getLeadFlowConfig,
   recoverLeadFlowFromButton,
   restartLeadFlowFromStart,
+  resendLeadFlowStartNode,
   matchesLeadFlowRestartTrigger,
 } from "./lead-flow.js";
 import { addMinutes, format } from "date-fns";
@@ -257,7 +258,9 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
       const active = conversationState.get(sessionKey) ?? conversation.botFlowState;
       if (isLeadFlowActive(active)) {
         const nodeId = String(active?.data?.nodeId ?? "");
-        if (!nodeId || nodeId === flowConfig.startNodeId) return [];
+        if (!nodeId || nodeId === flowConfig.startNodeId) {
+          return resendLeadFlowStartNode(business, conversation, customerName, saveAndReturn);
+        }
       }
     }
     conversationState.delete(sessionKey);

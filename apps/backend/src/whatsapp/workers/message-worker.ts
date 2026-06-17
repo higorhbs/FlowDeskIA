@@ -43,7 +43,8 @@ async function processInboundJob(job: WhatsappJob): Promise<void> {
 
   if (responses.length === 0) return;
 
-  if (isChatGreeting(payload.messageBody)) {
+  const hasButtons = responses.some((r) => r.buttons?.length);
+  if (isChatGreeting(payload.messageBody) && !hasButtons) {
     const claimed = await tryClaimChatGreetingReply(businessId, payload.customerPhone);
     if (!claimed) {
       log.info(`[worker] skip duplicate greeting business=${businessId} job=${job.id}`);

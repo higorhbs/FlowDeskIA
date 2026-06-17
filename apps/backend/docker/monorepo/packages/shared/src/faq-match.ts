@@ -70,7 +70,6 @@ export function levenshtein(a: string, b: string): number {
 export function wordsSimilar(a: string, b: string): boolean {
   if (!a || !b) return false;
   if (a === b) return true;
-  if (a.includes(b) || b.includes(a)) return true;
 
   const maxLen = Math.max(a.length, b.length);
   if (maxLen < 3) return false;
@@ -93,7 +92,7 @@ export function faqTextsMatch(message: string, candidate: string): boolean {
   const cand = normalizeFaqText(candidate);
   if (!msg || !cand || cand.length < 2) return false;
 
-  if (msg.includes(cand) || cand.includes(msg)) return true;
+  if (msg === cand) return true;
 
   const msgWords = significantWords(msg);
   const candWords = significantWords(cand);

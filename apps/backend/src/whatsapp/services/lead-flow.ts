@@ -228,6 +228,22 @@ export async function recoverLeadFlowFromButton(
   return true;
 }
 
+export async function resendLeadFlowStartNode(
+  business: { id: string; name: string; leadFlow?: LeadCaptureFlow | null },
+  conversation: Conversation,
+  customerName: string | undefined,
+  saveAndReturn: (businessId: string, conversationId: string, responses: BotResponse[]) => Promise<void>,
+): Promise<BotResponse[]> {
+  const flow = getLeadFlowConfig(business);
+  if (!flow) return [];
+  const start = findLeadFlowNode(flow, flow.startNodeId);
+  if (!start) return [];
+  const out = leadFlowNodeToResponses(start, flowVars(business, customerName));
+  if (!out.length) return [];
+  await saveAndReturn(business.id, conversation.id, out);
+  return out;
+}
+
 export async function restartLeadFlowFromStart(
   business: {
     id: string;
