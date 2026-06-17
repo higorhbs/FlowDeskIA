@@ -58,6 +58,7 @@ export function serializeResumeFlowForFirestore(flow: ResumeFlowConfig): Record<
     documentLabel: normalized.documentLabel,
     triggerKeywords: normalized.triggerKeywords,
     notifyPhone: normalized.notifyPhone,
+    notifySelf: normalized.notifySelf === true ? true : undefined,
     welcomeMessage: normalized.welcomeMessage,
     successMessage: normalized.successMessage,
   });

@@ -57,6 +57,7 @@ export interface ResumeFlowConfig {
   documentLabel: string;
   triggerKeywords: string[];
   notifyPhone: string;
+  notifySelf?: boolean;
   welcomeMessage?: string;
   successMessage?: string;
 }
@@ -168,6 +169,7 @@ export function defaultResumeFlowConfig(): ResumeFlowConfig {
     documentLabel: DEFAULT_RESUME_DOCUMENT_LABEL,
     triggerKeywords: [...DEFAULT_RESUME_FLOW_KEYWORDS],
     notifyPhone: "",
+    notifySelf: false,
     welcomeMessage: DEFAULT_WELCOME,
     successMessage: DEFAULT_SUCCESS,
   };
@@ -212,6 +214,7 @@ export function normalizeResumeFlowConfig(raw?: ResumeFlowConfig | null): Resume
       .map((k) => k.trim().toLowerCase())
       .filter(Boolean),
     notifyPhone: String(raw.notifyPhone ?? "").replace(/\D/g, ""),
+    notifySelf: raw.notifySelf === true,
     welcomeMessage: raw.welcomeMessage?.trim() || base.welcomeMessage,
     successMessage: raw.successMessage?.trim() || base.successMessage,
   };

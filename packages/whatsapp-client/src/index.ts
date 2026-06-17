@@ -52,6 +52,17 @@ function messageStoreKey(key: MsgKey): string {
 
 const MESSAGE_STORE_MAX = 400;
 
+function phoneDigitsMatch(a: string, b: string): boolean {
+  const da = a.replace(/\D/g, "");
+  const db = b.replace(/\D/g, "");
+  if (!da || !db) return false;
+  if (da === db) return true;
+  if (da.length >= 10 && db.length >= 10) {
+    return da.slice(-11) === db.slice(-11) || da.slice(-10) === db.slice(-10);
+  }
+  return da.endsWith(db) || db.endsWith(da);
+}
+
 function pnToJid(pn: string): string {
   const raw = pn.trim();
   if (raw.includes("@")) return jidNormalizedUser(raw) || raw;
@@ -681,6 +692,11 @@ export class WhatsAppClient extends EventEmitter {
 
     const raw = to.trim();
     const digits = raw.replace(/\D/g, "");
+    const own = this.getOwnJid();
+    if (own) {
+      const ownDigits = own.split("@")[0] ?? "";
+      if (digits && phoneDigitsMatch(digits, ownDigits)) add(own);
+    }
     for (const variant of brazilPhoneDigitVariants(digits)) {
       add(pnToJid(variant));
       for (const jid of this.collectButtonSendTargets(variant)) add(jid);

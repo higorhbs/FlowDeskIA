@@ -141,7 +141,33 @@ export async function deliverBotResponses(
         const teamPhone = resp.alsoSendDocumentTo?.replace(/\D/g, "");
         const teamOnly = resp.sendDocumentToTeamOnly === true;
         if (teamOnly) {
-          if (!teamPhone) {
+          if (resp.sendDocumentToSelf) {
+            const own = client.getOwnJid();
+            if (!own) {
+              log.warn(`[whatsapp] self document skipped — own jid unavailable business=${businessId}`);
+            } else {
+              try {
+                waMessageId = await client.sendDocument(
+                  own,
+                  resp.documentBuffer,
+                  resp.documentFilename ?? "documento.pdf",
+                  resp.documentMimetype ?? "application/pdf",
+                  `Novo ${resp.documentLabel ?? "documento"}: ${resp.documentFilename ?? "documento.pdf"}`,
+                );
+              } catch (notifyErr) {
+                log.error(`[whatsapp] self document failed business=${businessId}:`, notifyErr);
+                try {
+                  await client.sendText(
+                    dest,
+                    "⚠️ Seus dados foram salvos, mas não conseguimos enviar o PDF na conversa com você mesmo.",
+                  );
+                } catch {
+                  /* ignore */
+                }
+                throw notifyErr;
+              }
+            }
+          } else if (!teamPhone) {
             log.warn(`[whatsapp] team document skipped — no notify phone business=${businessId}`);
           } else {
             try {

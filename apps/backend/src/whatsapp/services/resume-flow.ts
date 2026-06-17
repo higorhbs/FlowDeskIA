@@ -221,9 +221,10 @@ async function finishResumeFlow(
     cfg?.successMessage?.trim() ||
     `Pronto, {nome}! Seus dados foram registrados e o {documento} em PDF foi enviado para nossa equipe.\n\nPara corrigir algo, digite *editar {documento}*.`;
   const notifyPhone = cfg?.notifyPhone?.replace(/\D/g, "") ?? "";
+  const notifySelf = cfg?.notifySelf === true;
   const fields = serializeResumeData(data);
 
-  if (!notifyPhone) {
+  if (!notifySelf && !notifyPhone) {
     const out = [
       {
         text: "Não foi possível concluir: o WhatsApp da equipe ainda não está configurado no sistema. Tente novamente mais tarde.",
@@ -243,7 +244,8 @@ async function finishResumeFlow(
       documentFilename: filename,
       documentMimetype: "application/pdf",
       documentLabel,
-      alsoSendDocumentTo: notifyPhone,
+      alsoSendDocumentTo: notifySelf ? undefined : notifyPhone,
+      sendDocumentToSelf: notifySelf,
       sendDocumentToTeamOnly: true,
     },
   ];

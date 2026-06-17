@@ -162,25 +162,47 @@ export function ResumeFlowEditor({ businessId, businessName, initialConfig }: Pr
           </p>
         </div>
 
-        <div>
-          <Label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gray-500">
-            <Phone className="h-3.5 w-3.5" />
-            WhatsApp da equipe
-          </Label>
-          <input
-            className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
-            value={cfg.notifyPhone}
-            onFocus={() => setEditing(true)}
-            onBlur={() => setEditing(false)}
-            onChange={(e) =>
-              setCfg((prev) => ({ ...prev, notifyPhone: e.target.value.replace(/\D/g, "") }))
-            }
-            placeholder="5511999999999"
-            inputMode="numeric"
-          />
-          <p className="mt-1.5 text-xs text-gray-400">
-            O PDF vai só para este número da equipe. O cliente recebe apenas a mensagem de confirmação (DDI + DDD, só dígitos).
-          </p>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Receber na conversa comigo</p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                PDF vai para &quot;Mensagens salvas&quot; / conversa com você mesmo no WhatsApp conectado.
+              </p>
+            </div>
+            <Switch
+              checked={cfg.notifySelf === true}
+              onCheckedChange={(notifySelf) =>
+                setCfg((prev) => ({
+                  ...prev,
+                  notifySelf,
+                  notifyPhone: notifySelf ? "" : prev.notifyPhone,
+                }))
+              }
+            />
+          </div>
+          {!cfg.notifySelf && (
+            <>
+              <Label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gray-500">
+                <Phone className="h-3.5 w-3.5" />
+                WhatsApp da equipe
+              </Label>
+              <input
+                className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+                value={cfg.notifyPhone}
+                onFocus={() => setEditing(true)}
+                onBlur={() => setEditing(false)}
+                onChange={(e) =>
+                  setCfg((prev) => ({ ...prev, notifyPhone: e.target.value.replace(/\D/g, "") }))
+                }
+                placeholder="5511999999999"
+                inputMode="numeric"
+              />
+              <p className="mt-1.5 text-xs text-gray-400">
+                Outro número da equipe (DDI + DDD, só dígitos). Pode ser o mesmo do WhatsApp conectado.
+              </p>
+            </>
+          )}
         </div>
 
         <div>
@@ -231,15 +253,17 @@ export function ResumeFlowEditor({ businessId, businessName, initialConfig }: Pr
       <div
         className={cn(
           "flex items-center justify-between rounded-xl px-4 py-3 text-sm",
-          cfg.enabled && cfg.notifyPhone ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900",
+          cfg.enabled && (cfg.notifySelf || cfg.notifyPhone) ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900",
         )}
       >
         <span className="flex items-center gap-2">
           <Zap className="h-4 w-4" />
-          {cfg.enabled && cfg.notifyPhone
+          {cfg.enabled && cfg.notifySelf
+            ? `Fluxo ativo — PDF do ${cfg.documentLabel || DEFAULT_RESUME_DOCUMENT_LABEL} vai para sua conversa com você mesmo.`
+            : cfg.enabled && cfg.notifyPhone
             ? `Fluxo ativo — PDF do ${cfg.documentLabel || DEFAULT_RESUME_DOCUMENT_LABEL} vai para o WhatsApp da equipe.`
             : cfg.enabled
-              ? "Ative informando o WhatsApp que receberá os PDFs."
+              ? "Ative informando quem receberá os PDFs."
               : "Fluxo desligado."}
         </span>
         {hasChanges && !saveMutation.isPending && (

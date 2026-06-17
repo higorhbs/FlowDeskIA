@@ -131,6 +131,7 @@ export interface BotResponse {
   documentLabel?: string;
   alsoSendDocumentTo?: string;
   sendDocumentToTeamOnly?: boolean;
+  sendDocumentToSelf?: boolean;
 }
 
 // Estado simples de conversa por sessão (em memória — para MVP)
