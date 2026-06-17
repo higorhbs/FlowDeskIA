@@ -1,13 +1,13 @@
 export const DEFAULT_RESUME_DOCUMENT_LABEL = "documento";
 
 export const DEFAULT_RESUME_FLOW_KEYWORDS = [
+  "curriculo",
+  "currículo",
   "documento",
   "gerar documento",
   "criar documento",
   "montar documento",
   "pdf",
-  "formulario",
-  "formulário",
 ];
 
 export const DEFAULT_RESUME_EDIT_KEYWORDS = [
@@ -92,29 +92,53 @@ export interface ResumeFlowStep {
 }
 
 const DEFAULT_WELCOME =
-  "Vou coletar suas informações passo a passo para gerar seu *{documento}* em PDF.\n\n• Dados pessoais\n• Escolaridade\n• Experiência profissional\n• Cursos (se tiver)\n• Objetivo profissional (opcional)\n\nSe não tiver algum dado, responda *pular*.\n\nAntes de gerar, você poderá *revisar e editar* tudo.\n\nVamos começar?";
+  "Para montar seu *{documento}*, preciso que você me envie as seguintes informações:\n\n*1. Dados pessoais*\n• Nome completo\n• Idade ou data de nascimento\n• Estado civil _(opcional)_\n• Cidade e bairro onde mora\n• Telefone (WhatsApp)\n• E-mail\n• CNH _(opcional)_\n\n*2. Escolaridade*\n• Nível de ensino (fundamental, médio, técnico ou superior)\n• Curso e situação (completo ou em andamento)\n\n*3. Experiência profissional*\n• Nome da empresa ou tipo de trabalho\n• Cargo ou função exercida\n• Período de trabalho (ex: 2022 a 2024)\n• Principais atividades realizadas\n\n*4. Cursos ou qualificações* _(se tiver)_\n\n*5. Objetivo profissional* _(opcional)_\n\nSe não tiver alguma informação opcional, responda *pular*.\n\nVou pedir *um dado por vez*. Envie seu *nome completo* para começar:";
 
 const DEFAULT_SUCCESS =
   "Pronto, {nome}! Seus dados foram registrados e o {documento} em PDF foi enviado para nossa equipe.\n\nPara corrigir algo, digite *editar {documento}*.";
 
 export const RESUME_FLOW_STEPS: ResumeFlowStep[] = [
   { id: "welcome", prompt: DEFAULT_WELCOME },
-  { id: "nome", prompt: "Qual seu *nome completo*?" },
-  { id: "idade", prompt: "Qual sua *idade* ou *data de nascimento*?" },
-  { id: "estado_civil", prompt: "Qual seu *estado civil*? _(opcional — responda pular)_", optional: true },
-  { id: "cidade_bairro", prompt: "Em qual *cidade e bairro* você mora?" },
-  { id: "telefone", prompt: "Qual seu *telefone* (WhatsApp)?" },
-  { id: "email", prompt: "Qual seu *e-mail*?" },
-  { id: "cnh", prompt: "Possui *CNH*? Se sim, informe a categoria. _(opcional — responda pular)_", optional: true },
-  { id: "escolaridade_nivel", prompt: "Qual seu *nível de ensino*? _(fundamental, médio, técnico ou superior)_" },
+  { id: "nome", prompt: "*Nome completo:*\nEnvie seu nome completo (nome e sobrenome)." },
+  {
+    id: "idade",
+    prompt: "*Idade ou data de nascimento:*\nEnvie sua idade (ex: 28) ou data (ex: 15/03/1995).",
+  },
+  {
+    id: "estado_civil",
+    prompt: "*Estado civil* _(opcional):_\nInforme ou responda *pular*.",
+    optional: true,
+  },
+  {
+    id: "cidade_bairro",
+    prompt: "*Cidade e bairro:*\nInforme cidade e bairro onde mora (ex: São Paulo — Centro).",
+  },
+  {
+    id: "telefone",
+    prompt: "*Telefone (WhatsApp):*\nEnvie o número com DDD (ex: 11 99999-9999).",
+  },
+  { id: "email", prompt: "*E-mail:*\nEnvie um e-mail válido para contato." },
+  {
+    id: "cnh",
+    prompt: "*CNH* _(opcional):_\nInforme a categoria (ex: B) ou responda *pular*.",
+    optional: true,
+  },
+  {
+    id: "escolaridade_nivel",
+    prompt:
+      "📚 *Escolaridade*\n\n*Nível de ensino:*\nFundamental, médio, técnico ou superior.",
+  },
   {
     id: "escolaridade_curso",
-    prompt: "Qual *curso* e situação? _(ex: Administração — completo / em andamento)_",
+    prompt: "*Curso e situação:*\nEx: Administração — completo / em andamento.",
   },
-  { id: "exp_empresa", prompt: "Informe o *nome da empresa* ou tipo de trabalho:" },
-  { id: "exp_cargo", prompt: "Qual *cargo ou função* você exercia?" },
-  { id: "exp_periodo", prompt: "Qual o *período* de trabalho? _(ex: 2022 a 2024)_" },
-  { id: "exp_atividades", prompt: "Quais as *principais atividades* realizadas?" },
+  {
+    id: "exp_empresa",
+    prompt: "💼 *Experiência profissional*\n\n*Empresa ou tipo de trabalho:*",
+  },
+  { id: "exp_cargo", prompt: "*Cargo ou função exercida:*" },
+  { id: "exp_periodo", prompt: "*Período de trabalho:*\nEx: 2022 a 2024." },
+  { id: "exp_atividades", prompt: "*Principais atividades realizadas:*" },
   {
     id: "exp_mais",
     prompt: "Deseja adicionar *outra experiência profissional*?",
@@ -123,8 +147,8 @@ export const RESUME_FLOW_STEPS: ResumeFlowStep[] = [
       { id: "exp_nao", label: "Não, continuar" },
     ],
   },
-  { id: "cursos", prompt: "Tem *cursos ou qualificações*? _(opcional — responda pular)_", optional: true },
-  { id: "objetivo", prompt: "Qual seu *objetivo profissional*? _(opcional — responda pular)_", optional: true },
+  { id: "cursos", prompt: "*Cursos ou qualificações* _(opcional):_\nListe ou responda *pular*.", optional: true },
+  { id: "objetivo", prompt: "*Objetivo profissional* _(opcional):_\nInforme ou responda *pular*.", optional: true },
   {
     id: "revisao",
     prompt: "",
@@ -313,6 +337,99 @@ export function nextResumeStepId(
   const next = RESUME_FLOW_STEPS[idx + 1];
   if (next?.id === "done") return "revisao";
   return next?.id ?? null;
+}
+
+const ESCOLARIDADE_LEVELS = ["fundamental", "médio", "medio", "técnico", "tecnico", "superior", "pos", "pós", "mestrado", "doutorado"];
+
+export function validateResumeStepReply(stepId: ResumeFlowStepId, reply: string): string | null {
+  const text = reply.trim();
+  if (!text) return "Envie uma resposta para continuar.";
+  const step = getResumeFlowStep(stepId);
+  if (step?.optional && isResumeSkipReply(text)) return null;
+  if (
+    stepId === "welcome" ||
+    stepId === "exp_mais" ||
+    stepId === "revisao" ||
+    stepId === "editar_menu" ||
+    stepId === "done" ||
+    stepId === "finalizado"
+  ) {
+    return null;
+  }
+
+  switch (stepId) {
+    case "nome": {
+      if (text.length < 4) return "Nome muito curto. Envie o *nome completo*.";
+      if (text.split(/\s+/).filter(Boolean).length < 2) {
+        return "Preciso do *nome completo* (nome e sobrenome).";
+      }
+      if (!/^[\p{L}\s'.-]+$/u.test(text)) return "Use apenas letras no nome.";
+      return null;
+    }
+    case "idade": {
+      if (/^\d{1,3}$/.test(text)) {
+        const n = Number(text);
+        if (n >= 14 && n <= 100) return null;
+        return "Informe uma idade entre *14 e 100* anos.";
+      }
+      if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(text)) return null;
+      return "Informe a *idade* (ex: 28) ou *data de nascimento* (ex: 15/03/1995).";
+    }
+    case "estado_civil":
+    case "cnh":
+    case "cursos":
+    case "objetivo":
+      return text.length >= 2 ? null : "Resposta inválida. Informe o dado ou digite *pular*.";
+    case "cidade_bairro":
+      return text.length >= 4 ? null : "Informe *cidade e bairro* (mín. 4 caracteres).";
+    case "telefone": {
+      const digits = text.replace(/\D/g, "");
+      if (digits.length >= 10 && digits.length <= 15) return null;
+      return "Telefone inválido. Envie com DDD (10 a 15 dígitos).";
+    }
+    case "email": {
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) return null;
+      return "E-mail inválido. Ex: nome@email.com";
+    }
+    case "escolaridade_nivel": {
+      const lower = text.toLowerCase();
+      if (ESCOLARIDADE_LEVELS.some((l) => lower.includes(l))) return null;
+      return "Informe: *fundamental*, *médio*, *técnico* ou *superior*.";
+    }
+    case "escolaridade_curso":
+      return text.length >= 4 ? null : "Descreva o *curso* e situação (mín. 4 caracteres).";
+    case "exp_empresa":
+    case "exp_cargo":
+      return text.length >= 2 ? null : "Resposta muito curta. Detalhe um pouco mais.";
+    case "exp_periodo":
+      if (/\d{4}/.test(text) || /\d{1,2}\/\d{4}/.test(text)) return null;
+      return "Informe o *período* com ano (ex: 2022 a 2024).";
+    case "exp_atividades":
+      return text.length >= 8 ? null : "Descreva as atividades com mais detalhes (mín. 8 caracteres).";
+    default:
+      return null;
+  }
+}
+
+export function resumeStepAck(stepId: ResumeFlowStepId): string | null {
+  const map: Partial<Record<ResumeFlowStepId, string>> = {
+    nome: "✅ Nome registrado!",
+    idade: "✅ Idade registrada!",
+    estado_civil: "✅ Estado civil registrado!",
+    cidade_bairro: "✅ Cidade/bairro registrado!",
+    telefone: "✅ Telefone registrado!",
+    email: "✅ E-mail registrado!",
+    cnh: "✅ CNH registrada!",
+    escolaridade_nivel: "✅ Escolaridade registrada!",
+    escolaridade_curso: "✅ Curso registrado!",
+    exp_empresa: "✅ Empresa registrada!",
+    exp_cargo: "✅ Cargo registrado!",
+    exp_periodo: "✅ Período registrado!",
+    exp_atividades: "✅ Atividades registradas!",
+    cursos: "✅ Cursos registrados!",
+    objetivo: "✅ Objetivo registrado!",
+  };
+  return map[stepId] ?? null;
 }
 
 export function parseResumeData(raw: string): ResumeData {

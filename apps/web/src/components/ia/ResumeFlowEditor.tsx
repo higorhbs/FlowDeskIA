@@ -222,6 +222,7 @@ export function ResumeFlowEditor({ businessId, businessName, initialConfig }: Pr
           <li>• Escolaridade e curso</li>
           <li>• Experiência profissional (com opção de adicionar mais de uma)</li>
           <li>• Cursos e objetivo (opcionais — digitar pular)</li>
+          <li>• Um campo por vez, com validação (nome, idade, e-mail, telefone…)</li>
           <li>• Revisão completa antes de gerar o PDF (editar qualquer campo)</li>
           <li>• Após enviar, cliente digita <strong>editar {cfg.documentLabel || DEFAULT_RESUME_DOCUMENT_LABEL}</strong> para corrigir</li>
         </ul>

@@ -15,8 +15,10 @@ import {
   resumeFlowTemplateVars,
   resumeFlowStartKeywords,
   resumeFlowTriggerMatch,
+  resumeStepAck,
   resumeStepPrompt,
   serializeResumeData,
+  validateResumeStepReply,
   type ResumeFlowConfig,
   type ResumeFlowStepId,
 } from "@flowdesk/shared";
@@ -146,6 +148,18 @@ function stepResponse(
     ];
   }
   return [{ text }];
+}
+
+function withAck(stepId: ResumeFlowStepId | null, responses: BotResponse[]): BotResponse[] {
+  if (!stepId || !responses.length) return responses;
+  const ack = resumeStepAck(stepId);
+  if (!ack) return responses;
+  return [{ ...responses[0], text: `${ack}\n\n${responses[0].text}`.trim() }, ...responses.slice(1)];
+}
+
+function validationError(cfg: ResumeFlowConfig, stepId: ResumeFlowStepId, err: string, businessName: string, customerName?: string, data?: ReturnType<typeof parseResumeData>): BotResponse[] {
+  const prompt = renderTemplate(resumeStepPrompt(cfg, stepId), resumeFlowTemplateVars(cfg, businessName, customerName, data)).trim();
+  return [{ text: `⚠️ ${err}\n\n${prompt}` }];
 }
 
 export async function startResumeFlow(
@@ -351,22 +365,76 @@ export async function handleResumeFlowMessage(
     return out;
   }
 
-  if (stepId !== "welcome" && stepId !== "exp_mais" && !step?.optional && !reply) {
-    const out = [{ text: "Por favor, envie uma resposta válida ou digite *pular* se for opcional." }];
-    await saveAndReturn(business.id, conversation.id, out);
-    return out;
-  }
-
   if (stepId === "welcome") {
-    const nextId = nextResumeStepId(stepId, reply, {}) ?? "nome";
+    const err = validateResumeStepReply("nome", reply);
+    if (err) {
+      const out = validationError(cfg, "nome", err, business.name, ctx.customerName, data);
+      await saveAndReturn(business.id, conversation.id, out);
+      return out;
+    }
+    const applied = applyResumeReply(data, "nome", reply, {});
+    data = applied.data;
+    const nextId = "idade";
     await persistState(
       business.id,
       conversation.id,
       sessionKey,
       conversationState,
-      resumeState(nextId, state.data.fields ?? "{}", state.data.expDraft ?? "{}"),
+      resumeState(nextId, serializeResumeData(data), "{}"),
     );
-    const out = stepResponse(cfg, nextId, business.name, ctx.customerName);
+    const out = withAck("nome", stepResponse(cfg, nextId, business.name, ctx.customerName, data));
+    await saveAndReturn(business.id, conversation.id, out);
+    return out;
+  }
+
+  if (step?.optional && isResumeSkipReply(reply)) {
+    const expDraft = parseExpDraft(state.data.expDraft);
+    const applied = applyResumeReply(data, stepId, reply, expDraft);
+    data = applied.data;
+    if (state.data.returnToReview === "1") {
+      return openResumeReview(
+        business,
+        conversation,
+        ctx.customerName,
+        sessionKey,
+        conversationState,
+        saveAndReturn,
+        serializeResumeData(data),
+      );
+    }
+    const nextId = nextResumeStepId(stepId, reply, { expDraft: applied.expDraft });
+    if (!nextId || nextId === "done") {
+      return finishResumeFlow(
+        business,
+        conversation,
+        data,
+        ctx.customerName,
+        sessionKey,
+        conversationState,
+        saveAndReturn,
+      );
+    }
+    await persistState(
+      business.id,
+      conversation.id,
+      sessionKey,
+      conversationState,
+      resumeState(nextId, serializeResumeData(data), JSON.stringify(applied.expDraft)),
+    );
+    const out = stepResponse(cfg, nextId, business.name, ctx.customerName, data);
+    await saveAndReturn(business.id, conversation.id, out);
+    return out;
+  }
+
+  const fieldErr = validateResumeStepReply(stepId, reply);
+  if (fieldErr) {
+    const out = validationError(cfg, stepId, fieldErr, business.name, ctx.customerName, data);
+    await saveAndReturn(business.id, conversation.id, out);
+    return out;
+  }
+
+  if (stepId !== "exp_mais" && !reply) {
+    const out = [{ text: "Por favor, envie uma resposta válida ou digite *pular* se for opcional." }];
     await saveAndReturn(business.id, conversation.id, out);
     return out;
   }
@@ -379,10 +447,6 @@ export async function handleResumeFlowMessage(
       await saveAndReturn(business.id, conversation.id, out);
       return out;
     }
-  } else if (!step?.optional && !isResumeSkipReply(reply) && reply.length < 2 && stepId !== "exp_mais") {
-    const out = [{ text: "Resposta muito curta. Pode detalhar um pouco mais?" }];
-    await saveAndReturn(business.id, conversation.id, out);
-    return out;
   }
 
   const expDraft = parseExpDraft(state.data.expDraft);
@@ -421,7 +485,7 @@ export async function handleResumeFlowMessage(
     conversationState,
     resumeState(nextId, serializeResumeData(data), JSON.stringify(applied.expDraft)),
   );
-  const out = stepResponse(cfg, nextId, business.name, ctx.customerName, data);
+  const out = withAck(stepId, stepResponse(cfg, nextId, business.name, ctx.customerName, data));
   await saveAndReturn(business.id, conversation.id, out);
   return out;
 }
