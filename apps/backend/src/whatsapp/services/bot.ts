@@ -214,6 +214,7 @@ async function tryProgrammedQuickReply(
   business: { id: string; name: string; faqs?: any[]; leadFlow?: LeadCaptureFlow | null },
   conversation: Conversation,
   sessionKey: string,
+  activeFlow?: { step: string } | null,
 ): Promise<BotResponse[] | null> {
   const faqHit = matchFaq(ctx.messageBody, business.faqs);
   if (faqHit) {
@@ -222,6 +223,8 @@ async function tryProgrammedQuickReply(
     await saveAndReturn(business.id, conversation.id, responses);
     return responses;
   }
+
+  if (isResumeFlowActive(activeFlow) || isLeadFlowActive(activeFlow)) return null;
 
   const flow = getLeadFlowConfig(business);
   if (flow) {
@@ -272,6 +275,8 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
     conversationState.set(sessionKey, conversation.botFlowState);
   }
 
+  const activeFlow = conversationState.get(sessionKey) ?? conversation.botFlowState;
+
   await createMessage(businessId, conversation.id, {
     role: "CUSTOMER",
     content: messageBody,
@@ -283,7 +288,7 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
 
   const state = conversationState.get(sessionKey);
   if (state?.step !== "FAQ_SELECT") {
-    const quick = await tryProgrammedQuickReply(ctx, business, conversation, sessionKey);
+    const quick = await tryProgrammedQuickReply(ctx, business, conversation, sessionKey, activeFlow);
     if (quick) return quick;
   }
 
@@ -312,8 +317,6 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
     botPausedSessions.delete(sessionKey);
     return sendPresentation(business, conversation, customerName);
   }
-
-  const activeFlow = conversationState.get(sessionKey) ?? conversation.botFlowState;
 
   if (isResumeFlowActive(activeFlow)) {
     if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
