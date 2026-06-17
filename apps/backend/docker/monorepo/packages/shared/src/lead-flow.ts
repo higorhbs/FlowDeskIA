@@ -139,10 +139,28 @@ export function findLeadFlowNode(flow: LeadCaptureFlow, nodeId: string): LeadFlo
   return flow.nodes.find((n) => n.id === nodeId) ?? null;
 }
 
-export function leadFlowTriggerMatch(text: string, keywords: string[]): boolean {
+function escapeKeywordRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Evita falso positivo (ex.: keyword "trial" dentro de "industrial"). */
+export function flowKeywordHit(text: string, keywords: string[]): boolean {
   const normalized = text.toLowerCase().trim();
   if (!normalized || !keywords.length) return false;
-  return keywords.some((kw) => normalized.includes(kw));
+  const padded = ` ${normalized} `;
+  const boundary = String.raw`[\s,.;:!?¿¡"'()\[\]{}«»—–-]`;
+  return keywords.some((raw) => {
+    const kw = raw.trim().toLowerCase();
+    if (!kw) return false;
+    if (normalized === kw) return true;
+    if (kw.includes(" ")) return normalized.includes(kw);
+    const re = new RegExp(`(?:^|${boundary})${escapeKeywordRegex(kw)}(?:$|${boundary})`);
+    return re.test(padded);
+  });
+}
+
+export function leadFlowTriggerMatch(text: string, keywords: string[]): boolean {
+  return flowKeywordHit(text, keywords);
 }
 
 export function matchesLeadFlowRestartTrigger(
@@ -258,12 +276,7 @@ function resolveLeadFlowButtonExact(
 }
 
 function leadFlowEntryKeywordHit(messageBody: string, keywords: string[]): boolean {
-  const body = messageBody.trim().toLowerCase();
-  if (!body) return false;
-  return keywords.some((kw) => {
-    const k = kw.trim().toLowerCase();
-    return k.length > 0 && (body === k || body.includes(k));
-  });
+  return flowKeywordHit(messageBody, keywords);
 }
 
 export function findLeadFlowEntryByKeyword(

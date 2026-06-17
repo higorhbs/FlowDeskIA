@@ -5,6 +5,7 @@ import {
   buildResumeReviewText,
   getResumeFlowStep,
   getResumeDocumentLabel,
+  hasResumeNotifyTarget,
   isResumeSkipReply,
   nextResumeStepId,
   normalizeResumeFlowConfig,
@@ -223,13 +224,13 @@ async function finishResumeFlow(
     cfg?.successMessage?.trim() ||
     `Pronto, {nome}! Seus dados foram registrados e o {documento} em PDF foi enviado para nossa equipe.\n\nPara corrigir algo, digite *editar {documento}*.`;
   const notifyPhone = cfg?.notifyPhone?.replace(/\D/g, "") ?? "";
-  const notifySelf = cfg?.notifySelf === true;
+  const notifySelf = hasResumeNotifyTarget(business.resumeFlow);
   const fields = serializeResumeData(data);
 
-  if (!notifySelf && !notifyPhone) {
+  if (!hasResumeNotifyTarget(business.resumeFlow)) {
     const out = [
       {
-        text: "Não foi possível concluir: o WhatsApp da equipe ainda não está configurado no sistema. Tente novamente mais tarde.",
+        text: "Não foi possível concluir: configure quem recebe o PDF no painel (WhatsApp da equipe ou *Receber na conversa comigo*).",
       },
     ];
     await saveAndReturn(business.id, conversation.id, out);

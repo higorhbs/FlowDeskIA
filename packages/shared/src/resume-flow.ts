@@ -206,6 +206,13 @@ export function buildResumeEditKeywords(documentLabel?: string): string[] {
   return [...new Set([...DEFAULT_RESUME_EDIT_KEYWORDS, ...extra])];
 }
 
+export function hasResumeNotifyTarget(raw?: ResumeFlowConfig | null): boolean {
+  if (raw?.notifySelf === true) return true;
+  const cfg = normalizeResumeFlowConfig(raw);
+  if (cfg.notifySelf === true) return true;
+  return Boolean(cfg.notifyPhone.replace(/\D/g, ""));
+}
+
 export function normalizeResumeFlowConfig(raw?: ResumeFlowConfig | null): ResumeFlowConfig {
   const base = defaultResumeFlowConfig();
   if (!raw) return base;

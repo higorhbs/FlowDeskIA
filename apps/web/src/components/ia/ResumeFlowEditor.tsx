@@ -172,13 +172,14 @@ export function ResumeFlowEditor({ businessId, businessName, initialConfig }: Pr
             </div>
             <Switch
               checked={cfg.notifySelf === true}
-              onCheckedChange={(notifySelf) =>
+              onCheckedChange={(notifySelf) => {
                 setCfg((prev) => ({
                   ...prev,
                   notifySelf,
                   notifyPhone: notifySelf ? "" : prev.notifyPhone,
-                }))
-              }
+                }));
+                setTimeout(() => saveMutation.mutate(), 0);
+              }}
             />
           </div>
           {!cfg.notifySelf && (

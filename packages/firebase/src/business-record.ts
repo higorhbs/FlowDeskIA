@@ -48,7 +48,10 @@ function readLeadFlow(raw: unknown): Business["leadFlow"] {
 
 function readResumeFlow(raw: unknown): Business["resumeFlow"] {
   if (!raw || typeof raw !== "object") return undefined;
-  return normalizeResumeFlowConfig(raw as ResumeFlowConfig);
+  const source = raw as ResumeFlowConfig;
+  const cfg = normalizeResumeFlowConfig(source);
+  if (source.notifySelf === true) return { ...cfg, notifySelf: true };
+  return cfg;
 }
 
 export function serializeResumeFlowForFirestore(flow: ResumeFlowConfig): Record<string, unknown> {
@@ -58,7 +61,7 @@ export function serializeResumeFlowForFirestore(flow: ResumeFlowConfig): Record<
     documentLabel: normalized.documentLabel,
     triggerKeywords: normalized.triggerKeywords,
     notifyPhone: normalized.notifyPhone,
-    notifySelf: normalized.notifySelf === true ? true : undefined,
+    notifySelf: normalized.notifySelf === true,
     welcomeMessage: normalized.welcomeMessage,
     successMessage: normalized.successMessage,
   });

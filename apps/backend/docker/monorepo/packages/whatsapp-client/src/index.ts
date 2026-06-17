@@ -52,11 +52,35 @@ function messageStoreKey(key: MsgKey): string {
 
 const MESSAGE_STORE_MAX = 400;
 
+function phoneDigitsMatch(a: string, b: string): boolean {
+  const da = a.replace(/\D/g, "");
+  const db = b.replace(/\D/g, "");
+  if (!da || !db) return false;
+  if (da === db) return true;
+  if (da.length >= 10 && db.length >= 10) {
+    return da.slice(-11) === db.slice(-11) || da.slice(-10) === db.slice(-10);
+  }
+  return da.endsWith(db) || db.endsWith(da);
+}
+
 function pnToJid(pn: string): string {
   const raw = pn.trim();
   if (raw.includes("@")) return jidNormalizedUser(raw) || raw;
   const digits = raw.replace(/\D/g, "");
   return digits ? `${digits}@s.whatsapp.net` : raw;
+}
+
+function brazilPhoneDigitVariants(digits: string): string[] {
+  const d = digits.replace(/\D/g, "");
+  if (!d) return [];
+  const out = new Set<string>([d]);
+  if (d.startsWith("55") && d.length === 13 && d[4] === "9") {
+    out.add(`${d.slice(0, 4)}${d.slice(5)}`);
+  }
+  if (d.startsWith("55") && d.length === 12) {
+    out.add(`${d.slice(0, 4)}9${d.slice(4)}`);
+  }
+  return [...out];
 }
 
 function toSendJid(jid: string): string {
@@ -607,7 +631,32 @@ export class WhatsAppClient extends EventEmitter {
     if (!id) return undefined;
     const normalized = jidNormalizedUser(id);
     if (normalized?.endsWith("@s.whatsapp.net")) return normalized;
+    if (normalized && isLidUser(normalized)) {
+      const phone = this.lidToPhone.get(normalized);
+      if (phone?.endsWith("@s.whatsapp.net")) return phone;
+      return normalized;
+    }
     return toSendJid(id);
+  }
+
+  getSelfDocumentTargets(): string[] {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const add = (jid?: string) => {
+      if (!jid) return;
+      const normalized = toSendJid(jid);
+      if (!normalized || seen.has(normalized)) return;
+      seen.add(normalized);
+      out.push(normalized);
+    };
+    const rawId = this.sock?.user?.id;
+    if (!rawId) return out;
+    const normalized = jidNormalizedUser(rawId) || toSendJid(rawId);
+    add(normalized);
+    if (isLidUser(normalized)) add(this.lidToPhone.get(normalized));
+    add(this.getOwnJid());
+    for (const jid of this.collectSendTargets(normalized.split("@")[0] ?? "")) add(jid);
+    return out;
   }
 
   async sendText(to: string, text: string): Promise<string | undefined> {
@@ -653,6 +702,34 @@ export class WhatsAppClient extends EventEmitter {
     }
 
     return [...phones, ...lids];
+  }
+
+  private collectSendTargets(to: string): string[] {
+    const seen = new Set<string>();
+    const targets: string[] = [];
+    const add = (jid?: string) => {
+      if (!jid || seen.has(jid)) return;
+      seen.add(jid);
+      targets.push(jid);
+    };
+
+    for (const jid of this.collectButtonSendTargets(to)) add(jid);
+
+    const raw = to.trim();
+    const digits = raw.replace(/\D/g, "");
+    const own = this.getOwnJid();
+    if (own) {
+      const ownDigits = own.split("@")[0] ?? "";
+      if (digits && phoneDigitsMatch(digits, ownDigits)) add(own);
+    }
+    for (const variant of brazilPhoneDigitVariants(digits)) {
+      add(pnToJid(variant));
+      for (const jid of this.collectButtonSendTargets(variant)) add(jid);
+      for (const jid of this.collectButtonSendTargets(pnToJid(variant))) add(jid);
+    }
+
+    if (!targets.length) add(this.resolveSendJid(to));
+    return targets;
   }
 
   async sendButtons(
@@ -794,20 +871,34 @@ export class WhatsAppClient extends EventEmitter {
     filename: string,
     mimetype = "application/pdf",
     caption?: string,
+    opts?: { self?: boolean },
   ): Promise<string | undefined> {
     if (!this.sock) throw new Error("Socket not connected");
-    const jid = this.resolveSendJid(to);
+    if (!buffer?.length) throw new Error("Documento vazio");
     const cap = caption?.trim() || undefined;
-    await this.ensurePreKeys();
-    const result = await this.sock.sendMessage(jid, {
-      document: buffer,
-      mimetype,
-      fileName: filename,
-      caption: cap,
-    });
-    if (!result?.key?.id) throw new Error("WhatsApp não confirmou envio do documento.");
-    this.stashSentMessage(result);
-    return result.key.id;
+    const targets = opts?.self ? this.getSelfDocumentTargets() : this.collectSendTargets(to);
+    if (!targets.length) throw new Error("Nenhum destino válido para o documento");
+    await this.assertAudienceSessions(targets, false);
+    let lastErr: unknown;
+    for (const jid of targets) {
+      try {
+        await this.ensurePreKeys();
+        const result = await this.sock.sendMessage(jid, {
+          document: buffer,
+          mimetype,
+          fileName: filename,
+          caption: cap,
+        });
+        if (!result?.key?.id) throw new Error("WhatsApp não confirmou envio do documento.");
+        this.stashSentMessage(result);
+        waLog.info(`[wa:${this.businessId}] sendDocument ok jid=${jid} bytes=${buffer.length}`);
+        return result.key.id;
+      } catch (err) {
+        lastErr = err;
+        waLog.warn(`[wa:${this.businessId}] sendDocument failed jid=${jid}:`, err);
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error("Falha ao enviar documento.");
   }
 
   async sendChatMediaBuffer(

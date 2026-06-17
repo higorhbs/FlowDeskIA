@@ -12,7 +12,9 @@ export const DEFAULT_RESUME_FLOW_KEYWORDS = [
 
 export const DEFAULT_RESUME_EDIT_KEYWORDS = [
   "editar documento",
+  "editar dados",
   "corrigir documento",
+  "corrigir dados",
   "atualizar documento",
   "alterar documento",
   "editar pdf",
@@ -57,6 +59,7 @@ export interface ResumeFlowConfig {
   documentLabel: string;
   triggerKeywords: string[];
   notifyPhone: string;
+  notifySelf?: boolean;
   welcomeMessage?: string;
   successMessage?: string;
 }
@@ -168,6 +171,7 @@ export function defaultResumeFlowConfig(): ResumeFlowConfig {
     documentLabel: DEFAULT_RESUME_DOCUMENT_LABEL,
     triggerKeywords: [...DEFAULT_RESUME_FLOW_KEYWORDS],
     notifyPhone: "",
+    notifySelf: false,
     welcomeMessage: DEFAULT_WELCOME,
     successMessage: DEFAULT_SUCCESS,
   };
@@ -202,6 +206,13 @@ export function buildResumeEditKeywords(documentLabel?: string): string[] {
   return [...new Set([...DEFAULT_RESUME_EDIT_KEYWORDS, ...extra])];
 }
 
+export function hasResumeNotifyTarget(raw?: ResumeFlowConfig | null): boolean {
+  if (raw?.notifySelf === true) return true;
+  const cfg = normalizeResumeFlowConfig(raw);
+  if (cfg.notifySelf === true) return true;
+  return Boolean(cfg.notifyPhone.replace(/\D/g, ""));
+}
+
 export function normalizeResumeFlowConfig(raw?: ResumeFlowConfig | null): ResumeFlowConfig {
   const base = defaultResumeFlowConfig();
   if (!raw) return base;
@@ -212,6 +223,7 @@ export function normalizeResumeFlowConfig(raw?: ResumeFlowConfig | null): Resume
       .map((k) => k.trim().toLowerCase())
       .filter(Boolean),
     notifyPhone: String(raw.notifyPhone ?? "").replace(/\D/g, ""),
+    notifySelf: raw.notifySelf === true,
     welcomeMessage: raw.welcomeMessage?.trim() || base.welcomeMessage,
     successMessage: raw.successMessage?.trim() || base.successMessage,
   };
@@ -233,6 +245,21 @@ export function resumeEditTriggerMatch(text: string, keywords = DEFAULT_RESUME_E
   const normalized = text.toLowerCase().trim();
   if (!normalized) return false;
   return keywords.some((kw) => normalized.includes(kw));
+}
+
+export function isResumeReviewEditReply(text: string, editKeywords = DEFAULT_RESUME_EDIT_KEYWORDS): boolean {
+  const lower = text.trim().toLowerCase();
+  if (!lower) return false;
+  if (lower === "doc_editar" || lower === "editar dados") return true;
+  if (lower.includes("editar") || lower.includes("corrigir") || lower.includes("alterar")) return true;
+  return resumeEditTriggerMatch(text, editKeywords);
+}
+
+export function isResumeReviewConfirmReply(text: string): boolean {
+  const lower = text.trim().toLowerCase();
+  if (!lower) return false;
+  if (lower === "doc_confirmar") return true;
+  return lower.includes("gerar");
 }
 
 export const RESUME_EDIT_FIELDS: { num: number; stepId: ResumeFlowStepId; label: string; clearsExperiences?: boolean }[] = [
