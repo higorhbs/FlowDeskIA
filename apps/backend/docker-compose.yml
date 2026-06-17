@@ -13,8 +13,7 @@ services:
     container_name: flowdesk-backend
     restart: unless-stopped
     logging: *default-logging
-    ports:
-      - "${HOST_PORT:-9031}:9031"
+    network_mode: host
     env_file:
       - .env
     environment:
