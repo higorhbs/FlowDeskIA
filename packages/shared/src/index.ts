@@ -121,9 +121,24 @@ export function parseOptionNumber(text: string, min: number, max: number): numbe
   return !Number.isNaN(n) && n >= min && n <= max ? n : null;
 }
 
+const FLOW_ABORT_COMMANDS = new Set([
+  "sair",
+  "exit",
+  "parar",
+  "pare",
+  "cancelar",
+  "encerrar",
+  "fim",
+  "stop",
+  "desistir",
+  "abortar",
+  "#sair",
+  "#cancelar",
+  "#parar",
+]);
+
 export function isExitCommand(text: string): boolean {
-  const t = text.toLowerCase().trim();
-  return ["sair", "exit", "parar", "encerrar", "fim", "#sair"].includes(t);
+  return FLOW_ABORT_COMMANDS.has(text.toLowerCase().trim());
 }
 
 export function isMenuRequest(text: string): boolean {
