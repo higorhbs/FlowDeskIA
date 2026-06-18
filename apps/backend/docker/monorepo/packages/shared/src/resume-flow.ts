@@ -367,6 +367,7 @@ export function nextResumeStepId(
 }
 
 const ESCOLARIDADE_LEVELS = ["fundamental", "médio", "medio", "técnico", "tecnico", "superior", "pos", "pós", "mestrado", "doutorado"];
+const CNH_CATEGORY = /^(ACC|[A-E](?:[CDE])?|AB)$/i;
 
 export function validateResumeStepReply(stepId: ResumeFlowStepId, reply: string): string | null {
   const text = reply.trim();
@@ -403,10 +404,13 @@ export function validateResumeStepReply(stepId: ResumeFlowStepId, reply: string)
       return "Informe a *idade* (ex: 28) ou *data de nascimento* (ex: 15/03/1995).";
     }
     case "estado_civil":
-    case "cnh":
     case "cursos":
     case "objetivo":
       return text.length >= 2 ? null : "Resposta inválida. Informe o dado ou digite *pular*.";
+    case "cnh": {
+      if (CNH_CATEGORY.test(text.replace(/\s+/g, ""))) return null;
+      return text.length >= 2 ? null : "Resposta inválida. Informe o dado ou digite *pular*.";
+    }
     case "cidade_bairro":
       return text.length >= 4 ? null : "Informe *cidade e bairro* (mín. 4 caracteres).";
     case "telefone": {
