@@ -289,14 +289,18 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
 
   if (business.botAutoReplyEnabled === false) return [];
 
+  if (conversation.status === "ATTENDING" && !isExitCommand(messageBody))
+    return [];
+
+  if (isExitCommand(messageBody)) {
+    return handleBotExit(business, conversation, sessionKey);
+  }
+
   const state = conversationState.get(sessionKey);
   if (state?.step !== "FAQ_SELECT") {
     const quick = await tryProgrammedQuickReply(ctx, business, conversation, sessionKey, activeFlow);
     if (quick) return quick;
   }
-
-  if (conversation.status === "ATTENDING" && !isExitCommand(messageBody))
-    return [];
 
   const tz = businessTimezone(business);
   const open = isOpenNow(
@@ -305,10 +309,6 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
     business.specialHours,
     business.lunchBreak ?? undefined
   );
-
-  if (isExitCommand(messageBody)) {
-    return handleBotExit(business, conversation, sessionKey);
-  }
 
   if (open) {
     await clearOutsideHoursNotice(businessId, customerPhone);
@@ -1219,13 +1219,15 @@ async function handleBotExit(
 ): Promise<BotResponse[]> {
   conversationState.delete(sessionKey);
   botPausedSessions.add(sessionKey);
+  await clearConversationBotFlowState(business.id, conversation.id).catch(() => undefined);
+  await clearLeadFlowIdleFollowUp(business.id, conversation.id).catch(() => undefined);
   if (conversation.status === "ATTENDING") {
     await updateConversationStatus(business.id, conversation.id, "OPEN");
   }
   const text =
-    "👋 *Atendimento automático encerrado.*\n\n" +
+    "Fluxo encerrado.\n\n" +
     (isBotMenuEnabled(business)
-      ? "Quando quiser voltar, envie qualquer mensagem que eu te apresento o menu novamente."
+      ? "Quando quiser voltar, envie *menu* ou qualquer mensagem."
       : "Quando quiser voltar, envie qualquer mensagem ou sua dúvida.");
   await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
