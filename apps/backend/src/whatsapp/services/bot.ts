@@ -47,6 +47,9 @@ import {
   type BotMenuAction,
   PLAN_LIMITS,
   type LeadCaptureFlow,
+  isWeeklyMenuTrigger,
+  formatWeeklyMenuResponse,
+  getTodayDayOfWeek,
 } from "@flowdesk/shared";
 import { createPixCharge, resolveAsaasCredentials } from "./pix.js";
 import {
@@ -473,6 +476,20 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
       saveAndReturn,
       fields,
     );
+  }
+
+  // ─── Cardápio semanal (restaurantes) ─────────────────────────────────────
+  const weeklyMenu = (business as any).weeklyMenu;
+  if (
+    business.type === "RESTAURANT" &&
+    weeklyMenu?.enabled &&
+    isWeeklyMenuTrigger(messageBody, weeklyMenu)
+  ) {
+    const tz = businessTimezone(business);
+    const dayOfWeek = getTodayDayOfWeek(tz);
+    const text = formatWeeklyMenuResponse(weeklyMenu, dayOfWeek, business.name);
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
   }
 
   const intent = detectIntent(messageBody, business.type);

@@ -88,6 +88,20 @@ export function phonesMatch(a: string, b: string): boolean {
   return da.endsWith(db) || db.endsWith(da);
 }
 
+export {
+  DAY_OF_WEEK_LABELS,
+  DAY_OF_WEEK_SHORT,
+  ALL_DAYS,
+  DEFAULT_WEEKLY_MENU_KEYWORDS,
+  getTodayDayOfWeek,
+  isWeeklyMenuTrigger,
+  formatWeeklyMenuResponse,
+  type DayOfWeek,
+  type WeeklyMenuItem,
+  type DailyMenu,
+  type WeeklyMenuConfig,
+} from "./weekly-menu.js";
+
 export function customerConversationKey(phone: string): string {
   const raw = phone.trim().toLowerCase();
   if (raw.includes("@lid")) {

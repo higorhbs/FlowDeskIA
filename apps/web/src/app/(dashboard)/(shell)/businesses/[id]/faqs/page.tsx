@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import {
   MessageSquare, HelpCircle, Plus, Trash2, Loader2, X,
   ChevronUp, ChevronDown, Eye, Save, Pencil, Check,
-  Sparkles, Hash, MessageCircleQuestion, Zap, GitBranch, FileText,
+  Sparkles, Hash, MessageCircleQuestion, Zap, GitBranch, FileText, UtensilsCrossed,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import { IaIcon } from "@/lib/ia-brand";
 import { usePlanAllowsPix } from "@/lib/use-plan-allows-pix";
 import { LeadFlowEditor } from "@/components/ia/LeadFlowEditor";
 import { ResumeFlowEditor } from "@/components/ia/ResumeFlowEditor";
+import { WeeklyMenuEditor } from "@/components/ia/WeeklyMenuEditor";
 
 const LEGACY_EMOJI: Record<string, string> = {
   APPOINTMENT: "📅",
@@ -92,7 +93,7 @@ const faqSchema = z.object({
 });
 type FAQForm = z.infer<typeof faqSchema>;
 
-type Tab = "menu" | "faqs" | "leadflow" | "resume";
+type Tab = "menu" | "faqs" | "leadflow" | "resume" | "weeklymenu";
 type PreviewFocus = "greeting" | "menu" | "thanks" | "attendant";
 
 // ── Emoji picker ───────────────────────────────────────────────────────────────
@@ -1480,12 +1481,17 @@ export default function BotPage() {
     onError: () => toast.error("Erro ao atualizar respostas automáticas"),
   });
 
+  const isRestaurant = business?.type === "RESTAURANT";
+
   const iaTabs = autoReplyEnabled
     ? ([
         { id: "menu" as const, label: "Menu da IA", icon: MessageSquare },
         { id: "faqs" as const, label: "Perguntas & Respostas", icon: HelpCircle },
         { id: "leadflow" as const, label: "Vendas guiadas", icon: GitBranch },
         { id: "resume" as const, label: "Geração de documentos", icon: FileText },
+        ...(isRestaurant
+          ? [{ id: "weeklymenu" as const, label: "Cardápio Semanal", icon: UtensilsCrossed }]
+          : []),
       ] as const)
     : [];
 
@@ -1613,6 +1619,12 @@ export default function BotPage() {
           businessId={businessId}
           businessName={business?.name ?? "Meu Negócio"}
           initialConfig={initialResumeFlow}
+        />
+      ) : tab === "weeklymenu" && autoReplyEnabled && isRestaurant ? (
+        <WeeklyMenuEditor
+          businessId={businessId}
+          businessName={business?.name ?? "Meu Restaurante"}
+          initialConfig={(business as any)?.weeklyMenu}
         />
       ) : null}
     </div>
