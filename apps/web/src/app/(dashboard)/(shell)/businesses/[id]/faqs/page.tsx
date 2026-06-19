@@ -1488,7 +1488,9 @@ export default function BotPage() {
         { id: "menu" as const, label: "Menu da IA", icon: MessageSquare },
         { id: "faqs" as const, label: "Perguntas & Respostas", icon: HelpCircle },
         { id: "leadflow" as const, label: "Vendas guiadas", icon: GitBranch },
-        { id: "resume" as const, label: "Geração de documentos", icon: FileText },
+        ...(!isRestaurant
+          ? [{ id: "resume" as const, label: "Geração de documentos", icon: FileText }]
+          : []),
         ...(isRestaurant
           ? [{ id: "weeklymenu" as const, label: "Cardápio Semanal", icon: UtensilsCrossed }]
           : []),
