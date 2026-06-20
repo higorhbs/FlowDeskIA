@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Business, Conversation, Message } from "@flowdesk/firebase/client";
@@ -10,6 +10,7 @@ import { useAppRouter } from "@/lib/app-navigation";
 import type { ConversationDetail } from "@/lib/server/data/conversations";
 import { ConversationList } from "./ConversationList";
 import { ConversationThread } from "./ConversationThread";
+import { StartConversationModal } from "./StartConversationModal";
 import { sendDest } from "./conversation-utils";
 
 type ConversationsViewProps = {
@@ -33,6 +34,7 @@ export function ConversationsView({
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("c");
   const queryClient = useQueryClient();
+  const [startModalOpen, setStartModalOpen] = useState(false);
 
   const { data: listData } = useQuery({
     queryKey: ["conversations", businessId],
@@ -135,6 +137,18 @@ export function ConversationsView({
     onError: (err: Error) => toast.error(err.message ?? "Erro ao excluir conversa"),
   });
 
+  const startMutation = useMutation({
+    mutationFn: (phone: string) => conversationApi.create(businessId, phone),
+    onSuccess: (conv) => {
+      void queryClient.invalidateQueries({ queryKey: ["conversations", businessId] });
+      selectConversation(conv.id);
+      setStartModalOpen(false);
+      refreshSidebar();
+      toast.success("Conversa pronta para enviar mensagem.");
+    },
+    onError: (err: Error) => toast.error(err.message ?? "Erro ao iniciar conversa"),
+  });
+
   const sendMutation = useMutation({
     mutationFn: ({
       to,
@@ -179,6 +193,13 @@ export function ConversationsView({
         conversations={conversations}
         selectedId={selectedId}
         onSelect={selectConversation}
+        onNewConversation={() => setStartModalOpen(true)}
+      />
+      <StartConversationModal
+        open={startModalOpen}
+        onOpenChange={setStartModalOpen}
+        pending={startMutation.isPending}
+        onSubmit={(phone) => startMutation.mutate(phone)}
       />
       <ConversationThread
         business={resolvedBusiness}

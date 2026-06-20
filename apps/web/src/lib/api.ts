@@ -281,6 +281,8 @@ export const conversationApi = {
     }),
   get: (businessId: string, conversationId: string) =>
     webApi.conversations.getConversation(businessId, conversationId),
+  create: (businessId: string, phone: string) =>
+    webApi.conversations.createConversation(businessId, phone),
   attend: (businessId: string, conversationId: string) =>
     webApi.conversations.updateConversationStatus(businessId, conversationId, "ATTENDING"),
   release: (businessId: string, conversationId: string) =>

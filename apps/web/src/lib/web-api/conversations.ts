@@ -20,6 +20,13 @@ export async function getConversation(businessId: string, conversationId: string
   return apiFetch(`${base(businessId)}/${encodeURIComponent(conversationId)}`);
 }
 
+export async function createConversation(businessId: string, phone: string): Promise<Conversation> {
+  return apiFetch(`${base(businessId)}`, {
+    method: "POST",
+    body: JSON.stringify({ phone }),
+  });
+}
+
 export async function updateConversationStatus(
   businessId: string,
   conversationId: string,

@@ -4,8 +4,9 @@ import { useState } from "react";
 import type { Conversation } from "@flowdesk/firebase/client";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Search } from "lucide-react";
+import { Search, MessageSquarePlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { ConversationStatusBadge } from "@/components/conversations/ConversationStatusBadge";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { formatCustomerLabel, cn } from "@/lib/utils";
@@ -14,12 +15,14 @@ type ConversationListProps = {
   conversations: Conversation[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onNewConversation: () => void;
 };
 
 export function ConversationList({
   conversations,
   selectedId,
   onSelect,
+  onNewConversation,
 }: ConversationListProps) {
   const [searchInput, setSearchInput] = useState("");
   const search = useDebouncedValue(searchInput, 250);
@@ -35,8 +38,8 @@ export function ConversationList({
 
   return (
     <div className="flex h-full min-h-0 w-72 shrink-0 flex-col overflow-hidden border-r border-gray-200 sm:w-80">
-      <div className="flex h-16 shrink-0 items-center border-b border-gray-200 bg-white px-4">
-        <div className="relative w-full min-w-0">
+      <div className="flex h-16 shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-4">
+        <div className="relative min-w-0 flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
             className="w-full pl-9 text-sm"
@@ -45,6 +48,17 @@ export function ConversationList({
             onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="shrink-0"
+          title="Nova conversa"
+          aria-label="Nova conversa"
+          onClick={onNewConversation}
+        >
+          <MessageSquarePlus className="h-4 w-4" />
+        </Button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {filtered.length === 0 ? (
