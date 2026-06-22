@@ -2,6 +2,7 @@ import {
   deleteBusinessMedia,
   getDb,
   purgeLegacyWhatsAppAuthFirestore,
+  purgeOrphanBusinessMedia,
   scheduledStatusHorizonCutoffIso,
 } from '@flowdesk/firebase'
 
@@ -89,6 +90,7 @@ export async function runPrivacyRetentionForAllTenants(retentionDays = DEFAULT_R
     deletedPayments: 0,
     deletedStatusMedia: 0,
     deletedScheduledStatuses: 0,
+    deletedOrphanMedia: 0,
     migratedWaAuthFiles: 0,
   }
 
@@ -158,6 +160,7 @@ export async function runPrivacyRetentionForAllTenants(retentionDays = DEFAULT_R
     }
 
     await cleanupBusinessScheduledStatusMedia(businessId, statusMediaCutoff, cutoff, summary)
+    summary.deletedOrphanMedia += await purgeOrphanBusinessMedia(businessId).catch(() => 0)
   }
 
   return summary

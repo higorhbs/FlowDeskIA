@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { getStorageBucket } from "./admin.js";
+import { getDb, getStorageBucket } from "./admin.js";
+import { clearWhatsAppAuth } from "./wa-auth-files.js";
 
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const VIDEO_TYPES = new Set(["video/mp4", "video/quicktime"]);
@@ -147,6 +148,53 @@ export async function deleteBusinessMedia(
   } catch {
     return false;
   }
+}
+
+export async function purgeBusinessStorage(businessId: string): Promise<void> {
+  const bucket = getStorageBucket();
+  const [files] = await bucket.getFiles({ prefix: `businesses/${businessId}/media/` });
+  await Promise.all(files.map((f) => f.delete().catch(() => undefined)));
+  await clearWhatsAppAuth(businessId).catch(() => undefined);
+}
+
+export async function purgeOrphanBusinessMedia(businessId: string): Promise<number> {
+  const refs = new Set<string>();
+  const db = getDb();
+  const businessSnap = await db.collection("businesses").doc(businessId).get();
+  const leadFlow = businessSnap.data()?.leadFlow as { nodes?: { imageStoragePath?: string }[] } | undefined;
+  for (const node of leadFlow?.nodes ?? []) {
+    const path = node.imageStoragePath?.trim();
+    if (path) refs.add(path);
+  }
+
+  const statusSnap = await db
+    .collection("businesses")
+    .doc(businessId)
+    .collection("scheduledStatuses")
+    .get();
+  for (const doc of statusSnap.docs) {
+    const path = String(doc.data().mediaStoragePath ?? "").trim();
+    if (path) refs.add(path);
+  }
+
+  const convSnap = await db.collection("businesses").doc(businessId).collection("conversations").get();
+  for (const conv of convSnap.docs) {
+    const msgSnap = await conv.ref.collection("messages").select("mediaStoragePath").get();
+    for (const msg of msgSnap.docs) {
+      const path = String(msg.data().mediaStoragePath ?? "").trim();
+      if (path) refs.add(path);
+    }
+  }
+
+  const bucket = getStorageBucket();
+  const [files] = await bucket.getFiles({ prefix: `businesses/${businessId}/media/` });
+  let deleted = 0;
+  for (const file of files) {
+    if (refs.has(file.name)) continue;
+    await file.delete().catch(() => undefined);
+    deleted += 1;
+  }
+  return deleted;
 }
 
 export async function resolveBusinessMediaBuffer(

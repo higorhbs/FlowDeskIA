@@ -1,4 +1,4 @@
-import { getDb, upsertConversation } from "@flowdesk/firebase";
+import { getDb, upsertConversation, deleteBusinessMedia } from "@flowdesk/firebase";
 import {
   getConversation,
   listConversations,
@@ -76,6 +76,12 @@ export async function deleteConversationForUser(
   if (!snap.exists) throw new ApiError("Conversa não encontrada.", 404);
 
   const msgsSnap = await convRef.collection("messages").get();
+  for (const doc of msgsSnap.docs) {
+    const data = doc.data();
+    if (data.mediaStoragePath || data.mediaUrl) {
+      await deleteBusinessMedia(data.mediaUrl, data.mediaStoragePath).catch(() => undefined);
+    }
+  }
   const chunk = 400;
   for (let i = 0; i < msgsSnap.docs.length; i += chunk) {
     const batch = db.batch();

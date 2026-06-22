@@ -5,6 +5,7 @@ import {
   hasAdminCredential,
   listBusinesses,
   uploadBusinessMedia,
+  deleteBusinessMedia,
 } from '@flowdesk/firebase'
 import {
   assertLeadFlowMediaQuota,
@@ -154,6 +155,7 @@ export async function postLeadFlowMediaHandler(c) {
   }
 
   try {
+    const prevNode = nodeId ? flow.nodes.find((n) => n.id === nodeId) : undefined
     const saved = await uploadBusinessMedia(businessId, 'flow', upload.buffer, upload.mimetype)
     const draft = normalizeLeadCaptureFlow({
       ...flow,
@@ -169,6 +171,9 @@ export async function postLeadFlowMediaHandler(c) {
       ),
     })
     assertLeadFlowMediaQuota(draft, plan)
+    if (prevNode?.imageStoragePath || prevNode?.imageUrl) {
+      await deleteBusinessMedia(prevNode.imageUrl, prevNode.imageStoragePath).catch(() => undefined)
+    }
     return json(c, 200, {
       mediaUrl: saved.mediaUrl,
       mediaStoragePath: saved.mediaStoragePath,
