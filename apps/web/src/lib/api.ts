@@ -342,6 +342,8 @@ export const appointmentApi = {
       to: params?.to,
       status: params?.status as AppointmentStatus | undefined,
     }),
+  create: (businessId: string, data: Parameters<typeof webApi.appointments.createAppointment>[1]) =>
+    webApi.appointments.createAppointment(businessId, data),
   patch: (businessId: string, appointmentId: string, data: Record<string, unknown>) =>
     webApi.appointments.updateAppointment(
       businessId,
