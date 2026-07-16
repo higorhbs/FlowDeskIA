@@ -71,6 +71,18 @@ export async function backendSendWhatsAppReport(
   }) as Promise<{ messageId?: string; count: number }>;
 }
 
+export async function backendSendAppointmentConfirmation(
+  businessId: string,
+  appointmentId: string,
+): Promise<{ messageId?: string; skipped?: string }> {
+  return authFetch(`/chat/whatsapp/appointment-confirmation/${businessId}`, {
+    method: "POST",
+    body: JSON.stringify({ appointmentId }),
+    timeoutMs: 35_000,
+    ...waBase(),
+  }) as Promise<{ messageId?: string; skipped?: string }>;
+}
+
 export async function backendSendWhatsAppMedia(
   businessId: string,
   conversationId: string,

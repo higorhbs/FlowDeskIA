@@ -198,9 +198,17 @@ export default function AppointmentsPage() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
       appointmentApi.patch(businessId, id, data),
-    onSuccess: () => {
+    onSuccess: (_res, vars) => {
       queryClient.invalidateQueries({ queryKey: ["appointments", businessId] });
       queryClient.invalidateQueries({ queryKey: ["appointments-pending", businessId] });
+      if (vars.data.status === "CONFIRMED") {
+        whatsappApi
+          .sendAppointmentConfirmation(businessId, vars.id)
+          .then((r) => {
+            if (!r?.skipped) toast.success("Cliente avisado no WhatsApp");
+          })
+          .catch(() => undefined);
+      }
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao salvar"),
   });

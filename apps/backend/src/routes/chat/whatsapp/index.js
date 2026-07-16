@@ -1,6 +1,7 @@
 import {
   deleteConnectionHandler,
   getQrCodeHandler,
+  postAppointmentConfirmationHandler,
   postMessageHandler,
   postMessageMediaHandler,
   postQrCodeHandler,
@@ -14,4 +15,5 @@ export function register(app) {
   app.post('/chat/whatsapp/messages/:businessId', postMessageHandler)
   app.post('/chat/whatsapp/messages/:businessId/media', postMessageMediaHandler)
   app.post('/chat/whatsapp/report/:businessId', postReportHandler)
+  app.post('/chat/whatsapp/appointment-confirmation/:businessId', postAppointmentConfirmationHandler)
 }
