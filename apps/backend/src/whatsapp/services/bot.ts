@@ -702,16 +702,26 @@ async function handleAppointmentTime(
   baseDate.setHours(parseInt(h), parseInt(min), 0, 0);
 
   const durationMins = 60;
+  const bufferMins = Math.max(0, business.appointmentBufferMins ?? 0);
   const conflict = await findConflictingAppointment(
     business.id,
     baseDate.toISOString(),
     durationMins,
+    bufferMins,
   );
   if (conflict) {
+    const conflictAt = new Date(conflict.scheduledAt);
+    const freeFrom = new Date(
+      conflictAt.getTime() + (conflict.durationMins ?? 60) * 60_000 + bufferMins * 60_000,
+    );
+    const bufferLine =
+      bufferMins > 0
+        ? `\nMantemos *${bufferMins} min* de intervalo entre atendimentos.`
+        : "";
     const text =
       `⚠️ *Horário indisponível*\n\n` +
-      `Já existe um agendamento em *${format(baseDate, "dd/MM/yyyy", { locale: ptBR })}* às *${format(baseDate, "HH:mm")}*.\n\n` +
-      `Envie outro horário (ex: *11:00*) ou outra data.`;
+      `Já existe um agendamento em *${format(baseDate, "dd/MM/yyyy", { locale: ptBR })}* às *${format(conflictAt, "HH:mm")}*.${bufferLine}\n\n` +
+      `A partir de *${format(freeFrom, "HH:mm")}* já libera. Envie outro horário ou outra data.`;
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }

@@ -899,24 +899,27 @@ const ACTIVE_APPOINTMENT_STATUSES: AppointmentStatus[] = ["PENDING", "CONFIRMED"
 function appointmentOverlaps(
   scheduledAt: string,
   durationMins: number,
-  other: Appointment
+  other: Appointment,
+  bufferMins = 0
 ): boolean {
+  const gap = Math.max(0, bufferMins) * 60_000;
   const startA = new Date(scheduledAt).getTime();
   const endA = startA + durationMins * 60_000;
   const startB = new Date(other.scheduledAt).getTime();
   const endB = startB + (other.durationMins ?? 60) * 60_000;
-  return startA < endB && startB < endA;
+  return startA < endB + gap && startB < endA + gap;
 }
 
 export async function findConflictingAppointment(
   businessId: string,
   scheduledAt: string,
-  durationMins = 60
+  durationMins = 60,
+  bufferMins = 0
 ): Promise<Appointment | null> {
   const appointments = await listAppointments(businessId);
   for (const apt of appointments) {
     if (!ACTIVE_APPOINTMENT_STATUSES.includes(apt.status)) continue;
-    if (appointmentOverlaps(scheduledAt, durationMins, apt)) return apt;
+    if (appointmentOverlaps(scheduledAt, durationMins, apt, bufferMins)) return apt;
   }
   return null;
 }

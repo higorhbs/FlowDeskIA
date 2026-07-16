@@ -189,6 +189,7 @@ export default function SettingsPage() {
   const [specialHours, setSpecialHours] = useState<SpecialHoursValue>({});
   const [lunchBreak, setLunchBreak] = useState<LunchBreakValue>(null);
   const [lunchMsg, setLunchMsg] = useState(DEFAULT_LUNCH_MSG);
+  const [appointmentBufferMins, setAppointmentBufferMins] = useState(0);
   const [hoursDirty, setHoursDirty] = useState(false);
 
   const {
@@ -203,6 +204,7 @@ export default function SettingsPage() {
   const greetingMsg = watch("greetingMsg") ?? "";
   const awayMsg = watch("awayMsg") ?? "";
   const description = watch("description") ?? "";
+  const businessType = watch("type");
 
   useEffect(() => {
     if (!business) return;
@@ -228,6 +230,11 @@ export default function SettingsPage() {
         ? (business as { lunchMsg: string }).lunchMsg
         : DEFAULT_LUNCH_MSG
     );
+    setAppointmentBufferMins(
+      typeof (business as { appointmentBufferMins?: unknown }).appointmentBufferMins === "number"
+        ? (business as { appointmentBufferMins: number }).appointmentBufferMins
+        : 0
+    );
     setHoursDirty(false);
   }, [business, reset]);
 
@@ -247,6 +254,7 @@ export default function SettingsPage() {
         specialHours: nextSpecialHours,
         lunchBreak: nextLunchBreak,
         lunchMsg: nextLunchBreak ? nextLunchMsg.trim() : undefined,
+        appointmentBufferMins: form.type === "BARBERSHOP" ? appointmentBufferMins : 0,
       });
       await scheduleApi.put(businessId, {
         timezone: business?.timezone ?? "America/Sao_Paulo",
@@ -426,6 +434,42 @@ export default function SettingsPage() {
               void handleSubmit((form) => saveMutation.mutate({ form, schedule }))();
             }}
           />
+
+          {businessType === "BARBERSHOP" && (
+            <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-white">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Intervalo entre clientes</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Tempo livre reservado após cada atendimento. A IA bloqueia horários dentro desse intervalo.
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {[0, 5, 10, 15, 20, 30].map((mins) => {
+                  const active = appointmentBufferMins === mins;
+                  return (
+                    <Button
+                      key={mins}
+                      type="button"
+                      variant={active ? "default" : "outline"}
+                      size="xs"
+                      onClick={() => {
+                        setAppointmentBufferMins(mins);
+                        setHoursDirty(true);
+                      }}
+                      className={cn(
+                        "text-xs h-auto",
+                        active
+                          ? "bg-brand-600 text-white hover:bg-brand-700"
+                          : "text-gray-500 hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50",
+                      )}
+                    >
+                      {mins === 0 ? "Sem intervalo" : `${mins} min`}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </SectionCard>
 
         {/* Mensagens automáticas */}

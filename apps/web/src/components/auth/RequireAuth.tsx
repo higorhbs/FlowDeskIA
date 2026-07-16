@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAppRouter } from "@/lib/app-navigation";
-import { onAuthStateChanged, type User } from "firebase/auth";
+import { onIdTokenChanged, type User } from "firebase/auth";
 import { getClientAuth } from "@flowdesk/firebase/client";
 import { authApi } from "@/lib/api";
 import { AuthContext } from "@/contexts/auth-context";
@@ -56,7 +56,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 
     void auth.authStateReady().then(() => {
       applyUser(auth.currentUser);
-      unsub = onAuthStateChanged(auth, applyUser);
+      unsub = onIdTokenChanged(auth, applyUser);
     });
 
     return () => unsub();

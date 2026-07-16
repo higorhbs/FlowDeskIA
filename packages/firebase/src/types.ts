@@ -126,6 +126,7 @@ export interface Business {
   leadFlow?: LeadCaptureFlow;
   resumeFlow?: ResumeFlowConfig;
   weeklyMenu?: WeeklyMenuConfig;
+  appointmentBufferMins?: number;
   isConnected: boolean;
   createdAt: string;
   updatedAt: string;

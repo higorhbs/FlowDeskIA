@@ -135,6 +135,10 @@ export function normalizeBusiness(id: string, raw: Record<string, unknown>): Bus
     manualAttendantPrefixEnabled: raw.manualAttendantPrefixEnabled !== false,
     leadFlow: readLeadFlow(raw.leadFlow),
     resumeFlow: readResumeFlow(raw.resumeFlow),
+    appointmentBufferMins:
+      typeof raw.appointmentBufferMins === "number" && raw.appointmentBufferMins >= 0
+        ? raw.appointmentBufferMins
+        : undefined,
     isConnected: raw.isConnected === true,
   };
 }

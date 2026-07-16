@@ -1,7 +1,7 @@
 import {
   signInWithCustomToken,
   signOut,
-  onAuthStateChanged,
+  onIdTokenChanged,
   reload,
   type User,
 } from "firebase/auth";
@@ -302,7 +302,7 @@ export async function logoutFirebase() {
 }
 
 export function watchAuth(cb: (user: User | null) => void) {
-  return onAuthStateChanged(getClientAuth(), cb);
+  return onIdTokenChanged(getClientAuth(), cb);
 }
 
 export function hasPasswordProvider(user: User | null): boolean {
