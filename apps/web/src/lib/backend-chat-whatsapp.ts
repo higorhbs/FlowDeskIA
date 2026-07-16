@@ -59,6 +59,18 @@ export async function backendSendWhatsAppMessage(
   }) as Promise<WhatsAppSendResult>;
 }
 
+export async function backendSendWhatsAppReport(
+  businessId: string,
+  period: "day" | "week" | "month",
+): Promise<{ messageId?: string; count: number }> {
+  return authFetch(`/chat/whatsapp/report/${businessId}`, {
+    method: "POST",
+    body: JSON.stringify({ period }),
+    timeoutMs: 60_000,
+    ...waBase(),
+  }) as Promise<{ messageId?: string; count: number }>;
+}
+
 export async function backendSendWhatsAppMedia(
   businessId: string,
   conversationId: string,

@@ -11,6 +11,7 @@ import {
   backendPostWhatsAppQr,
   backendSendWhatsAppMedia,
   backendSendWhatsAppMessage,
+  backendSendWhatsAppReport,
 } from "./backend-chat-whatsapp";
 import {
   backendCancelStory,
@@ -301,6 +302,8 @@ export const whatsappApi = {
     backendSendWhatsAppMessage(businessId, { to, text, conversationId }),
   sendMedia: (businessId: string, conversationId: string, file: File, caption?: string) =>
     backendSendWhatsAppMedia(businessId, conversationId, file, caption),
+  sendReport: (businessId: string, period: "day" | "week" | "month") =>
+    backendSendWhatsAppReport(businessId, period),
 };
 
 export const scheduledStatusApi = {

@@ -48,11 +48,13 @@ async function bootWaWorkers() {
   const { startMessageWorker } = await import('../dist/whatsapp/workers/message-worker.js')
   const { startStatusScheduler } = await import('../dist/whatsapp/workers/status-scheduler.js')
   const { startLeadFlowIdleWorker } = await import('../dist/whatsapp/workers/lead-flow-idle-worker.js')
+  const { startDailyReportWorker } = await import('./whatsapp/workers/daily-report-worker.js')
 
   await restoreWhatsAppSessions({ timeoutMs: 60_000 })
   startMessageWorker()
   startStatusScheduler()
   startLeadFlowIdleWorker()
+  startDailyReportWorker()
 }
 
 let waWorkersBooted = false

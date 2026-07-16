@@ -1,12 +1,12 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { appointmentApi } from "@/lib/api";
+import { appointmentApi, whatsappApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { format, startOfWeek, endOfWeek, addWeeks, eachDayOfInterval, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, Calendar, Loader2, Check, X } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { ChevronLeft, ChevronRight, Calendar, Loader2, Check, X, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBusinessId } from "@/lib/use-business-id";
 import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
@@ -36,6 +36,24 @@ export default function AppointmentsPage() {
   const v = useBusinessVocabulary();
   const queryClient = useQueryClient();
   const [weekOffset, setWeekOffset] = useState(0);
+  const [reportOpen, setReportOpen] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!reportOpen) return;
+    function onClick(e: MouseEvent) {
+      if (reportRef.current && !reportRef.current.contains(e.target as Node)) setReportOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [reportOpen]);
+
+  const reportMutation = useMutation({
+    mutationFn: (period: "day" | "week" | "month") => whatsappApi.sendReport(businessId, period),
+    onMutate: () => setReportOpen(false),
+    onSuccess: () => toast.success("Relatório enviado no seu WhatsApp"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao enviar relatório"),
+  });
 
   const weekStart = startOfWeek(addWeeks(new Date(), weekOffset), { weekStartsOn: 1 });
   const weekEnd = endOfWeek(addWeeks(new Date(), weekOffset), { weekStartsOn: 1 });
@@ -96,6 +114,37 @@ export default function AppointmentsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="relative" ref={reportRef}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              disabled={reportMutation.isPending}
+              onClick={() => setReportOpen((o) => !o)}
+            >
+              {reportMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+              Enviar relatório
+            </Button>
+            {reportOpen && (
+              <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+                {([
+                  { p: "day", label: "Relatório do dia" },
+                  { p: "week", label: "Relatório da semana" },
+                  { p: "month", label: "Relatório do mês" },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.p}
+                    type="button"
+                    className="block w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                    onClick={() => reportMutation.mutate(opt.p)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <Button type="button" variant="outline" size="icon" onClick={() => setWeekOffset((w) => w - 1)}>
             <ChevronLeft className="w-4 h-4" />
           </Button>

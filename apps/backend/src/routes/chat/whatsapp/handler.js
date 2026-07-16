@@ -1,14 +1,17 @@
 import {
   createMessage,
   getBusiness,
+  getBusinessWithRelations,
   getConversation,
   getTenant,
   hasAdminCredential,
+  listAppointments,
   setBusinessConnected,
   upsertConversation,
 } from '@flowdesk/firebase'
 import { planAllowsChatMediaStorage } from '@flowdesk/shared'
 import { json, requireBearerUser } from '../../../lib/auth-guard.js'
+import { buildReportPdf } from '../../../lib/report-pdf.js'
 import { saveChatMedia } from '../../../whatsapp/chat-media.js'
 import { connectForQr, readWhatsAppStatus } from '../../../whatsapp/wa-connect.js'
 import { isWhatsAppRuntime } from '../../../whatsapp/wa-manager.js'
@@ -155,6 +158,85 @@ export async function postMessageHandler(c) {
   } catch (err) {
     return json(c, 500, {
       error: err instanceof Error ? err.message : 'Falha ao enviar mensagem.',
+    })
+  }
+}
+
+function resolveReportRange(period) {
+  const now = new Date()
+  const start = new Date(now)
+  const end = new Date(now)
+  if (period === 'week') {
+    const diff = (start.getDay() + 6) % 7
+    start.setDate(start.getDate() - diff)
+    end.setTime(start.getTime())
+    end.setDate(start.getDate() + 6)
+  } else if (period === 'month') {
+    start.setDate(1)
+    end.setMonth(start.getMonth() + 1, 0)
+  }
+  start.setHours(0, 0, 0, 0)
+  end.setHours(23, 59, 59, 999)
+  return { from: start.toISOString(), to: end.toISOString() }
+}
+
+export async function postReportHandler(c) {
+  const blocked = requireAdmin(c)
+  if (blocked) return blocked
+  if (!isWhatsAppRuntime()) return waUnavailable(c)
+
+  const businessId = c.req.param('businessId')
+  const auth = await requireBearerUser(c)
+  if (auth.error) return auth.error
+
+  const business = await getBusinessWithRelations(businessId, auth.decoded.uid)
+  if (!business) return json(c, 404, { error: 'Negócio não encontrado.' })
+
+  const body = await c.req.json().catch(() => ({}))
+  const period = ['day', 'week', 'month'].includes(body.period) ? body.period : 'day'
+  const { from, to } = resolveReportRange(period)
+
+  const appointments = await listAppointments(businessId, { from, to })
+  const priceById = new Map()
+  const priceByName = new Map()
+  for (const item of business.catalog ?? []) {
+    priceById.set(item.id, item.price ?? 0)
+    priceByName.set(item.name, item.price ?? 0)
+  }
+
+  const client = await resolveWhatsAppClient(businessId, { waitMs: 12_000 })
+  if (!client) {
+    await setBusinessConnected(businessId, false)
+    return json(c, 400, {
+      error: 'WhatsApp desconectado. Escaneie o QR Code novamente.',
+    })
+  }
+
+  try {
+    const pdf = await buildReportPdf({
+      period,
+      business,
+      appointments,
+      priceById,
+      priceByName,
+      from,
+      to,
+    })
+    const label = { day: 'do dia', week: 'da semana', month: 'do mês' }[period]
+    const filename = `relatorio-${period}-${from.slice(0, 10)}.pdf`
+    const caption = `Relatório ${label} — ${business.name}`
+    const messageId = await client.sendDocument(
+      business.phone,
+      pdf,
+      filename,
+      'application/pdf',
+      caption,
+      { self: true },
+    )
+    return json(c, 200, { messageId, count: appointments.length })
+  } catch (err) {
+    return json(c, 500, {
+      error: err instanceof Error ? err.message : 'Falha ao gerar relatório.',
     })
   }
 }

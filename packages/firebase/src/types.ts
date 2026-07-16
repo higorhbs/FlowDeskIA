@@ -127,6 +127,9 @@ export interface Business {
   resumeFlow?: ResumeFlowConfig;
   weeklyMenu?: WeeklyMenuConfig;
   appointmentBufferMins?: number;
+  dailyReportEnabled?: boolean;
+  dailyReportHour?: number;
+  dailyReportMinute?: number;
   isConnected: boolean;
   createdAt: string;
   updatedAt: string;

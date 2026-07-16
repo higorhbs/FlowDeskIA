@@ -50,12 +50,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
       writeLastAuthUid(nextUid);
 
       if (user) {
-        await user.reload();
+        try {
+          await user.reload();
+        } catch {
+          return;
+        }
         if (!user.emailVerified) {
           removeToken();
           return;
         }
-        const token = await user.getIdToken(true);
+        const token = await user.getIdToken().catch(() => null);
+        if (!token) return;
         setToken(token);
         await syncServerSession(token).catch(() => {});
         void authApi.sync().catch(() => undefined);
