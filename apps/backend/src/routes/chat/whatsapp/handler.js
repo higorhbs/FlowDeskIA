@@ -1,5 +1,6 @@
 import {
   createMessage,
+  getAppointment,
   getBusiness,
   getBusinessWithRelations,
   getConversation,
@@ -237,6 +238,50 @@ export async function postReportHandler(c) {
   } catch (err) {
     return json(c, 500, {
       error: err instanceof Error ? err.message : 'Falha ao gerar relatório.',
+    })
+  }
+}
+
+export async function postAppointmentConfirmationHandler(c) {
+  const blocked = requireAdmin(c)
+  if (blocked) return blocked
+  if (!isWhatsAppRuntime()) return waUnavailable(c)
+
+  const businessId = c.req.param('businessId')
+  const ctx = await resolveOwnedBusiness(c, businessId)
+  if (ctx.error) return ctx.error
+
+  const body = await c.req.json().catch(() => ({}))
+  const appointmentId = typeof body.appointmentId === 'string' ? body.appointmentId.trim() : ''
+  if (!appointmentId) return json(c, 400, { error: 'appointmentId é obrigatório.' })
+
+  const apt = await getAppointment(businessId, appointmentId)
+  if (!apt) return json(c, 404, { error: 'Agendamento não encontrado.' })
+  if (!apt.customerPhone?.trim()) return json(c, 200, { skipped: 'sem-telefone' })
+
+  const client = await resolveWhatsAppClient(businessId, { waitMs: 12_000 })
+  if (!client) {
+    await setBusinessConnected(businessId, false)
+    return json(c, 400, {
+      error: 'WhatsApp desconectado. Escaneie o QR Code novamente.',
+    })
+  }
+
+  const when = new Date(apt.scheduledAt)
+  const dataStr = when.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const horaStr = when.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const nome = apt.customerName?.trim() ? ` ${apt.customerName.trim()}` : ''
+  const text = `Olá${nome}! ✅ Seu agendamento de *${apt.serviceName}* foi confirmado para ${dataStr} às ${horaStr}. Até lá!`
+
+  try {
+    const conv = await upsertConversation(businessId, apt.customerPhone)
+    const dest = conv.replyJid?.trim() || conv.customerPhone?.trim() || apt.customerPhone
+    const waMessageId = await client.sendText(dest, text)
+    const message = await createMessage(businessId, conv.id, { role: 'HUMAN', content: text })
+    return json(c, 200, { messageId: waMessageId, message })
+  } catch (err) {
+    return json(c, 500, {
+      error: err instanceof Error ? err.message : 'Falha ao enviar confirmação.',
     })
   }
 }

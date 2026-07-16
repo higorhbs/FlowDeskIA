@@ -9,6 +9,7 @@ import {
   backendDeleteWhatsAppConnection,
   backendGetWhatsAppQr,
   backendPostWhatsAppQr,
+  backendSendAppointmentConfirmation,
   backendSendWhatsAppMedia,
   backendSendWhatsAppMessage,
   backendSendWhatsAppReport,
@@ -304,6 +305,8 @@ export const whatsappApi = {
     backendSendWhatsAppMedia(businessId, conversationId, file, caption),
   sendReport: (businessId: string, period: "day" | "week" | "month") =>
     backendSendWhatsAppReport(businessId, period),
+  sendAppointmentConfirmation: (businessId: string, appointmentId: string) =>
+    backendSendAppointmentConfirmation(businessId, appointmentId),
 };
 
 export const scheduledStatusApi = {
