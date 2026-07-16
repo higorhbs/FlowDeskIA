@@ -20,6 +20,27 @@ export async function listAppointments(
   return data.appointments ?? [];
 }
 
+export type CreateAppointmentInput = {
+  customerName?: string;
+  customerPhone?: string;
+  serviceId?: string;
+  serviceName: string;
+  scheduledAt: string;
+  durationMins?: number;
+  status?: AppointmentStatus;
+  notes?: string;
+};
+
+export async function createAppointment(
+  businessId: string,
+  data: CreateAppointmentInput,
+): Promise<Appointment> {
+  return apiFetch<Appointment>(base(businessId), {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function updateAppointment(
   businessId: string,
   appointmentId: string,
