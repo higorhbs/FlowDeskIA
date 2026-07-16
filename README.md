@@ -1,6 +1,6 @@
 # FlowDesk IA — Atendimento automático no WhatsApp
 
-SaaS de resposta automática para WhatsApp voltado a pequenos negócios: barbearia, salão, restaurante, dentista, loja e comércio local.
+SaaS de resposta automática para WhatsApp voltado a pequenos negócios: salão de beleza, restaurante, dentista, loja e comércio local.
 
 Automatize atendimento, agendamentos, catálogo, FAQ, fluxo conversacional com botões e cobrança PIX — com painel web e bot no WhatsApp.
 
@@ -27,7 +27,7 @@ Automatize atendimento, agendamentos, catálogo, FAQ, fluxo conversacional com b
 | Área | Descrição |
 | --- | --- |
 | **Dashboard** | Conversas, agendamentos pendentes, receita PIX e métricas do mês |
-| **Negócio** | Cadastro, tipo (barbearia, salão, etc.), horários, saudação e mensagem de ausência |
+| **Negócio** | Cadastro, tipo (salão de beleza, restaurante, etc.), horários, saudação e mensagem de ausência |
 | **Catálogo** | Serviços/produtos com preço, descrição e limite por plano |
 | **Agendamentos** | Calendário, confirmação/rejeição (tipos com aprovação manual) |
 | **Conversas** | Histórico, assumir/liberar atendimento, enviar mensagem manual |
@@ -38,7 +38,7 @@ Automatize atendimento, agendamentos, catálogo, FAQ, fluxo conversacional com b
 
 ### Tipos de negócio
 
-Vocabulário e fluxos adaptados para: **Barbearia**, **Salão**, **Restaurante**, **Consultório**, **Loja** e **Outro** (rótulo customizado).
+Vocabulário e fluxos adaptados para: **Salão de Beleza**, **Restaurante**, **Consultório**, **Loja** e **Outro** (rótulo customizado).
 
 ### Conta e conformidade
 
