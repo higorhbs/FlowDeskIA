@@ -1246,6 +1246,8 @@ export async function cancelScheduledStatus(
   if (row.status !== "scheduled") {
     throw new Error("Só é possível cancelar publicações ainda não enviadas.");
   }
+  const { deleteBusinessMedia } = await import("./media-storage.js");
+  await deleteBusinessMedia(row.mediaUrl, row.mediaStoragePath).catch(() => undefined);
   await ref.delete();
 }
 
@@ -1274,8 +1276,11 @@ export async function cancelScheduledStatusSeries(
     return row.seriesId === seriesId && row.status === "scheduled";
   });
   if (!pending.length) throw new Error("Nenhum agendamento pendente nesta série.");
+  const { deleteBusinessMedia } = await import("./media-storage.js");
   const batch = getDb().batch();
   for (const d of pending) {
+    const row = d.data() as ScheduledStatus;
+    await deleteBusinessMedia(row.mediaUrl, row.mediaStoragePath).catch(() => undefined);
     batch.delete(d.ref);
   }
   await batch.commit();
@@ -1497,7 +1502,9 @@ export async function listTenantBusinessIds(tenantId: string): Promise<string[]>
 export async function deleteTenantFirestoreData(tenantId: string): Promise<void> {
   const db = getDb();
   const businessSnap = await businesses().where("tenantId", "==", tenantId).get();
+  const { purgeBusinessStorage } = await import("./media-storage.js");
   for (const doc of businessSnap.docs) {
+    await purgeBusinessStorage(doc.id).catch(() => undefined);
     await db.recursiveDelete(doc.ref);
   }
 

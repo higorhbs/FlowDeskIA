@@ -78,9 +78,22 @@ import type {
   LeadFlowButton,
   LeadFlowNode,
   ResumeFlowConfig,
+  DayOfWeek,
+  WeeklyMenuItem,
+  DailyMenu,
+  WeeklyMenuConfig,
 } from "@flowdesk/shared";
 
-export type { LeadCaptureFlow, LeadFlowButton, LeadFlowNode, ResumeFlowConfig };
+export type {
+  LeadCaptureFlow,
+  LeadFlowButton,
+  LeadFlowNode,
+  ResumeFlowConfig,
+  DayOfWeek,
+  WeeklyMenuItem,
+  DailyMenu,
+  WeeklyMenuConfig,
+};
 
 export interface Business {
   id: string;
@@ -112,6 +125,7 @@ export interface Business {
   manualAttendantPrefixEnabled?: boolean;
   leadFlow?: LeadCaptureFlow;
   resumeFlow?: ResumeFlowConfig;
+  weeklyMenu?: WeeklyMenuConfig;
   isConnected: boolean;
   createdAt: string;
   updatedAt: string;
