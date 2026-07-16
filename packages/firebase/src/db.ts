@@ -993,7 +993,7 @@ export async function createAppointment(
   const id = newId();
   const ts = nowIso();
   const apt: Appointment = { id, reminderSent: false, createdAt: ts, updatedAt: ts, ...data };
-  await appointmentsCol(data.businessId).doc(id).set(removeUndefined(apt as Record<string, unknown>));
+  await appointmentsCol(data.businessId).doc(id).set(removeUndefined(apt as unknown as Record<string, unknown>));
   return apt;
 }
 
