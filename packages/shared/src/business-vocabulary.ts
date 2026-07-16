@@ -178,7 +178,15 @@ const APPROVAL_OVERRIDES: Partial<BusinessVocabulary> = {
 };
 
 const BY_TYPE: Record<BusinessType, BusinessVocabulary> = {
-  BARBERSHOP: { ...DEFAULT, typeLabel: "Barbearia" },
+  BARBERSHOP: {
+    ...DEFAULT,
+    typeLabel: "Salão de Beleza",
+    bookingsNav: "Agendamentos",
+    bookingsNavShort: "Agenda",
+    bookingsPageTitle: "Agendamentos",
+    bookingSingular: "Agendamento",
+    bookingsPlural: "Agendamentos",
+  },
   SALON: { ...DEFAULT, typeLabel: "Salão / Manicure" },
   RESTAURANT: { ...DEFAULT, typeLabel: "Restaurante", ...APPROVAL_OVERRIDES },
   DENTAL: { ...DEFAULT, typeLabel: "Clínica", ...APPROVAL_OVERRIDES },
@@ -218,7 +226,7 @@ export function getIntentKeywordsForType(type?: string | null) {
 
 export const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
   STORE: "Comércio local",
-  BARBERSHOP: "Barbearia",
+  BARBERSHOP: "Salão de Beleza",
   SALON: "Salão / Manicure",
   RESTAURANT: "Restaurante",
   DENTAL: "Dentista / Clínica",

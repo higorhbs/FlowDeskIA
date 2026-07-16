@@ -1,12 +1,12 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { appointmentApi, whatsappApi } from "@/lib/api";
+import { appointmentApi, businessApi, whatsappApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { format, startOfWeek, endOfWeek, addWeeks, eachDayOfInterval, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useState, useRef, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Calendar, Loader2, Check, X, FileText } from "lucide-react";
+import { useState } from "react";
+import { ChevronLeft, ChevronRight, Calendar, CalendarDays, CalendarRange, Loader2, Check, X, FileText, Send, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBusinessId } from "@/lib/use-business-id";
 import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
@@ -37,21 +37,20 @@ export default function AppointmentsPage() {
   const queryClient = useQueryClient();
   const [weekOffset, setWeekOffset] = useState(0);
   const [reportOpen, setReportOpen] = useState(false);
-  const reportRef = useRef<HTMLDivElement>(null);
+  const [reportPeriod, setReportPeriod] = useState<"day" | "week" | "month">("day");
 
-  useEffect(() => {
-    if (!reportOpen) return;
-    function onClick(e: MouseEvent) {
-      if (reportRef.current && !reportRef.current.contains(e.target as Node)) setReportOpen(false);
-    }
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, [reportOpen]);
+  const { data: business } = useQuery({
+    queryKey: ["business", businessId],
+    queryFn: () => businessApi.get(businessId),
+    enabled: !!businessId,
+  });
 
   const reportMutation = useMutation({
     mutationFn: (period: "day" | "week" | "month") => whatsappApi.sendReport(businessId, period),
-    onMutate: () => setReportOpen(false),
-    onSuccess: () => toast.success("Relatório enviado no seu WhatsApp"),
+    onSuccess: () => {
+      toast.success("Relatório enviado no seu WhatsApp");
+      setReportOpen(false);
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao enviar relatório"),
   });
 
@@ -114,37 +113,15 @@ export default function AppointmentsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="relative" ref={reportRef}>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              disabled={reportMutation.isPending}
-              onClick={() => setReportOpen((o) => !o)}
-            >
-              {reportMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-              Enviar relatório
-            </Button>
-            {reportOpen && (
-              <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
-                {([
-                  { p: "day", label: "Relatório do dia" },
-                  { p: "week", label: "Relatório da semana" },
-                  { p: "month", label: "Relatório do mês" },
-                ] as const).map((opt) => (
-                  <button
-                    key={opt.p}
-                    type="button"
-                    className="block w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
-                    onClick={() => reportMutation.mutate(opt.p)}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <Button
+            type="button"
+            className="gap-1.5 bg-brand-600 hover:bg-brand-700 text-white"
+            size="sm"
+            onClick={() => setReportOpen(true)}
+          >
+            <FileText className="w-4 h-4" />
+            Relatório
+          </Button>
           <Button type="button" variant="outline" size="icon" onClick={() => setWeekOffset((w) => w - 1)}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
@@ -286,6 +263,96 @@ export default function AppointmentsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {reportOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+          onClick={() => !reportMutation.isPending && setReportOpen(false)}
+        >
+          <div
+            className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative bg-gradient-to-br from-brand-600 to-brand-700 px-6 pt-6 pb-5">
+              <button
+                type="button"
+                className="absolute right-4 top-4 rounded-full p-1 text-white/80 hover:bg-white/15 hover:text-white"
+                onClick={() => !reportMutation.isPending && setReportOpen(false)}
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 border border-white/20">
+                  <FileText className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">Enviar relatório</h2>
+                  <p className="text-xs text-brand-100/90">Escolha o período do relatório</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-5">
+              <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-emerald-100 bg-emerald-50 px-3.5 py-3">
+                <Smartphone className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600" />
+                <p className="text-xs leading-relaxed text-emerald-800">
+                  O PDF será enviado para o número pessoal cadastrado nas configurações do negócio
+                  {business?.phone ? (
+                    <> (<span className="font-semibold">{business.phone}</span>)</>
+                  ) : null}
+                  .
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2.5">
+                {([
+                  { p: "day", label: "Hoje", icon: Calendar },
+                  { p: "week", label: "Semana", icon: CalendarRange },
+                  { p: "month", label: "Mês", icon: CalendarDays },
+                ] as const).map((opt) => {
+                  const active = reportPeriod === opt.p;
+                  const Icon = opt.icon;
+                  return (
+                    <button
+                      key={opt.p}
+                      type="button"
+                      onClick={() => setReportPeriod(opt.p)}
+                      className={cn(
+                        "flex flex-col items-center gap-2 rounded-xl border-2 px-2 py-4 transition-all",
+                        active
+                          ? "border-brand-500 bg-brand-50 text-brand-700 shadow-sm"
+                          : "border-gray-200 text-gray-500 hover:border-brand-200 hover:bg-gray-50",
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span className="text-sm font-semibold">{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <Button
+                type="button"
+                className="mt-5 w-full gap-2 bg-brand-600 hover:bg-brand-700 text-white"
+                disabled={reportMutation.isPending}
+                onClick={() => reportMutation.mutate(reportPeriod)}
+              >
+                {reportMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    Enviar no meu WhatsApp
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
