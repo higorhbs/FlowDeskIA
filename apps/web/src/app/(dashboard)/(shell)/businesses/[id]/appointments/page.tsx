@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { appointmentApi, businessApi, whatsappApi } from "@/lib/api";
+import { appointmentApi, businessApi, catalogApi, whatsappApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { format, startOfWeek, endOfWeek, addWeeks, eachDayOfInterval, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
