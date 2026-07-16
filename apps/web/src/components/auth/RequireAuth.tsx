@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAppRouter } from "@/lib/app-navigation";
 import { onIdTokenChanged, type User } from "firebase/auth";
@@ -25,6 +25,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
   const [ready, setReady] = useState(false);
   const [uid, setUid] = useState<string | null>(null);
+  const lastTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     const auth = getClientAuth();
@@ -32,33 +33,40 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 
     const applyUser = (user: User | null) => {
       if (!user) {
+        lastTokenRef.current = null;
         setUid(null);
         setReady(false);
         router.replace("/?auth=login");
         return;
       }
       void (async () => {
-        try {
-          await user.reload();
-        } catch {
+        const token = await user.getIdToken().catch(() => null);
+        if (!token) {
           if (user.uid) {
             setUid(user.uid);
             setReady(true);
           }
           return;
         }
+        if (token === lastTokenRef.current) return;
+        lastTokenRef.current = token;
+        try {
+          await user.reload();
+        } catch {
+          setUid(user.uid);
+          setReady(true);
+          return;
+        }
         if (!user.emailVerified) {
           removeToken();
+          lastTokenRef.current = null;
           setUid(null);
           setReady(false);
           router.replace("/?auth=register");
           return;
         }
-        const token = await user.getIdToken().catch(() => null);
-        if (token) {
-          setToken(token);
-          await syncServerSession(token).catch(() => {});
-        }
+        setToken(token);
+        await syncServerSession(token).catch(() => {});
         setUid(user.uid);
         setReady(true);
         void authApi.sync(user.displayName ?? undefined).catch(() => {});

@@ -1,7 +1,7 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { watchAuth, completeGoogleRedirect, authErrorMessage } from "@/lib/firebase-auth";
 import { authApi } from "@/lib/api";
 import { setToken, removeToken } from "@/lib/auth";
@@ -19,6 +19,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       })
   );
+
+  const lastTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -39,34 +41,44 @@ export function Providers({ children }: { children: React.ReactNode }) {
       });
 
     const unsub = watchAuth(async (user) => {
-      const nextUid = user?.emailVerified ? user.uid : null;
-      const prevUid = readLastAuthUid();
+      if (!user) {
+        lastTokenRef.current = null;
+        const prevUid = readLastAuthUid();
+        if (prevUid) {
+          clearAuthSessionMarkers();
+          queryClient.clear();
+        }
+        writeLastAuthUid(null);
+        removeToken();
+        return;
+      }
 
+      const token = await user.getIdToken().catch(() => null);
+      if (!token || token === lastTokenRef.current) return;
+      lastTokenRef.current = token;
+
+      try {
+        await user.reload();
+      } catch {
+        return;
+      }
+
+      const nextUid = user.emailVerified ? user.uid : null;
+      const prevUid = readLastAuthUid();
       if ((prevUid && nextUid && prevUid !== nextUid) || (prevUid && !nextUid)) {
         clearAuthSessionMarkers();
         queryClient.clear();
       }
-
       writeLastAuthUid(nextUid);
 
-      if (user) {
-        try {
-          await user.reload();
-        } catch {
-          return;
-        }
-        if (!user.emailVerified) {
-          removeToken();
-          return;
-        }
-        const token = await user.getIdToken().catch(() => null);
-        if (!token) return;
-        setToken(token);
-        await syncServerSession(token).catch(() => {});
-        void authApi.sync().catch(() => undefined);
-      } else {
+      if (!user.emailVerified) {
         removeToken();
+        lastTokenRef.current = null;
+        return;
       }
+      setToken(token);
+      await syncServerSession(token).catch(() => {});
+      void authApi.sync().catch(() => undefined);
     });
 
     return () => {
