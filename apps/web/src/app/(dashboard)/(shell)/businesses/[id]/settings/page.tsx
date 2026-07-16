@@ -190,6 +190,9 @@ export default function SettingsPage() {
   const [lunchBreak, setLunchBreak] = useState<LunchBreakValue>(null);
   const [lunchMsg, setLunchMsg] = useState(DEFAULT_LUNCH_MSG);
   const [appointmentBufferMins, setAppointmentBufferMins] = useState(0);
+  const [dailyReportEnabled, setDailyReportEnabled] = useState(false);
+  const [dailyReportHour, setDailyReportHour] = useState(20);
+  const [dailyReportMinute, setDailyReportMinute] = useState(0);
   const [hoursDirty, setHoursDirty] = useState(false);
 
   const {
@@ -235,6 +238,17 @@ export default function SettingsPage() {
         ? (business as { appointmentBufferMins: number }).appointmentBufferMins
         : 0
     );
+    setDailyReportEnabled((business as { dailyReportEnabled?: boolean }).dailyReportEnabled === true);
+    setDailyReportHour(
+      typeof (business as { dailyReportHour?: unknown }).dailyReportHour === "number"
+        ? (business as { dailyReportHour: number }).dailyReportHour
+        : 20
+    );
+    setDailyReportMinute(
+      typeof (business as { dailyReportMinute?: unknown }).dailyReportMinute === "number"
+        ? (business as { dailyReportMinute: number }).dailyReportMinute
+        : 0
+    );
     setHoursDirty(false);
   }, [business, reset]);
 
@@ -255,6 +269,9 @@ export default function SettingsPage() {
         lunchBreak: nextLunchBreak,
         lunchMsg: nextLunchBreak ? nextLunchMsg.trim() : undefined,
         appointmentBufferMins: form.type === "BARBERSHOP" ? appointmentBufferMins : 0,
+        dailyReportEnabled,
+        dailyReportHour,
+        dailyReportMinute,
       });
       await scheduleApi.put(businessId, {
         timezone: business?.timezone ?? "America/Sao_Paulo",
@@ -535,6 +552,64 @@ export default function SettingsPage() {
               )}
             />
           </Field>
+        </SectionCard>
+
+        {/* Relatório diário automático */}
+        <SectionCard
+          iconBg="bg-amber-100"
+          icon={<FileText className="w-5 h-5 text-amber-600" />}
+          title="Relatório diário automático"
+          description="Receba no seu WhatsApp o relatório dos agendamentos todo dia em um horário fixo"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-900">Envio automático</p>
+              <p className="text-xs text-gray-500 mt-0.5">Enviado para o seu próprio número conectado</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={dailyReportEnabled}
+              onClick={() => { setDailyReportEnabled((v) => !v); setHoursDirty(true); }}
+              className={cn(
+                "relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors",
+                dailyReportEnabled ? "bg-brand-600" : "bg-gray-300",
+              )}
+            >
+              <span
+                className={cn(
+                  "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform",
+                  dailyReportEnabled ? "translate-x-5" : "translate-x-0.5",
+                )}
+              />
+            </button>
+          </div>
+
+          {dailyReportEnabled && (
+            <Field label="Horário de envio" icon={<Clock className="w-3.5 h-3.5" />} hint="Fuso do negócio">
+              <div className="flex items-center gap-2">
+                <select
+                  value={dailyReportHour}
+                  onChange={(e) => { setDailyReportHour(Number(e.target.value)); setHoursDirty(true); }}
+                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                >
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <option key={h} value={h}>{String(h).padStart(2, "0")}</option>
+                  ))}
+                </select>
+                <span className="text-gray-400">:</span>
+                <select
+                  value={dailyReportMinute}
+                  onChange={(e) => { setDailyReportMinute(Number(e.target.value)); setHoursDirty(true); }}
+                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                >
+                  {[0, 15, 30, 45].map((m) => (
+                    <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
+                  ))}
+                </select>
+              </div>
+            </Field>
+          )}
         </SectionCard>
 
         <Button type="submit" className="sr-only" />

@@ -37,7 +37,16 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
         router.replace("/?auth=login");
         return;
       }
-      void user.reload().then(async () => {
+      void (async () => {
+        try {
+          await user.reload();
+        } catch {
+          if (user.uid) {
+            setUid(user.uid);
+            setReady(true);
+          }
+          return;
+        }
         if (!user.emailVerified) {
           removeToken();
           setUid(null);
@@ -45,13 +54,15 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
           router.replace("/?auth=register");
           return;
         }
-        const token = await user.getIdToken(true);
-        setToken(token);
-        await syncServerSession(token).catch(() => {});
+        const token = await user.getIdToken().catch(() => null);
+        if (token) {
+          setToken(token);
+          await syncServerSession(token).catch(() => {});
+        }
         setUid(user.uid);
         setReady(true);
         void authApi.sync(user.displayName ?? undefined).catch(() => {});
-      });
+      })();
     };
 
     void auth.authStateReady().then(() => {

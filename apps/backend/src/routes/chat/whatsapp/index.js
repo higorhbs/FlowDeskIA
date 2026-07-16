@@ -4,6 +4,7 @@ import {
   postMessageHandler,
   postMessageMediaHandler,
   postQrCodeHandler,
+  postReportHandler,
 } from './handler.js'
 
 export function register(app) {
@@ -12,4 +13,5 @@ export function register(app) {
   app.delete('/chat/whatsapp/connection/:businessId', deleteConnectionHandler)
   app.post('/chat/whatsapp/messages/:businessId', postMessageHandler)
   app.post('/chat/whatsapp/messages/:businessId/media', postMessageMediaHandler)
+  app.post('/chat/whatsapp/report/:businessId', postReportHandler)
 }

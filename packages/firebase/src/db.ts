@@ -186,6 +186,43 @@ export async function listBusinesses(tenantId: string): Promise<Business[]> {
   );
 }
 
+export async function listBusinessesWithDailyReport(): Promise<Business[]> {
+  const snap = await businesses().where("dailyReportEnabled", "==", true).get();
+  return snap.docs.map((d) =>
+    normalizeBusiness(d.id, d.data() as Record<string, unknown>)
+  );
+}
+
+function reportLockRef(businessId: string, dateKey: string) {
+  return businessRef(businessId).collection("reportLocks").doc(`daily_${dateKey}`);
+}
+
+export async function tryClaimDailyReport(
+  businessId: string,
+  dateKey: string
+): Promise<boolean> {
+  const ref = reportLockRef(businessId, dateKey);
+  try {
+    return await getDb().runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (snap.exists) return false;
+      tx.set(ref, { sentAt: nowIso(), dateKey });
+      return true;
+    });
+  } catch {
+    return false;
+  }
+}
+
+export async function releaseDailyReport(
+  businessId: string,
+  dateKey: string
+): Promise<void> {
+  await reportLockRef(businessId, dateKey)
+    .delete()
+    .catch(() => undefined);
+}
+
 export async function getBusiness(id: string, tenantId?: string): Promise<Business | null> {
   const snap = await businessRef(id).get();
   if (!snap.exists) return null;

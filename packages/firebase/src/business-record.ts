@@ -139,6 +139,15 @@ export function normalizeBusiness(id: string, raw: Record<string, unknown>): Bus
       typeof raw.appointmentBufferMins === "number" && raw.appointmentBufferMins >= 0
         ? raw.appointmentBufferMins
         : undefined,
+    dailyReportEnabled: raw.dailyReportEnabled === true,
+    dailyReportHour:
+      typeof raw.dailyReportHour === "number" && raw.dailyReportHour >= 0 && raw.dailyReportHour <= 23
+        ? raw.dailyReportHour
+        : undefined,
+    dailyReportMinute:
+      typeof raw.dailyReportMinute === "number" && raw.dailyReportMinute >= 0 && raw.dailyReportMinute <= 59
+        ? raw.dailyReportMinute
+        : undefined,
     isConnected: raw.isConnected === true,
   };
 }
