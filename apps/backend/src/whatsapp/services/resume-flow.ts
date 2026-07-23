@@ -94,8 +94,12 @@ export function resumeArchivedFields(state?: { step: string; data?: Record<strin
 }
 
 export function getResumeFlowConfig(business: {
+  type?: string;
   resumeFlow?: ResumeFlowConfig | null;
 }): ResumeFlowConfig | null {
+  if (business.type === "BARBERSHOP" || business.type === "RESTAURANT") {
+    return null;
+  }
   const cfg = normalizeResumeFlowConfig(business.resumeFlow);
   if (!cfg.enabled) return null;
   return cfg;

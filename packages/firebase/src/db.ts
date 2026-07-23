@@ -22,13 +22,14 @@ import type {
 import {
   assertStoriesPublishQuota,
   assertLeadFlowMediaQuota,
+  normalizeBusinessType,
   normalizeLeadCaptureFlow,
   STARTER_TRIAL_DAYS,
   monthKey,
   type PlanTier,
 } from "@flowdesk/shared";
-import type { LeadCaptureFlow, ResumeFlowConfig } from "@flowdesk/shared";
-import { buildBusinessCreateRecord, normalizeBusiness, serializeLeadFlowForFirestore, serializeResumeFlowForFirestore } from "./business-record.js";
+import type { LeadCaptureFlow, ResumeFlowConfig, AppointmentBotConfig } from "@flowdesk/shared";
+import { buildBusinessCreateRecord, normalizeBusiness, serializeLeadFlowForFirestore, serializeResumeFlowForFirestore, serializeAppointmentBotForFirestore } from "./business-record.js";
 import { getBusinessSchedule, resolveBotOperatingContext } from "./schedule.js";
 import { resolveStoryScheduledAts } from "./schedule-status-dates.js";
 import type { Query, QueryDocumentSnapshot } from "firebase-admin/firestore";
@@ -340,8 +341,18 @@ export async function updateBusiness(
   if (patch.resumeFlow && typeof patch.resumeFlow === "object") {
     patch.resumeFlow = serializeResumeFlowForFirestore(patch.resumeFlow as ResumeFlowConfig);
   }
-  if (patch.type && patch.type !== "OTHER") patch.typeLabel = AdminFieldValue.delete();
-  else if (typeof patch.typeLabel === "string") patch.typeLabel = patch.typeLabel.trim() || AdminFieldValue.delete();
+  if (patch.appointmentBot && typeof patch.appointmentBot === "object") {
+    patch.appointmentBot = serializeAppointmentBotForFirestore(
+      patch.appointmentBot as AppointmentBotConfig,
+    );
+  }
+  if (patch.type) {
+    patch.type = normalizeBusinessType(String(patch.type));
+    if (patch.type !== "OTHER") patch.typeLabel = AdminFieldValue.delete();
+    else if (typeof patch.typeLabel === "string") patch.typeLabel = patch.typeLabel.trim() || AdminFieldValue.delete();
+  } else if (typeof patch.typeLabel === "string") {
+    patch.typeLabel = patch.typeLabel.trim() || AdminFieldValue.delete();
+  }
   await businessRef(id).update(patch);
   return getBusiness(id, tenantId);
 }

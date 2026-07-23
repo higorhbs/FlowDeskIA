@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAppRouter } from "@/lib/app-navigation";
 import { panelHref } from "@/lib/business-nav";
@@ -16,13 +16,20 @@ import { toast } from "sonner";
 import {
   MessageSquare, HelpCircle, Plus, Trash2, Loader2, X,
   ChevronUp, ChevronDown, Eye, Save, Pencil, Check,
-  Sparkles, Hash, MessageCircleQuestion, Zap, GitBranch, FileText, UtensilsCrossed,
+  Sparkles, Hash, MessageCircleQuestion, Zap, GitBranch, FileText, UtensilsCrossed, CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import type { BotMenuItemConfig } from "@flowdesk/firebase/client";
-import { buildBotMenuEntries, getBusinessVocabulary, renderTemplate, DEFAULT_THANKS_MSG } from "@flowdesk/shared";
+import {
+  buildBotMenuEntries,
+  getBusinessVocabulary,
+  renderTemplate,
+  DEFAULT_THANKS_MSG,
+  normalizeAppointmentBotConfig,
+  type AppointmentBotConfig,
+} from "@flowdesk/shared";
 import { IaIcon } from "@/lib/ia-brand";
 import { usePlanAllowsPix } from "@/lib/use-plan-allows-pix";
 import { LeadFlowEditor } from "@/components/ia/LeadFlowEditor";
@@ -94,7 +101,7 @@ const faqSchema = z.object({
 type FAQForm = z.infer<typeof faqSchema>;
 
 type Tab = "menu" | "faqs" | "leadflow" | "resume" | "weeklymenu";
-type PreviewFocus = "greeting" | "menu" | "thanks" | "attendant";
+type PreviewFocus = "greeting" | "menu" | "thanks" | "attendant" | "appointment";
 
 // ── Emoji picker ───────────────────────────────────────────────────────────────
 const EMOJI_CATS = [
@@ -277,6 +284,7 @@ function BotMenuEditor({
   initialAttendantNames,
   initialAttendantEnabled,
   initialManualAttendantPrefixEnabled,
+  initialAppointmentBot,
   autoReplyEnabled,
 }: {
   businessId: string;
@@ -292,9 +300,11 @@ function BotMenuEditor({
   initialAttendantNames: string[];
   initialAttendantEnabled: boolean;
   initialManualAttendantPrefixEnabled: boolean;
+  initialAppointmentBot?: AppointmentBotConfig | null;
   autoReplyEnabled: boolean;
 }) {
   const v = getBusinessVocabulary(businessType);
+  const isSalon = businessType === "BARBERSHOP";
   const queryClient = useQueryClient();
   const [items, setItems] = useState<BotMenuItemConfig[]>(initialMenu);
   const [menuEnabled, setMenuEnabled] = useState(initialMenuEnabled);
@@ -313,6 +323,9 @@ function BotMenuEditor({
   const [attendantEnabled, setAttendantEnabled] = useState(initialAttendantEnabled);
   const [manualAttendantPrefixEnabled, setManualAttendantPrefixEnabled] = useState(
     initialManualAttendantPrefixEnabled
+  );
+  const [appointmentBot, setAppointmentBot] = useState<AppointmentBotConfig>(() =>
+    normalizeAppointmentBotConfig(initialAppointmentBot)
   );
   const [previewFocus, setPreviewFocus] = useState<PreviewFocus>("greeting");
 
@@ -396,6 +409,9 @@ function BotMenuEditor({
         attendantName: primaryAttendantName,
         attendantNames: attendantNamesSanitized.length ? attendantNamesSanitized : undefined,
         manualAttendantPrefixEnabled,
+        ...(isSalon
+          ? { appointmentBot: normalizeAppointmentBotConfig(appointmentBot) }
+          : {}),
       } as any);
       },
     onSuccess: () => {
@@ -458,14 +474,19 @@ function BotMenuEditor({
     thanksMsg,
     attendantEnabled,
     manualAttendantPrefixEnabled,
+    appointmentBot,
     focus: previewFocus,
   });
-  const showPreview = previewLines.length > 0;
+  const appointmentPreview = isSalon
+    ? buildAppointmentPreview(businessName, appointmentBot)
+    : null;
+  const showPreview = previewLines.length > 0 || (previewFocus === "appointment" && !!appointmentPreview);
   const previewTitle: Record<PreviewFocus, string> = {
     greeting: "Prévia da saudação inicial",
     menu: "Prévia do menu numérico",
     thanks: "Prévia de agradecimento",
     attendant: "Prévia do nome no manual",
+    appointment: "Prévia do fluxo de agendamento",
   };
 
   return (
@@ -726,6 +747,121 @@ function BotMenuEditor({
             </>
           )}
 
+          {isSalon && (
+            <div
+              className={cn(
+                "rounded-2xl border border-gray-200 bg-white px-4 py-4 mb-4",
+                !autoReplyEnabled && "opacity-50 pointer-events-none"
+              )}
+              onFocusCapture={() => setPreviewFocus("appointment")}
+            >
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center flex-shrink-0">
+                  <CalendarDays className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900">Configuração de agendamentos</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Mensagens padrão ativas — edite se quiser. Cliente agenda pelo WhatsApp com este fluxo.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Mensagem de agendamento
+                  </label>
+                  <textarea
+                    value={appointmentBot.startMessage}
+                    onChange={(e) =>
+                      setAppointmentBot((c) => ({ ...c, startMessage: e.target.value }))
+                    }
+                    onFocus={() => setPreviewFocus("appointment")}
+                    rows={4}
+                    className="input resize-none w-full text-sm"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Variáveis: <code className="bg-gray-100 px-1 rounded font-mono">{"{nome}"}</code>,{" "}
+                    <code className="bg-gray-100 px-1 rounded font-mono">{"{negocio}"}</code>
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    O que o cliente deve digitar
+                  </label>
+                  <input
+                    type="text"
+                    value={appointmentBot.clientInputExample}
+                    onChange={(e) =>
+                      setAppointmentBot((c) => ({ ...c, clientInputExample: e.target.value }))
+                    }
+                    onFocus={() => setPreviewFocus("appointment")}
+                    className="input w-full text-sm"
+                    placeholder="Ex: 15/06"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Exemplo na prévia (data no formato dd/mm). Depois a IA pede o horário.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    {appointmentBot.requiresApproval
+                      ? "Resposta após solicitar (aguardando confirmação)"
+                      : "Resposta de agendamento concluído"}
+                  </label>
+                  <textarea
+                    value={
+                      appointmentBot.requiresApproval
+                        ? appointmentBot.awaitingMessage
+                        : appointmentBot.completedMessage
+                    }
+                    onChange={(e) =>
+                      setAppointmentBot((c) =>
+                        c.requiresApproval
+                          ? { ...c, awaitingMessage: e.target.value }
+                          : { ...c, completedMessage: e.target.value }
+                      )
+                    }
+                    onFocus={() => setPreviewFocus("appointment")}
+                    rows={6}
+                    className="input resize-none w-full text-sm"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Variáveis:{" "}
+                    <code className="bg-gray-100 px-1 rounded font-mono">{"{data}"}</code>,{" "}
+                    <code className="bg-gray-100 px-1 rounded font-mono">{"{hora}"}</code>,{" "}
+                    <code className="bg-gray-100 px-1 rounded font-mono">{"{codigo}"}</code>,{" "}
+                    <code className="bg-gray-100 px-1 rounded font-mono">{"{nome}"}</code>,{" "}
+                    <code className="bg-gray-100 px-1 rounded font-mono">{"{negocio}"}</code>
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-amber-950">Confirmar agendamentos manualmente</p>
+                      <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                        {appointmentBot.requiresApproval
+                          ? "Ativo: cliente solicita no WhatsApp e fica aguardando. Você confirma ou recusa na tela de Agendamentos. Só depois o cliente recebe a confirmação."
+                          : "Desligado (padrão): agendamento já entra confirmado no WhatsApp. Se ligar, você passa a confirmar na tela de Agendamentos."}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={appointmentBot.requiresApproval}
+                      onCheckedChange={(checked) => {
+                        setAppointmentBot((c) => ({ ...c, requiresApproval: checked }));
+                        setPreviewFocus("appointment");
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div
             className={cn(
               "rounded-2xl border border-gray-200 bg-white px-4 py-3.5",
@@ -964,22 +1100,36 @@ function BotMenuEditor({
                 <div className="flex justify-center mb-3">
                   <span className="bg-black/20 text-white text-[9px] px-2 py-0.5 rounded-full">Hoje</span>
                 </div>
-                <div className="flex justify-end">
-                  <div className="relative rounded-2xl rounded-tr-sm px-3 py-2 shadow-sm"
-                    style={{ fontSize: "11.5px", lineHeight: "1.55", maxWidth: "88%", backgroundColor: "#DCF8C6" }}
-                  >
-                    <div className="absolute -right-[7px] top-0 w-0 h-0"
-                      style={{ borderTop: "8px solid #DCF8C6", borderRight: "8px solid transparent" }} />
-                    <WaMessage lines={previewLines} />
-                    <div className="flex justify-end items-center gap-1 mt-1.5">
-                      <span className="text-[9px] text-gray-400">agora</span>
-                      <svg width="14" height="8" viewBox="0 0 14 8" fill="none">
-                        <path d="M1 4l2.5 2.5L8 1" stroke="#53BDEB" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M5 4l2.5 2.5L12 1" stroke="#53BDEB" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
+                {previewFocus === "appointment" && appointmentPreview ? (
+                  <div className="space-y-2.5">
+                    <PreviewBubble side="bot">
+                      <WaMessage lines={appointmentPreview.start} />
+                    </PreviewBubble>
+                    <PreviewBubble side="client">
+                      <WaMessage lines={appointmentPreview.client} />
+                    </PreviewBubble>
+                    <PreviewBubble side="bot">
+                      <WaMessage lines={appointmentPreview.done} />
+                    </PreviewBubble>
+                  </div>
+                ) : (
+                  <div className="flex justify-end">
+                    <div className="relative rounded-2xl rounded-tr-sm px-3 py-2 shadow-sm"
+                      style={{ fontSize: "11.5px", lineHeight: "1.55", maxWidth: "88%", backgroundColor: "#DCF8C6" }}
+                    >
+                      <div className="absolute -right-[7px] top-0 w-0 h-0"
+                        style={{ borderTop: "8px solid #DCF8C6", borderRight: "8px solid transparent" }} />
+                      <WaMessage lines={previewLines} />
+                      <div className="flex justify-end items-center gap-1 mt-1.5">
+                        <span className="text-[9px] text-gray-400">agora</span>
+                        <svg width="14" height="8" viewBox="0 0 14 8" fill="none">
+                          <path d="M1 4l2.5 2.5L8 1" stroke="#53BDEB" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M5 4l2.5 2.5L12 1" stroke="#53BDEB" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
               <div className="bg-[#F0F2F5] px-2 py-2 flex items-center gap-1.5">
                 <div className="flex-1 bg-white rounded-full px-3 py-1.5 shadow-sm">
@@ -1004,6 +1154,90 @@ function BotMenuEditor({
 }
 
 // ── WhatsApp markdown ──────────────────────────────────────────────────────────
+function PreviewBubble({
+  side,
+  children,
+}: {
+  side: "bot" | "client";
+  children: ReactNode;
+}) {
+  const isBot = side === "bot";
+  return (
+    <div className={cn("flex", isBot ? "justify-end" : "justify-start")}>
+      <div
+        className={cn(
+          "relative rounded-2xl px-3 py-2 shadow-sm",
+          isBot ? "rounded-tr-sm" : "rounded-tl-sm"
+        )}
+        style={{
+          fontSize: "11.5px",
+          lineHeight: "1.55",
+          maxWidth: "88%",
+          backgroundColor: isBot ? "#DCF8C6" : "#FFFFFF",
+        }}
+      >
+        <div
+          className="absolute top-0 w-0 h-0"
+          style={
+            isBot
+              ? {
+                  right: -7,
+                  borderTop: "8px solid #DCF8C6",
+                  borderRight: "8px solid transparent",
+                }
+              : {
+                  left: -7,
+                  borderTop: "8px solid #FFFFFF",
+                  borderLeft: "8px solid transparent",
+                }
+          }
+        />
+        {children}
+        <div className="flex justify-end items-center gap-1 mt-1.5">
+          <span className="text-[9px] text-gray-400">agora</span>
+          {isBot && (
+            <svg width="14" height="8" viewBox="0 0 14 8" fill="none">
+              <path d="M1 4l2.5 2.5L8 1" stroke="#53BDEB" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M5 4l2.5 2.5L12 1" stroke="#53BDEB" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function textToWaLines(text: string): WaLine[] {
+  const lines: WaLine[] = [];
+  for (const part of text.split("\n")) {
+    if (!part.trim()) lines.push({ blank: true });
+    else lines.push({ text: part });
+  }
+  return lines.length ? lines : [{ text: "_" }];
+}
+
+function buildAppointmentPreview(name: string, cfg: AppointmentBotConfig) {
+  const start = renderTemplate(cfg.startMessage, {
+    nome: "Maria",
+    negocio: name,
+  }).trim();
+  const done = renderTemplate(
+    cfg.requiresApproval ? cfg.awaitingMessage : cfg.completedMessage,
+    {
+      nome: "Maria",
+      negocio: name,
+      data: "15/06/2026",
+      hora: "10:00",
+      codigo: "a1b2c3d4",
+    },
+  ).trim();
+  return {
+    start: textToWaLines(start || "_Digite a mensagem de agendamento_"),
+    client: textToWaLines(cfg.clientInputExample.trim() || "15/06"),
+    done: textToWaLines(done || "_Digite a resposta final_"),
+  };
+}
+
 function WaMessage({ lines }: { lines: WaLine[] }) {
   return (
     <div className="text-gray-800 space-y-0 leading-[1.5]" style={{ fontSize: "12px" }}>
@@ -1045,9 +1279,12 @@ function buildPreviewLines(
     thanksMsg: string;
     attendantEnabled: boolean;
     manualAttendantPrefixEnabled: boolean;
+    appointmentBot?: AppointmentBotConfig;
     focus: PreviewFocus;
   },
 ): WaLine[] {
+  if (opts.focus === "appointment") return [];
+
   const hasGreeting = opts.greetingEnabled && opts.greetingMsg.trim();
 
   const lines: WaLine[] = [];
@@ -1467,6 +1704,11 @@ export default function BotPage() {
     setAutoReplyEnabled((business as { botAutoReplyEnabled?: boolean }).botAutoReplyEnabled !== false);
   }, [business]);
 
+  const isRestaurant = business?.type === "RESTAURANT";
+  const isSalon = business?.type === "BARBERSHOP";
+  const showLeadFlow = !isSalon;
+  const showResumeFlow = !isRestaurant && !isSalon;
+
   const autoReplyMutation = useMutation({
     mutationFn: (enabled: boolean) =>
       businessApi.update(businessId, { botAutoReplyEnabled: enabled } as Record<string, unknown>),
@@ -1474,21 +1716,23 @@ export default function BotPage() {
       void queryClient.invalidateQueries({ queryKey: ["business", businessId] });
       toast.success(
         enabled
-          ? "Respostas automáticas ativadas — configure menu, vendas guiadas e perguntas abaixo."
+          ? isSalon
+            ? "Respostas automáticas ativadas — configure menu e perguntas abaixo."
+            : "Respostas automáticas ativadas — configure menu, vendas guiadas e perguntas abaixo."
           : "Respostas automáticas desativadas."
       );
     },
     onError: () => toast.error("Erro ao atualizar respostas automáticas"),
   });
 
-  const isRestaurant = business?.type === "RESTAURANT";
-
   const iaTabs = autoReplyEnabled
     ? ([
         { id: "menu" as const, label: "Menu da IA", icon: MessageSquare },
         { id: "faqs" as const, label: "Perguntas & Respostas", icon: HelpCircle },
-        { id: "leadflow" as const, label: "Vendas guiadas", icon: GitBranch },
-        ...(!isRestaurant
+        ...(showLeadFlow
+          ? [{ id: "leadflow" as const, label: "Vendas guiadas", icon: GitBranch }]
+          : []),
+        ...(showResumeFlow
           ? [{ id: "resume" as const, label: "Geração de documentos", icon: FileText }]
           : []),
         ...(isRestaurant
@@ -1498,9 +1742,18 @@ export default function BotPage() {
     : [];
 
   useEffect(() => {
-    if (autoReplyEnabled) return;
-    if (tab !== "menu") setTab("menu");
-  }, [autoReplyEnabled, tab]);
+    if (!autoReplyEnabled) {
+      if (tab !== "menu") setTab("menu");
+      return;
+    }
+    const allowed =
+      tab === "menu" ||
+      tab === "faqs" ||
+      (tab === "leadflow" && showLeadFlow) ||
+      (tab === "resume" && showResumeFlow) ||
+      (tab === "weeklymenu" && isRestaurant);
+    if (!allowed) setTab("menu");
+  }, [autoReplyEnabled, tab, showLeadFlow, showResumeFlow, isRestaurant]);
 
   const { data: tenant } = useQuery({
     queryKey: ["tenant"],
@@ -1527,7 +1780,9 @@ export default function BotPage() {
           <div>
             <h1 className="text-2xl font-bold text-white">Configuração da IA</h1>
             <p className="text-brand-100 text-sm mt-0.5">
-              Personalize saudação, menu, vendas guiadas e respostas automáticas da IA no WhatsApp
+              {isSalon
+                ? "Personalize saudação, menu e respostas automáticas da IA no WhatsApp"
+                : "Personalize saudação, menu, vendas guiadas e respostas automáticas da IA no WhatsApp"}
             </p>
           </div>
         </div>
@@ -1541,7 +1796,11 @@ export default function BotPage() {
       >
         <ToggleRow
           label="Respostas automáticas da IA"
-          hint="Desligado: a IA não envia nada no WhatsApp. Ligado: configure menu, vendas guiadas e perguntas nas abas abaixo."
+          hint={
+            isSalon
+              ? "Desligado: a IA não envia nada no WhatsApp. Ligado: configure menu e perguntas nas abas abaixo."
+              : "Desligado: a IA não envia nada no WhatsApp. Ligado: configure menu, vendas guiadas e perguntas nas abas abaixo."
+          }
           checked={autoReplyEnabled}
           disabled={autoReplyMutation.isPending || isLoading}
           onChange={(enabled) => {
@@ -1553,8 +1812,9 @@ export default function BotPage() {
 
       {!autoReplyEnabled && (
         <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6">
-          Com as respostas desligadas, o menu, as vendas guiadas e as perguntas ficam ocultos. Ative o interruptor acima
-          para configurá-los, ou responda manualmente em Conversas.
+          {isSalon
+            ? "Com as respostas desligadas, o menu e as perguntas ficam ocultos. Ative o interruptor acima para configurá-los, ou responda manualmente em Conversas."
+            : "Com as respostas desligadas, o menu, as vendas guiadas e as perguntas ficam ocultos. Ative o interruptor acima para configurá-los, ou responda manualmente em Conversas."}
         </p>
       )}
 
@@ -1606,17 +1866,18 @@ export default function BotPage() {
           initialManualAttendantPrefixEnabled={
             (business as { manualAttendantPrefixEnabled?: boolean })?.manualAttendantPrefixEnabled !== false
           }
+          initialAppointmentBot={(business as { appointmentBot?: AppointmentBotConfig })?.appointmentBot}
           autoReplyEnabled={autoReplyEnabled}
         />
       ) : tab === "faqs" && autoReplyEnabled ? (
         <FAQsEditor businessId={businessId} businessType={business?.type} />
-      ) : tab === "leadflow" && autoReplyEnabled ? (
+      ) : tab === "leadflow" && autoReplyEnabled && showLeadFlow ? (
         <LeadFlowEditor
           businessId={businessId}
           businessName={business?.name ?? "Meu Negócio"}
           initialFlow={initialLeadFlow}
         />
-      ) : tab === "resume" && autoReplyEnabled ? (
+      ) : tab === "resume" && autoReplyEnabled && showResumeFlow ? (
         <ResumeFlowEditor
           businessId={businessId}
           businessName={business?.name ?? "Meu Negócio"}

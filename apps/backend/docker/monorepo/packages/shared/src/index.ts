@@ -432,3 +432,4 @@ export * from "./message-role.js";
 export * from "./trial.js";
 export * from "./lead-flow.js";
 export * from "./resume-flow.js";
+export * from "./appointment-bot.js";

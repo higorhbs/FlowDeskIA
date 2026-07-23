@@ -17,7 +17,6 @@ import { json, requireBearerUser } from '../../lib/auth-guard.js'
 
 const BUSINESS_TYPES = new Set([
   'BARBERSHOP',
-  'SALON',
   'RESTAURANT',
   'DENTAL',
   'STORE',
@@ -42,7 +41,8 @@ function normalizePhone(raw) {
 
 function parseCreateBody(body) {
   const name = typeof body?.name === 'string' ? body.name.trim() : ''
-  const type = typeof body?.type === 'string' ? body.type.trim().toUpperCase() : ''
+  const typeRaw = typeof body?.type === 'string' ? body.type.trim().toUpperCase() : ''
+  const type = typeRaw === 'SALON' ? 'BARBERSHOP' : typeRaw
   const phone = normalizePhone(
     typeof body?.whatsapp === 'string'
       ? body.whatsapp
@@ -65,7 +65,7 @@ function parseCreateBody(body) {
   if (!BUSINESS_TYPES.has(type)) {
     return {
       error:
-        'Tipo inválido. Use: BARBERSHOP, SALON, RESTAURANT, DENTAL, STORE ou OTHER.',
+        'Tipo inválido. Use: BARBERSHOP, RESTAURANT, DENTAL, STORE ou OTHER.',
     }
   }
   if (!phone) {

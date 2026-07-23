@@ -9,7 +9,7 @@ const businessSchema = {
     name: { type: 'string' },
     type: {
       type: 'string',
-      enum: ['BARBERSHOP', 'SALON', 'RESTAURANT', 'DENTAL', 'STORE', 'OTHER'],
+      enum: ['BARBERSHOP', 'RESTAURANT', 'DENTAL', 'STORE', 'OTHER'],
     },
     phone: { type: 'string', description: 'WhatsApp (somente dígitos)' },
     description: { type: 'string' },
@@ -25,7 +25,7 @@ const createBody = {
     name: { type: 'string', minLength: 2 },
     type: {
       type: 'string',
-      enum: ['BARBERSHOP', 'SALON', 'RESTAURANT', 'DENTAL', 'STORE', 'OTHER'],
+      enum: ['BARBERSHOP', 'RESTAURANT', 'DENTAL', 'STORE', 'OTHER'],
     },
     whatsapp: { type: 'string', description: 'Número WhatsApp (10–15 dígitos, com DDI)' },
     phone: { type: 'string', description: 'Alias de whatsapp' },

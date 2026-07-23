@@ -29,7 +29,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useBusinessId } from "@/lib/use-business-id";
 import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
-import { getBookingStatusLabel } from "@flowdesk/shared";
+import { getBookingStatusLabel, businessRequiresBookingApproval } from "@flowdesk/shared";
 import { toast } from "sonner";
 import { VocabLabel } from "@/components/layout/VocabLabel";
 
@@ -130,6 +130,11 @@ export default function AppointmentsPage() {
     enabled: !!businessId,
   });
 
+  const needsBookingApproval = businessRequiresBookingApproval(
+    business?.type ?? v.businessType,
+    (business as { appointmentBot?: { requiresApproval?: boolean } } | undefined)?.appointmentBot,
+  );
+
   const { data: catalog = [] } = useQuery({
     queryKey: ["catalog", businessId],
     queryFn: () => catalogApi.list(businessId),
@@ -192,7 +197,7 @@ export default function AppointmentsPage() {
   const { data: allPending = [] } = useQuery({
     queryKey: ["appointments-pending", businessId],
     queryFn: () => appointmentApi.list(businessId, { status: "PENDING" }),
-    enabled: v.bookingRequiresApproval,
+    enabled: needsBookingApproval,
   });
 
   const updateMutation = useMutation({
@@ -213,7 +218,7 @@ export default function AppointmentsPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao salvar"),
   });
 
-  const pending = v.bookingRequiresApproval
+  const pending = needsBookingApproval
     ? (allPending as Apt[])
     : (appointments as Apt[]).filter((a) => a.status === "PENDING");
   const bizType = v.businessType;
@@ -378,7 +383,7 @@ export default function AppointmentsPage() {
         <p className="text-xs text-gray-400">Arraste um card para outro dia para reagendar · clique para editar</p>
       </div>
 
-      {v.bookingRequiresApproval && pending.length > 0 && (
+      {needsBookingApproval && pending.length > 0 && (
         <div className="mb-8 rounded-2xl border-2 border-orange-200 bg-orange-50/80 p-4 md:p-5">
           <h2 className="text-sm font-semibold text-orange-900 mb-3">{v.bookingPendingSectionTitle}</h2>
           <div className="space-y-3">
@@ -533,7 +538,7 @@ export default function AppointmentsPage() {
                           >
                             {getBookingStatusLabel(bizType, apt.status)}
                           </span>
-                          {v.bookingRequiresApproval && apt.status === "PENDING" && (
+                          {needsBookingApproval && apt.status === "PENDING" && (
                             <div className="flex gap-1 mt-2">
                               <Button
                                 type="button"

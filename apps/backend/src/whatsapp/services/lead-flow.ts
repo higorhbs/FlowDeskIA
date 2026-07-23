@@ -73,7 +73,11 @@ export function isLeadFlowActive(state?: { step: string } | null): boolean {
   return state?.step === "LEAD_FLOW";
 }
 
-export function getLeadFlowConfig(business: { leadFlow?: LeadCaptureFlow | null }): LeadCaptureFlow | null {
+export function getLeadFlowConfig(business: {
+  type?: string;
+  leadFlow?: LeadCaptureFlow | null;
+}): LeadCaptureFlow | null {
+  if (business.type === "BARBERSHOP") return null;
   const flow = normalizeLeadCaptureFlow(business.leadFlow);
   if (!flow.enabled || !flow.nodes.length) return null;
   if (!findLeadFlowNode(flow, flow.startNodeId)) return null;

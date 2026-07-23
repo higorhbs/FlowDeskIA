@@ -1,6 +1,6 @@
 export type Plan = "STARTER" | "PRO" | "UNLIMITED";
 export type PlanStatus = "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED";
-export type BusinessType = "STORE" | "BARBERSHOP" | "SALON" | "RESTAURANT" | "DENTAL" | "OTHER";
+export type BusinessType = "STORE" | "BARBERSHOP" | "RESTAURANT" | "DENTAL" | "OTHER";
 export type ConversationStatus = "OPEN" | "ATTENDING" | "CLOSED";
 export type MessageRole = "CUSTOMER" | "IA" | "HUMAN";
 export type AppointmentStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED" | "NO_SHOW";
@@ -82,6 +82,7 @@ import type {
   WeeklyMenuItem,
   DailyMenu,
   WeeklyMenuConfig,
+  AppointmentBotConfig,
 } from "@flowdesk/shared";
 
 export type {
@@ -93,6 +94,7 @@ export type {
   WeeklyMenuItem,
   DailyMenu,
   WeeklyMenuConfig,
+  AppointmentBotConfig,
 };
 
 export interface Business {
@@ -126,6 +128,7 @@ export interface Business {
   leadFlow?: LeadCaptureFlow;
   resumeFlow?: ResumeFlowConfig;
   weeklyMenu?: WeeklyMenuConfig;
+  appointmentBot?: AppointmentBotConfig;
   appointmentBufferMins?: number;
   dailyReportEnabled?: boolean;
   dailyReportHour?: number;

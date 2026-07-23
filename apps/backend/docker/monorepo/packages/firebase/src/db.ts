@@ -22,13 +22,14 @@ import type {
 import {
   assertStoriesPublishQuota,
   assertLeadFlowMediaQuota,
+  normalizeBusinessType,
   normalizeLeadCaptureFlow,
   STARTER_TRIAL_DAYS,
   monthKey,
   type PlanTier,
 } from "@flowdesk/shared";
-import type { LeadCaptureFlow, ResumeFlowConfig } from "@flowdesk/shared";
-import { buildBusinessCreateRecord, normalizeBusiness, serializeLeadFlowForFirestore, serializeResumeFlowForFirestore } from "./business-record.js";
+import type { LeadCaptureFlow, ResumeFlowConfig, AppointmentBotConfig } from "@flowdesk/shared";
+import { buildBusinessCreateRecord, normalizeBusiness, serializeLeadFlowForFirestore, serializeResumeFlowForFirestore, serializeAppointmentBotForFirestore } from "./business-record.js";
 import { getBusinessSchedule, resolveBotOperatingContext } from "./schedule.js";
 import { resolveStoryScheduledAts } from "./schedule-status-dates.js";
 import type { Query, QueryDocumentSnapshot } from "firebase-admin/firestore";
@@ -186,6 +187,43 @@ export async function listBusinesses(tenantId: string): Promise<Business[]> {
   );
 }
 
+export async function listBusinessesWithDailyReport(): Promise<Business[]> {
+  const snap = await businesses().where("dailyReportEnabled", "==", true).get();
+  return snap.docs.map((d) =>
+    normalizeBusiness(d.id, d.data() as Record<string, unknown>)
+  );
+}
+
+function reportLockRef(businessId: string, dateKey: string) {
+  return businessRef(businessId).collection("reportLocks").doc(`daily_${dateKey}`);
+}
+
+export async function tryClaimDailyReport(
+  businessId: string,
+  dateKey: string
+): Promise<boolean> {
+  const ref = reportLockRef(businessId, dateKey);
+  try {
+    return await getDb().runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (snap.exists) return false;
+      tx.set(ref, { sentAt: nowIso(), dateKey });
+      return true;
+    });
+  } catch {
+    return false;
+  }
+}
+
+export async function releaseDailyReport(
+  businessId: string,
+  dateKey: string
+): Promise<void> {
+  await reportLockRef(businessId, dateKey)
+    .delete()
+    .catch(() => undefined);
+}
+
 export async function getBusiness(id: string, tenantId?: string): Promise<Business | null> {
   const snap = await businessRef(id).get();
   if (!snap.exists) return null;
@@ -303,8 +341,18 @@ export async function updateBusiness(
   if (patch.resumeFlow && typeof patch.resumeFlow === "object") {
     patch.resumeFlow = serializeResumeFlowForFirestore(patch.resumeFlow as ResumeFlowConfig);
   }
-  if (patch.type && patch.type !== "OTHER") patch.typeLabel = AdminFieldValue.delete();
-  else if (typeof patch.typeLabel === "string") patch.typeLabel = patch.typeLabel.trim() || AdminFieldValue.delete();
+  if (patch.appointmentBot && typeof patch.appointmentBot === "object") {
+    patch.appointmentBot = serializeAppointmentBotForFirestore(
+      patch.appointmentBot as AppointmentBotConfig,
+    );
+  }
+  if (patch.type) {
+    patch.type = normalizeBusinessType(String(patch.type));
+    if (patch.type !== "OTHER") patch.typeLabel = AdminFieldValue.delete();
+    else if (typeof patch.typeLabel === "string") patch.typeLabel = patch.typeLabel.trim() || AdminFieldValue.delete();
+  } else if (typeof patch.typeLabel === "string") {
+    patch.typeLabel = patch.typeLabel.trim() || AdminFieldValue.delete();
+  }
   await businessRef(id).update(patch);
   return getBusiness(id, tenantId);
 }
@@ -956,7 +1004,7 @@ export async function createAppointment(
   const id = newId();
   const ts = nowIso();
   const apt: Appointment = { id, reminderSent: false, createdAt: ts, updatedAt: ts, ...data };
-  await appointmentsCol(data.businessId).doc(id).set(apt);
+  await appointmentsCol(data.businessId).doc(id).set(removeUndefined(apt as unknown as Record<string, unknown>));
   return apt;
 }
 
