@@ -174,9 +174,19 @@ const ORDER_FLOW_STEPS = new Set([
   "ORDER_ADDRESS",
   "ORDER_PAYMENT",
 ]);
+const ORDER_FLOW_TTL_MS = 3 * 60 * 60 * 1000;
+const ORDER_FLOW_AT_KEY = "orderFlowAt";
 
 function isOrderFlowStep(step?: string | null): boolean {
   return !!step && ORDER_FLOW_STEPS.has(step);
+}
+
+function isOrderFlowExpired(data?: Record<string, string> | null): boolean {
+  const raw = data?.[ORDER_FLOW_AT_KEY];
+  if (!raw) return false;
+  const started = Date.parse(raw);
+  if (Number.isNaN(started)) return true;
+  return Date.now() - started > ORDER_FLOW_TTL_MS;
 }
 
 async function setOrderFlowState(
@@ -185,8 +195,12 @@ async function setOrderFlowState(
   sessionKey: string,
   state: { step: string; data: Record<string, string> },
 ): Promise<void> {
-  conversationState.set(sessionKey, state);
-  await setConversationBotFlowState(businessId, conversationId, state).catch(() => undefined);
+  const prevAt = state.data[ORDER_FLOW_AT_KEY];
+  const orderFlowAt =
+    prevAt && !Number.isNaN(Date.parse(prevAt)) ? prevAt : new Date().toISOString();
+  const next = { step: state.step, data: { ...state.data, [ORDER_FLOW_AT_KEY]: orderFlowAt } };
+  conversationState.set(sessionKey, next);
+  await setConversationBotFlowState(businessId, conversationId, next).catch(() => undefined);
 }
 
 async function clearOrderFlowState(
@@ -196,6 +210,17 @@ async function clearOrderFlowState(
 ): Promise<void> {
   conversationState.delete(sessionKey);
   await clearConversationBotFlowState(businessId, conversationId).catch(() => undefined);
+}
+
+async function expireOrderFlowIfNeeded(
+  businessId: string,
+  conversationId: string,
+  sessionKey: string,
+  state?: { step: string; data: Record<string, string> } | null,
+): Promise<boolean> {
+  if (!isOrderFlowStep(state?.step) || !isOrderFlowExpired(state?.data)) return false;
+  await clearOrderFlowState(businessId, conversationId, sessionKey);
+  return true;
 }
 
 function shouldDeferReplyPersistence() {
@@ -377,10 +402,15 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
     conversationState.set(sessionKey, conversation.botFlowState);
   }
   if (!conversationState.has(sessionKey) && isOrderFlowStep(conversation.botFlowState?.step)) {
-    conversationState.set(sessionKey, conversation.botFlowState!);
+    if (isOrderFlowExpired(conversation.botFlowState?.data)) {
+      await clearConversationBotFlowState(businessId, conversation.id).catch(() => undefined);
+      conversation.botFlowState = undefined;
+    } else {
+      conversationState.set(sessionKey, conversation.botFlowState!);
+    }
   }
 
-  const activeFlow = conversationState.get(sessionKey) ?? conversation.botFlowState;
+  let activeFlow = conversationState.get(sessionKey) ?? conversation.botFlowState;
 
   await createMessage(businessId, conversation.id, {
     role: "CUSTOMER",
@@ -398,7 +428,18 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
     return handleBotExit(business, conversation, sessionKey);
   }
 
-  const state = conversationState.get(sessionKey);
+  let state = conversationState.get(sessionKey);
+  if (await expireOrderFlowIfNeeded(business.id, conversation.id, sessionKey, state)) {
+    state = undefined;
+    conversation.botFlowState = undefined;
+    activeFlow = undefined;
+    if (!isRestaurantOrderBotHit(business, messageBody) && !isMyOrderStatusTrigger(messageBody)) {
+      const text =
+        "Seu pedido expirou (máx. 3 horas). Digite *pedido* para começar de novo.";
+      await saveAndReturn(business.id, conversation.id, [{ text }]);
+      return [{ text }];
+    }
+  }
   if (state?.step !== "FAQ_SELECT") {
     const quick = await tryProgrammedQuickReply(ctx, business, conversation, sessionKey, activeFlow);
     if (quick) return quick;
