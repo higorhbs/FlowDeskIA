@@ -1560,6 +1560,7 @@ export async function getAnalytics(businessId: string) {
   const convCol = conversationsCol(businessId);
   const aptCol = appointmentsCol(businessId);
   const payCol = paymentsCol(businessId);
+  const ordCol = ordersCol(businessId);
 
   const [
     convTotalSnap,
@@ -1571,6 +1572,8 @@ export async function getAnalytics(businessId: string) {
     aptMonthSnap,
     payPendingSnap,
     payMonthSnap,
+    ordActiveSnap,
+    ordDeliveredSnap,
   ] = await Promise.all([
     convCol.count().get(),
     convCol.where("status", "==", "OPEN").count().get(),
@@ -1581,6 +1584,8 @@ export async function getAnalytics(businessId: string) {
     aptCol.where("scheduledAt", ">=", monthStart).where("scheduledAt", "<=", monthEnd).get(),
     payCol.where("status", "==", "PENDING").get(),
     payCol.where("status", "==", "PAID").get(),
+    ordCol.where("status", "in", ["PENDING", "CONFIRMED", "PREPARING", "READY"]).get(),
+    ordCol.where("status", "==", "DELIVERED").get(),
   ]);
 
   const monthConversations = monthConvSnap.size;
@@ -1629,6 +1634,13 @@ export async function getAnalytics(businessId: string) {
     return sum + Number(p.amount ?? 0);
   }, 0);
 
+  const ordersRevenueThisMonth = ordDeliveredSnap.docs.reduce((sum, d) => {
+    const o = d.data() as { createdAt?: string; total?: number; items?: { price?: number; quantity: number }[] };
+    if (!o.createdAt || o.createdAt < monthStart || o.createdAt > monthEnd) return sum;
+    const total = o.total ?? (o.items ?? []).reduce((s, i) => s + (i.price ?? 0) * i.quantity, 0);
+    return sum + Number(total ?? 0);
+  }, 0);
+
   const conversationGrowth =
     lastMonthConversations > 0
       ? Math.round(((monthConversations - lastMonthConversations) / lastMonthConversations) * 100)
@@ -1647,6 +1659,10 @@ export async function getAnalytics(businessId: string) {
     appointments: {
       pending: aptPendingSnap.size,
       thisMonth: aptMonthSnap.size,
+    },
+    orders: {
+      active: ordActiveSnap.size,
+      revenueThisMonth: ordersRevenueThisMonth,
     },
     payments: {
       pending: payPendingSnap.size,

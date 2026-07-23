@@ -69,8 +69,8 @@ export function DashboardView({ business, analytics }: DashboardViewProps) {
   const v = getBusinessVocabulary(business.type);
 
   const conv = analytics?.conversations.thisMonth ?? 0;
-  const pend = analytics?.appointments.pending ?? 0;
-  const rev = analytics?.payments.revenueThisMonth ?? 0;
+  const pend = (analytics?.appointments.pending ?? 0) + (analytics?.orders.active ?? 0);
+  const rev = (analytics?.payments.revenueThisMonth ?? 0) + (analytics?.orders.revenueThisMonth ?? 0);
   const growth = analytics?.conversations.growth ?? 0;
 
   const now = new Date();
