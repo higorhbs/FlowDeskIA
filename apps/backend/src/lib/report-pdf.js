@@ -27,6 +27,12 @@ function fmtTime(iso) {
 }
 
 export function buildReportPdf({ period, business, appointments, priceById, priceByName, from, to }) {
+  const isRestaurant = business?.type === 'RESTAURANT'
+  const itemPlural = isRestaurant ? 'pedidos' : 'agendamentos'
+  const itemPluralLabel = isRestaurant ? 'Pedidos' : 'Agendamentos'
+  const itemColumnLabel = isRestaurant ? 'Item' : 'Serviço'
+  const emptyLabel = isRestaurant ? 'Nenhum pedido no período.' : 'Nenhum agendamento no período.'
+
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 48 })
     const chunks = []
@@ -58,18 +64,18 @@ export function buildReportPdf({ period, business, appointments, priceById, pric
     doc.fillColor('#111827').fontSize(13).text('Resumo')
     doc.moveDown(0.4)
     doc.fillColor('#374151').fontSize(11)
-    doc.text(`Total de agendamentos: ${appointments.length}`)
+    doc.text(`Total de ${itemPlural}: ${appointments.length}`)
     doc.text(`Concluídos: ${counts.COMPLETED}   ·   Confirmados: ${counts.CONFIRMED}   ·   Pendentes: ${counts.PENDING}`)
     doc.text(`Cancelados: ${counts.CANCELLED}   ·   Não compareceu: ${counts.NO_SHOW}`)
     doc.moveDown(0.3)
     doc.fillColor('#065f46').fontSize(12).text(`Receita estimada: ${BRL.format(revenue)}`)
 
     doc.moveDown(1)
-    doc.fillColor('#111827').fontSize(13).text('Agendamentos')
+    doc.fillColor('#111827').fontSize(13).text(itemPluralLabel)
     doc.moveDown(0.5)
 
     if (!appointments.length) {
-      doc.fillColor('#9ca3af').fontSize(11).text('Nenhum agendamento no período.')
+      doc.fillColor('#9ca3af').fontSize(11).text(emptyLabel)
     } else {
       const cols = [48, 130, 250, 400, 480]
       doc.fillColor('#6b7280').fontSize(9)
@@ -77,7 +83,7 @@ export function buildReportPdf({ period, business, appointments, priceById, pric
       const headerY = doc.y - doc.currentLineHeight()
       doc.text('Hora', cols[1], headerY)
       doc.text('Cliente', cols[2], headerY)
-      doc.text('Serviço', cols[3], headerY)
+      doc.text(itemColumnLabel, cols[3], headerY)
       doc.moveDown(0.2)
       doc.moveTo(48, doc.y).lineTo(547, doc.y).strokeColor('#e5e7eb').stroke()
       doc.moveDown(0.4)

@@ -561,12 +561,20 @@ export default function SettingsPage() {
 
   const geralHasError = Boolean(errors.name || errors.type || errors.typeLabel || errors.phone);
   const mensagensHasError = Boolean(errors.greetingMsg || errors.awayMsg);
+  const isRestaurantReport = businessType === "RESTAURANT";
 
   const tabs: TabConfig[] = [
     { id: "geral", label: "Geral", description: "Nome, tipo e contato", icon: Building2, color: "bg-blue-100 text-blue-600", hasError: geralHasError },
     { id: "horarios", label: "Horários", description: "Funcionamento, almoço e exceções", icon: Clock, color: "bg-emerald-100 text-emerald-600" },
     { id: "mensagens", label: "Mensagens", description: "Boas-vindas e fora do horário", icon: MessageSquare, color: "bg-violet-100 text-violet-600", hasError: mensagensHasError },
-    { id: "relatorio", label: "Relatório", description: "Resumo diário no seu WhatsApp", icon: FileText, color: "bg-amber-100 text-amber-600", active: dailyReportEnabled },
+    {
+      id: "relatorio",
+      label: "Relatório",
+      description: isRestaurantReport ? "Resumo dos pedidos no seu WhatsApp" : "Resumo diário no seu WhatsApp",
+      icon: FileText,
+      color: "bg-amber-100 text-amber-600",
+      active: dailyReportEnabled,
+    },
   ];
 
   const previewMessages: PreviewMessage[] = useMemo(() => {
@@ -866,7 +874,11 @@ export default function SettingsPage() {
           {activeTab === "relatorio" && (
             <TabPanel
               title="Relatório diário automático"
-              description="Receba no seu WhatsApp o relatório dos agendamentos todo dia em um horário fixo"
+              description={
+                isRestaurantReport
+                  ? "Receba no seu WhatsApp o relatório dos pedidos do dia, todos os dias em um horário fixo"
+                  : "Receba no seu WhatsApp o relatório dos agendamentos todo dia em um horário fixo"
+              }
             >
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
