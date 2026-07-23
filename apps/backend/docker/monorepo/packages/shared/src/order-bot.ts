@@ -21,7 +21,7 @@ export const DEFAULT_ORDER_TRIGGER_KEYWORDS = [
 ];
 
 export const DEFAULT_ORDER_START_MESSAGE =
-  "🍽️ *Pedido — {negocio}*\n\nVeja o cardápio de hoje e digite o número do prato (ex: *2* ou *2x3* para 3 unidades). Pode pedir mais de um prato — quando terminar, digite *fechar pedido*.";
+  "🍽️ *Pedido — {negocio}*\n\nVeja o cardápio de hoje e digite o número do prato (ex: *2* ou *2x3* para 3 unidades). Pode pedir mais de um prato — quando terminar, toque em *Fechar pedido*.";
 
 export const DEFAULT_ORDER_PAYMENT_METHODS = ["Dinheiro", "Pix", "Cartão na entrega"];
 
@@ -44,7 +44,7 @@ export const DEFAULT_ORDER_AWAITING_MESSAGE =
   "Você receberá uma mensagem quando o restaurante confirmar.\n\nPara acompanhar, digite *meu pedido*.";
 
 export const DEFAULT_ORDER_CART_FOOTER_MESSAGE =
-  "Digite outro número pra adicionar mais, ou *fechar pedido* pra continuar.";
+  "Digite outro número pra adicionar mais, ou toque em *Fechar pedido* pra continuar.";
 
 export function defaultOrderBotConfig(): OrderBotConfig {
   return {
@@ -115,6 +115,7 @@ export const ORDER_CLOSE_COMMANDS = [
   "finalizar pedido",
   "concluir",
   "concluir pedido",
+  "order_close",
 ];
 
 export function isMyOrderStatusTrigger(text: string): boolean {

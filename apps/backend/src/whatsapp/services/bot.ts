@@ -1045,6 +1045,65 @@ async function handleMyAppointments(
 
 type OrderCartLine = { num: number; name: string; price?: number; category?: string; quantity: number };
 
+const ORDER_BTN_DELIVERY = "order_delivery";
+const ORDER_BTN_PICKUP = "order_pickup";
+const ORDER_BTN_CLOSE = "order_close";
+
+function orderPayButtonId(index: number): string {
+  return `order_pay_${index}`;
+}
+
+function orderFulfillmentButtons(): { id: string; label: string }[] {
+  return [
+    { id: ORDER_BTN_DELIVERY, label: "Entrega" },
+    { id: ORDER_BTN_PICKUP, label: "Retirada no local" },
+  ];
+}
+
+function buildOrderPaymentPrompt(
+  cfg: ReturnType<typeof normalizeOrderBotConfig>,
+  preface = "Como você vai pagar?",
+): BotResponse {
+  const methods = cfg.paymentMethods;
+  if (methods.length <= 3) {
+    return {
+      text: preface,
+      buttons: methods.map((m, i) => ({
+        id: orderPayButtonId(i),
+        label: m.slice(0, 20),
+      })),
+    };
+  }
+  return {
+    text: preface,
+    list: {
+      buttonText: "Ver opções",
+      sections: [
+        {
+          title: "Pagamento",
+          rows: methods.map((m, i) => ({
+            id: orderPayButtonId(i),
+            title: m.slice(0, 24),
+          })),
+        },
+      ],
+    },
+  };
+}
+
+function resolveOrderPaymentMethod(raw: string, methods: string[]): string | undefined {
+  const trimmed = raw.trim();
+  const lower = trimmed.toLowerCase();
+  const byId = lower.match(/^order_pay_(\d+)$/);
+  if (byId) {
+    const idx = parseInt(byId[1]!, 10);
+    return methods[idx];
+  }
+  const n = parseOptionNumber(trimmed, 1, methods.length);
+  if (n) return methods[n - 1];
+  return methods.find((m) => lower.includes(m.toLowerCase()));
+}
+
 function parseOrderItemTokens(text: string): { num: number; qty: number }[] {
   const tokens = text.split(",").map((t) => t.trim()).filter(Boolean);
   const parsed: { num: number; qty: number }[] = [];
@@ -1180,8 +1239,9 @@ async function handleOrderItems(
   const text =
     `🛒 *Seu pedido até agora:*\n${lines.join("\n")}\n\n` +
     `💰 Total parcial: *${formatCurrency(total)}*` + footer;
-  await saveAndReturn(business.id, conversation.id, [{ text }]);
-  return [{ text }];
+  const buttons = [{ id: ORDER_BTN_CLOSE, label: "Fechar pedido" }];
+  await saveAndReturn(business.id, conversation.id, [{ text, buttons }]);
+  return [{ text, buttons }];
 }
 
 async function promptOrderPayment(
@@ -1192,10 +1252,9 @@ async function promptOrderPayment(
   cfg: ReturnType<typeof normalizeOrderBotConfig>,
 ): Promise<BotResponse[]> {
   await setOrderFlowState(business.id, conversation.id, sessionKey, { step: "ORDER_PAYMENT", data });
-  const lines = cfg.paymentMethods.map((m, i) => `*${i + 1}* — ${m}`);
-  const text = `Como você vai pagar?\n\n${lines.join("\n")}`;
-  await saveAndReturn(business.id, conversation.id, [{ text }]);
-  return [{ text }];
+  const response = buildOrderPaymentPrompt(cfg);
+  await saveAndReturn(business.id, conversation.id, [response]);
+  return [response];
 }
 
 async function advanceAfterOrderItems(
@@ -1212,9 +1271,10 @@ async function advanceAfterOrderItems(
       step: "ORDER_FULFILLMENT",
       data: dataBase,
     });
-    const text = "Como prefere receber?\n\n*1* — Entrega\n*2* — Retirada no local";
-    await saveAndReturn(business.id, conversation.id, [{ text }]);
-    return [{ text }];
+    const text = "Como prefere receber?";
+    const buttons = orderFulfillmentButtons();
+    await saveAndReturn(business.id, conversation.id, [{ text, buttons }]);
+    return [{ text, buttons }];
   }
   const fulfillment: OrderFulfillment = cfg.fulfillmentDelivery ? "DELIVERY" : "PICKUP";
   if (fulfillment === "DELIVERY") {
@@ -1238,13 +1298,21 @@ async function handleOrderFulfillment(
 ): Promise<BotResponse[]> {
   const raw = ctx.messageBody.trim().toLowerCase();
   const cfg = normalizeOrderBotConfig(business.orderBot);
-  const isDelivery = raw === "1" || raw.includes("entrega");
-  const isPickup = raw === "2" || raw.includes("retirada") || raw.includes("retirar");
+  const isDelivery =
+    raw === "1" ||
+    raw === ORDER_BTN_DELIVERY ||
+    raw.includes("entrega");
+  const isPickup =
+    raw === "2" ||
+    raw === ORDER_BTN_PICKUP ||
+    raw.includes("retirada") ||
+    raw.includes("retirar");
 
   if (!isDelivery && !isPickup) {
-    const text = "Não entendi. Digite *1* para Entrega ou *2* para Retirada.";
-    await saveAndReturn(business.id, conversation.id, [{ text }]);
-    return [{ text }];
+    const text = "Não entendi. Toque em uma opção:";
+    const buttons = orderFulfillmentButtons();
+    await saveAndReturn(business.id, conversation.id, [{ text, buttons }]);
+    return [{ text, buttons }];
   }
 
   const fulfillment: OrderFulfillment = isDelivery ? "DELIVERY" : "PICKUP";
@@ -1286,16 +1354,15 @@ async function handleOrderPayment(
 ): Promise<BotResponse[]> {
   const cfg = normalizeOrderBotConfig(business.orderBot);
   const raw = ctx.messageBody.trim();
-  const n = parseOptionNumber(raw, 1, cfg.paymentMethods.length);
-  const paymentMethod = n
-    ? cfg.paymentMethods[n - 1]
-    : cfg.paymentMethods.find((m) => raw.toLowerCase().includes(m.toLowerCase()));
+  const paymentMethod = resolveOrderPaymentMethod(raw, cfg.paymentMethods);
 
   if (!paymentMethod) {
-    const lines = cfg.paymentMethods.map((m, i) => `*${i + 1}* — ${m}`);
-    const text = `Não entendi a forma de pagamento. Escolha uma opção:\n\n${lines.join("\n")}`;
-    await saveAndReturn(business.id, conversation.id, [{ text }]);
-    return [{ text }];
+    const response = buildOrderPaymentPrompt(
+      cfg,
+      "Não entendi a forma de pagamento. Toque em uma opção:",
+    );
+    await saveAndReturn(business.id, conversation.id, [response]);
+    return [response];
   }
 
   const cart: OrderCartLine[] = JSON.parse(state.data.itemsJson || "[]");
