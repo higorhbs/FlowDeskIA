@@ -146,7 +146,8 @@ const DEFAULT: BusinessVocabulary = {
   catalogNav: "Produtos",
   catalogNavShort: "Produtos",
   catalogPageTitle: "Produtos",
-  catalogPageSubtitle: "Produtos exibidos quando o cliente pede preços ou lista",
+  catalogPageSubtitle:
+    "Produtos exibidos quando o cliente pede preços ou lista, e disponíveis para adicionar no fluxo de Pedidos",
   catalogItemSingular: "produto",
   catalogItemPlural: "produtos",
   catalogEmptyTitle: "Nenhum produto cadastrado",

@@ -86,8 +86,8 @@ export function OrderBotEditor({ businessId, businessName, initialConfig }: Prop
           <div className="flex-1">
             <h2 className="text-lg font-bold text-gray-900">Pedidos</h2>
             <p className="mt-1 text-sm text-gray-500">
-              A IA usa o cardápio de hoje (aba Cardápio Semanal) pra conduzir o cliente até fechar o pedido —
-              itens, entrega/retirada, endereço e forma de pagamento.
+              A IA usa o cardápio de hoje (aba Cardápio Semanal) e os itens da aba Produtos pra conduzir o
+              cliente até fechar o pedido — itens, entrega/retirada, endereço e forma de pagamento.
             </p>
           </div>
           <Switch

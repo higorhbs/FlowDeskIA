@@ -63,6 +63,7 @@ import {
   isMyOrderStatusTrigger,
   isOrderCloseCommand,
   type OrderMenuEntry,
+  type DayOfWeek,
 } from "@flowdesk/shared";
 import { createPixCharge } from "./pix.js";
 import { printOrderReceipt } from "./printer.js";
@@ -966,6 +967,27 @@ function parseOrderItemTokens(text: string): { num: number; qty: number }[] {
   return parsed;
 }
 
+function buildCombinedOrderEntries(business: any, dayOfWeek: DayOfWeek): OrderMenuEntry[] {
+  const weeklyMenu = business.weeklyMenu;
+  const menuEntries: OrderMenuEntry[] = weeklyMenu ? buildOrderMenuForDay(weeklyMenu, dayOfWeek) : [];
+
+  const catalogItems: any[] = Array.isArray(business.catalog) ? business.catalog : [];
+  const catalogEntries: OrderMenuEntry[] = catalogItems
+    .filter((item) => item.available !== false)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    .map((item, i) => ({
+      num: menuEntries.length + i + 1,
+      item: {
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        category: "Produtos",
+      },
+    }));
+
+  return [...menuEntries, ...catalogEntries];
+}
+
 async function startOrderFlow(
   business: any,
   conversation: Conversation,
@@ -973,13 +995,12 @@ async function startOrderFlow(
   customerName?: string,
 ): Promise<BotResponse[]> {
   const cfg = normalizeOrderBotConfig(business.orderBot);
-  const weeklyMenu = (business as any).weeklyMenu;
   const tz = businessTimezone(business);
   const dayOfWeek = getTodayDayOfWeek(tz);
-  const entries: OrderMenuEntry[] = weeklyMenu ? buildOrderMenuForDay(weeklyMenu, dayOfWeek) : [];
+  const entries: OrderMenuEntry[] = buildCombinedOrderEntries(business, dayOfWeek);
 
   if (!entries.length) {
-    const text = "Ainda não temos o cardápio de hoje cadastrado. Fale com a gente que te ajudamos com seu pedido!";
+    const text = "Ainda não temos itens cadastrados para pedido. Fale com a gente que te ajudamos!";
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
