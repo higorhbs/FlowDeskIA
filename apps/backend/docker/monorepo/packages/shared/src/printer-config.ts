@@ -1,8 +1,19 @@
+export type PrinterConnectionType = "network" | "usb";
+
 export interface PrinterConfig {
   enabled: boolean;
+  connectionType: PrinterConnectionType;
   ip: string;
   port: number;
   copies: number;
+  /** Token de pareamento do agente local de impressão USB (gerado uma vez, mostrado uma vez). */
+  agentToken?: string;
+  /** Nome da impressora do sistema operacional escolhida para receber os cupons. */
+  agentPrinterName?: string;
+  /** Impressoras do SO vistas pelo agente local na última vez que ele reportou. */
+  agentPrinters?: string[];
+  /** Timestamp ISO do último poll do agente local — usado para exibir online/offline. */
+  agentLastSeenAt?: string;
 }
 
 export const DEFAULT_PRINTER_PORT = 9100;
@@ -10,6 +21,7 @@ export const DEFAULT_PRINTER_PORT = 9100;
 export function defaultPrinterConfig(): PrinterConfig {
   return {
     enabled: false,
+    connectionType: "network",
     ip: "",
     port: DEFAULT_PRINTER_PORT,
     copies: 1,
@@ -21,12 +33,25 @@ export function normalizePrinterConfig(raw?: Partial<PrinterConfig> | null): Pri
   if (!raw || typeof raw !== "object") return base;
   const port = Number(raw.port);
   const copies = Number(raw.copies);
-  return {
+  const agentPrinters = Array.isArray(raw.agentPrinters)
+    ? raw.agentPrinters.filter((p): p is string => typeof p === "string" && p.trim().length > 0)
+    : undefined;
+  const normalized: PrinterConfig = {
     enabled: raw.enabled === true,
+    connectionType: raw.connectionType === "usb" ? "usb" : "network",
     ip: typeof raw.ip === "string" ? raw.ip.trim() : base.ip,
     port: Number.isFinite(port) && port > 0 && port <= 65535 ? Math.round(port) : base.port,
     copies: Number.isFinite(copies) && copies >= 1 && copies <= 5 ? Math.round(copies) : base.copies,
   };
+  if (typeof raw.agentToken === "string" && raw.agentToken.trim()) normalized.agentToken = raw.agentToken.trim();
+  if (typeof raw.agentPrinterName === "string" && raw.agentPrinterName.trim()) {
+    normalized.agentPrinterName = raw.agentPrinterName.trim();
+  }
+  if (agentPrinters && agentPrinters.length) normalized.agentPrinters = agentPrinters;
+  if (typeof raw.agentLastSeenAt === "string" && raw.agentLastSeenAt.trim()) {
+    normalized.agentLastSeenAt = raw.agentLastSeenAt;
+  }
+  return normalized;
 }
 
 interface ReceiptOrderLike {
