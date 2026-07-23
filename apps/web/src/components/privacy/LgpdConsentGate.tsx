@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
 import { tenantApi } from "@/lib/api";
@@ -9,32 +10,73 @@ import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { LGPD_POLICY_VERSION } from "@/lib/lgpd-policy";
 
+function lgpdStorageKey(uid: string) {
+  return `flowdesk:lgpd-accepted:${uid}:${LGPD_POLICY_VERSION}`;
+}
+
+function readLocalAccepted(uid: string) {
+  try {
+    return window.localStorage.getItem(lgpdStorageKey(uid)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeLocalAccepted(uid: string) {
+  try {
+    window.localStorage.setItem(lgpdStorageKey(uid), "1");
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 export function LgpdConsentGate() {
   const { uid, ready } = useAuth();
   const queryClient = useQueryClient();
+  const [localAccepted, setLocalAccepted] = useState(false);
+
+  useEffect(() => {
+    if (!uid) {
+      setLocalAccepted(false);
+      return;
+    }
+    setLocalAccepted(readLocalAccepted(uid));
+  }, [uid]);
 
   const { data: tenant, isLoading } = useQuery({
     queryKey: ["tenant", uid],
     queryFn: () => tenantApi.get(),
     enabled: ready && !!uid,
+    retry: 1,
   });
+
+  const serverAccepted =
+    !!tenant?.lgpdAcceptedAt && tenant.lgpdPolicyVersion === LGPD_POLICY_VERSION;
+
+  useEffect(() => {
+    if (!uid || !serverAccepted) return;
+    writeLocalAccepted(uid);
+    setLocalAccepted(true);
+  }, [uid, serverAccepted]);
 
   const accept = useMutation({
     mutationFn: () => tenantApi.acceptLgpd(LGPD_POLICY_VERSION),
-    onSuccess: (updated) => {
-      queryClient.setQueryData(["tenant", uid], updated);
+    onSuccess: async (updated) => {
+      if (uid) {
+        writeLocalAccepted(uid);
+        setLocalAccepted(true);
+        queryClient.setQueryData(["tenant", uid], updated);
+        await queryClient.invalidateQueries({ queryKey: ["tenant", uid] });
+      }
+      toast.success("Preferências de privacidade salvas.");
     },
     onError: (err: Error) => {
       toast.error(err?.message ?? "Não foi possível salvar o aceite LGPD. Tente novamente.");
     },
   });
 
-  if (!ready || !uid) return null;
-
-  const mustAccept =
-    !tenant?.lgpdAcceptedAt || tenant.lgpdPolicyVersion !== LGPD_POLICY_VERSION;
-
-  if (isLoading || !mustAccept) return null;
+  if (!ready || !uid || isLoading) return null;
+  if (localAccepted || serverAccepted) return null;
 
   return (
     <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">

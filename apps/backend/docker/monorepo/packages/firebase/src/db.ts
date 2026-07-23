@@ -168,7 +168,7 @@ export async function createTenant(
     createdAt: ts,
     updatedAt: ts,
   };
-  await tenants().doc(id).set(tenant);
+  await tenants().doc(id).set(tenant, { merge: true });
   return tenant;
 }
 
@@ -178,9 +178,12 @@ export async function updateTenant(
 ): Promise<Tenant | null> {
   const existing = await getTenant(id);
   if (!existing) return null;
-  const patch = { ...data, updatedAt: nowIso() };
-  delete (patch as { id?: string }).id;
-  await tenants().doc(id).update(patch);
+  const patch: Record<string, unknown> = { updatedAt: nowIso() };
+  for (const [key, value] of Object.entries(data)) {
+    if (key === "id" || value === undefined) continue;
+    patch[key] = value;
+  }
+  await tenants().doc(id).set(patch, { merge: true });
   return { ...existing, ...patch } as Tenant;
 }
 

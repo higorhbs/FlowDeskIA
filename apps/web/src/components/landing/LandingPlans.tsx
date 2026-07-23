@@ -55,41 +55,41 @@ function PlanWobbleCard({
     >
       <WobbleCard
         containerClassName={cn(
-          "h-full min-h-[22rem] sm:min-h-[24rem]",
+          "h-full min-h-[16rem] sm:min-h-[17rem]",
           containerClassName,
           highlight &&
             "ring-2 ring-brand-300/80 ring-offset-2 ring-offset-transparent",
         )}
-        className="flex h-full flex-col px-5 py-8 sm:px-7 sm:py-10"
+        className="flex h-full flex-col px-4 py-4 sm:px-5 sm:py-5"
       >
         <div className="relative z-10 flex h-full flex-col text-white">
           {badge ? (
-            <span className="mb-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold backdrop-blur-sm">
+            <span className="mb-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-semibold backdrop-blur-sm">
               <Crown className="size-3" aria-hidden />
               {badge}
             </span>
           ) : (
-            <span className="mb-4 h-6" aria-hidden />
+            <span className="mb-2 h-[19px]" aria-hidden />
           )}
 
-          <h3 className="text-xl font-bold tracking-tight sm:text-2xl">
+          <h3 className="text-base font-bold tracking-tight sm:text-lg">
             {price.label}
           </h3>
-          <p className="mt-3 flex items-baseline gap-1">
-            <span className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+          <p className="mt-1 flex items-baseline gap-1">
+            <span className="text-2xl font-extrabold tracking-tight sm:text-[1.75rem]">
               {formatCurrency(price.brl)}
             </span>
-            <span className="text-sm font-medium text-white/70">/mês</span>
+            <span className="text-xs font-medium text-white/70">/mês</span>
           </p>
-          <p className="mt-1 text-sm text-white/65">
+          <p className="mt-0.5 text-xs text-white/65">
             {id === "STARTER" ? `${STARTER_TRIAL_DAYS} dias grátis · sem cartão` : "Cobrança imediata"}
           </p>
 
-          <ul className="mt-6 flex-1 space-y-2.5 text-sm text-white/90">
+          <ul className="mt-2.5 flex-1 space-y-1 text-xs text-white/90 sm:text-sm">
             {features.map((feature) => (
-              <li key={feature} className="flex items-start gap-2">
+              <li key={feature} className="flex items-start gap-1.5">
                 <Check
-                  className="mt-0.5 size-4 shrink-0 text-white"
+                  className="mt-0.5 size-3.5 shrink-0 text-white"
                   aria-hidden
                 />
                 <span>{feature}</span>
@@ -99,9 +99,13 @@ function PlanWobbleCard({
 
           <Button
             type="button"
-            onClick={onSelect}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onSelect();
+            }}
             className={cn(
-              "relative z-10 mt-8 h-11 w-full rounded-full font-semibold",
+              "relative z-10 mt-3 h-9 w-full rounded-full text-sm font-semibold",
               highlight
                 ? "bg-white text-brand-800 hover:bg-white/90"
                 : "bg-white/15 text-white backdrop-blur-sm hover:bg-white/25",
@@ -121,14 +125,15 @@ export function LandingPlans({ adMode = false }: { adMode?: boolean }) {
   return (
     <section
       id="precos"
+      data-snap-section
       aria-labelledby="plans-heading"
-      className="relative scroll-mt-24 overflow-hidden border-t border-slate-200/80 bg-gradient-to-b from-slate-100/90 via-[#f3f0fa] to-white py-16 sm:py-24"
+      className="relative flex h-dvh snap-start snap-always flex-col justify-center overflow-x-hidden border-t border-slate-200/80 bg-gradient-to-b from-slate-100/90 via-[#f3f0fa] to-white px-4 py-4 sm:px-6 sm:py-6 lg:px-10"
     >
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_45%_at_50%_0%,rgba(124,58,237,0.1),transparent)]"
         aria-hidden
       />
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-10">
+      <div className="relative mx-auto w-full max-w-7xl">
         <div className="mx-auto max-w-2xl text-center">
           <span
             className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold shadow-sm backdrop-blur-sm ${
@@ -144,18 +149,18 @@ export function LandingPlans({ adMode = false }: { adMode?: boolean }) {
           </span>
           <h2
             id="plans-heading"
-            className="mt-4 text-2xl font-bold tracking-tight text-foreground sm:text-3xl"
+            className="mt-2.5 text-xl font-bold tracking-tight text-foreground sm:text-2xl lg:text-3xl"
           >
             {adMode ? "Escolha seu plano e comece agora" : "Planos simples para crescer no WhatsApp"}
           </h2>
-          <p className="mt-3 text-base text-muted-foreground sm:text-lg">
+          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
             {adMode
               ? "Ative o trial em um clique. Upgrade só quando fizer sentido para o seu negócio."
               : "Sem taxa escondida. Escale quando precisar — do trial ao plano completo."}
           </p>
         </div>
 
-        <div className="mt-12 grid gap-6 sm:gap-8 lg:grid-cols-3 lg:items-stretch">
+        <div className="mt-4 grid grid-cols-3 items-stretch gap-3 sm:mt-6 sm:gap-4 lg:gap-6">
           {PLANS.map((plan) => (
             <PlanWobbleCard
               key={plan.id}
@@ -165,7 +170,7 @@ export function LandingPlans({ adMode = false }: { adMode?: boolean }) {
           ))}
         </div>
 
-        <p className="mt-10 flex items-center justify-center gap-1.5 text-center text-sm text-muted-foreground">
+        <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-sm text-muted-foreground sm:mt-6">
           <Sparkles className="size-4 text-brand-600" aria-hidden />
           Cancele quando quiser
         </p>

@@ -4,7 +4,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { motion, useReducedMotion } from "motion/react";
 import { createHeroVariants } from "@/components/landing/hero-motion";
-import { HeroCta } from "@/components/landing/HeroCta";
 
 function useAnimateIn() {
   const [active, setActive] = useState(false);
@@ -44,7 +43,7 @@ export function HeroVisualMotion({
   });
 
   return (
-    <div className="relative mx-auto mt-10 hidden max-w-6xl px-4 sm:mt-14 sm:px-6 md:block lg:px-8">
+    <div className="relative mx-auto mt-5 hidden max-w-6xl px-4 sm:mt-6 sm:px-6 md:block lg:px-8">
       <motion.div
         key={enterKey("visual")}
         className="relative isolate rounded-[1.75rem] sm:rounded-[2rem]"
@@ -59,7 +58,7 @@ export function HeroVisualMotion({
 
         <motion.div
           variants={v.imageFrame}
-          className="relative aspect-[16/9] min-h-[300px] overflow-hidden rounded-[1.75rem] shadow-[0_20px_60px_-24px_rgba(22,163,74,0.18)] ring-1 ring-white/20 sm:min-h-[440px] sm:rounded-[2rem] lg:min-h-[520px]"
+          className="relative h-[clamp(280px,52dvh,420px)] w-full overflow-hidden rounded-[1.75rem] shadow-[0_20px_60px_-24px_rgba(22,163,74,0.18)] ring-1 ring-white/20 sm:rounded-[2rem]"
           style={{ transformPerspective: 1200 }}
         >
           <motion.div variants={v.imageInner} className="absolute inset-0">
@@ -101,7 +100,7 @@ export function HeroVisualMotion({
 
           <motion.div
             variants={v.columnContainer}
-            className="pointer-events-auto absolute bottom-20 left-4 z-10 flex flex-col items-start gap-2.5 sm:bottom-8 sm:left-8 sm:gap-3"
+            className="pointer-events-auto absolute bottom-4 left-4 z-10 flex flex-col items-start gap-2.5 sm:bottom-8 sm:left-8 sm:gap-3"
           >
             <motion.div variants={v.fromLeft} animate={withFloat(true)}>
               {leftTop}
@@ -109,14 +108,6 @@ export function HeroVisualMotion({
             <motion.div variants={v.fromLeft} animate={withFloat()}>
               {leftBottom}
             </motion.div>
-          </motion.div>
-
-          <motion.div
-            variants={v.cta}
-            animate={withFloat()}
-            className="pointer-events-auto absolute inset-x-4 bottom-4 z-10 flex justify-center sm:inset-x-auto sm:right-8 sm:bottom-8 sm:justify-end"
-          >
-            <HeroCta />
           </motion.div>
         </motion.div>
       </motion.div>

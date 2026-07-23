@@ -198,7 +198,6 @@ export const tenantApi = {
     return webApi.tenants.completeOnboarding();
   },
   acceptLgpd: async (policyVersion: string) => {
-    await ensureTenantRecord();
     return webApi.tenants.acceptLgpd(policyVersion);
   },
   submitCancellationFeedback: async (data: { rating: number; text?: string }) => {

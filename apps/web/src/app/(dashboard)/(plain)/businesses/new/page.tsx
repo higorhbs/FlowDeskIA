@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
+import { AddressCepField } from "@/components/business/AddressCepField";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
 import { useRequiresBusinessSetup } from "@/hooks/use-requires-business-setup";
@@ -59,7 +60,7 @@ export default function NewBusinessPage() {
     enabled: ready && !!uid,
   });
   const existingBusiness = businesses?.[0];
-  const { register, control, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, control, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       type: "STORE",
@@ -186,7 +187,13 @@ export default function NewBusinessPage() {
 
             <div className="space-y-1.5">
               <Label>Endereço</Label>
-              <Input type="text" placeholder="Rua das Flores, 123 - São Paulo/SP" {...register("address")} />
+              <AddressCepField
+                value={watch("address") ?? ""}
+                onChange={(address) =>
+                  setValue("address", address, { shouldDirty: true, shouldTouch: true })
+                }
+                placeholder="Rua das Flores, 123 - São Paulo/SP"
+              />
             </div>
           </div>
 

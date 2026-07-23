@@ -10,7 +10,7 @@ import {
 
 export function LandingHero({ adMode = false }: { adMode?: boolean }) {
   return (
-    <section id="hero" className="pb-20 pt-6 sm:pb-28 sm:pt-10">
+    <section id="hero" className="pb-4 pt-1 sm:pb-6 sm:pt-2">
       <HeroCopyMotion adMode={adMode} />
       <HeroVisualMobile adMode={adMode} />
       <HeroVisualMotion

@@ -15,7 +15,6 @@ import {
   Loader2,
   Building2,
   Phone,
-  MapPin,
   FileText,
   Clock,
   MessageSquare,
@@ -39,6 +38,7 @@ import {
   TemplateVariablesHelp,
 } from "@/components/business/TemplateMessageField";
 import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
+import { AddressCepField } from "@/components/business/AddressCepField";
 import { WhatsAppMessagePreview, type PreviewMessage } from "@/components/business/WhatsAppMessagePreview";
 import {
   WorkingHoursEditor,
@@ -403,6 +403,7 @@ export default function SettingsPage() {
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors, isDirty },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
@@ -691,12 +692,16 @@ export default function SettingsPage() {
                   />
                 </Field>
 
-                <Field label="Endereço" hint="Exibido aos clientes">
-                  <IconInput
-                    icon={MapPin}
-                    type="text"
+                <Field label="Endereço">
+                  <AddressCepField
+                    showIcon
+                    inputClassName={INPUT_CLS}
+                    value={watch("address") ?? ""}
+                    onChange={(address) =>
+                      setValue("address", address, { shouldDirty: true, shouldTouch: true })
+                    }
                     placeholder="Rua Example, 123 – Cidade"
-                    {...register("address")}
+                    hint="Busque pelo CEP para preencher · endereço exibido aos clientes"
                   />
                 </Field>
               </div>

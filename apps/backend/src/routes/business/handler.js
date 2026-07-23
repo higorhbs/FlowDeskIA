@@ -14,7 +14,7 @@ import {
   normalizeLeadCaptureFlow,
 } from '@flowdesk/shared'
 import { json, requireBearerUser } from '../../lib/auth-guard.js'
-import { printTestReceipt } from '../../whatsapp/services/printer.js'
+import { printTestReceipt } from '../../../dist/whatsapp/services/printer.js'
 
 const BUSINESS_TYPES = new Set([
   'BARBERSHOP',

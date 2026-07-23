@@ -83,26 +83,46 @@ export async function privacyConsentHandler(c) {
   const auth = await requirePrivacyAuth(c)
   if (auth.error) return auth.error
 
-  const body = await c.req.json().catch(() => ({}))
-  const { policyVersion } = consentBody.parse(body)
-  const tenantId = auth.tenantId
-  const db = getDb()
-  const now = new Date().toISOString()
+  try {
+    const body = await c.req.json().catch(() => ({}))
+    const parsed = consentBody.safeParse(body)
+    if (!parsed.success) {
+      return json(c, 400, { error: 'Versão da política obrigatória.' })
+    }
+    const { policyVersion } = parsed.data
+    const tenantId = auth.tenantId
+    const db = getDb()
+    const now = new Date().toISOString()
+    const ref = db.collection('tenants').doc(tenantId)
 
-  await db.collection('tenants').doc(tenantId).update({
-    lgpdAcceptedAt: now,
-    lgpdPolicyVersion: policyVersion,
-    updatedAt: now,
-  })
+    const snap = await ref.get()
+    if (!snap.exists) {
+      return json(c, 404, { error: 'Conta não encontrada' })
+    }
 
-  await db.collection('tenants').doc(tenantId).collection('privacy_audit').doc().set({
-    type: 'CONSENT_ACCEPTED',
-    policyVersion,
-    acceptedAt: now,
-    userAgent: c.req.header('user-agent') ?? '',
-  })
+    await ref.set(
+      {
+        lgpdAcceptedAt: now,
+        lgpdPolicyVersion: policyVersion,
+        updatedAt: now,
+      },
+      { merge: true },
+    )
 
-  return c.json({ ok: true, acceptedAt: now, policyVersion })
+    await ref.collection('privacy_audit').add({
+      type: 'CONSENT_ACCEPTED',
+      policyVersion,
+      acceptedAt: now,
+      userAgent: c.req.header('user-agent') ?? '',
+    })
+
+    return c.json({ ok: true, acceptedAt: now, policyVersion })
+  } catch (err) {
+    console.error('[privacy] consent failed:', err)
+    return json(c, 500, {
+      error: err instanceof Error ? err.message : 'Não foi possível salvar o aceite LGPD.',
+    })
+  }
 }
 
 export async function privacyDeleteAccountHandler(c) {

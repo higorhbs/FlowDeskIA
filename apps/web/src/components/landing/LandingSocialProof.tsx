@@ -234,44 +234,45 @@ export function LandingSocialProof({ adMode = false }: { adMode?: boolean }) {
   return (
     <section
       id="clientes"
+      data-snap-section
       aria-labelledby="social-proof-heading"
-      className="relative scroll-mt-24 overflow-x-hidden border-t border-brand-200/50 bg-gradient-to-b from-brand-50 via-white to-[#f0f7f2] py-16 sm:py-24"
+      className="relative flex h-dvh snap-start snap-always flex-col justify-center overflow-x-hidden border-t border-brand-200/50 bg-gradient-to-b from-brand-50 via-white to-[#f0f7f2] px-4 py-4 sm:px-6 sm:py-6 lg:px-10"
     >
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(34,197,94,0.12),transparent)]"
         aria-hidden
       />
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-10">
+      <div className="relative mx-auto w-full max-w-7xl">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-semibold uppercase tracking-wider text-brand-700">
             Nossos clientes
           </p>
           <h2
             id="social-proof-heading"
-            className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl"
+            className="mt-2 text-xl font-bold tracking-tight text-foreground sm:text-2xl lg:text-3xl"
           >
             {adMode
               ? "Quem já usa não volta ao atendimento manual"
               : "Negócios locais que já automatizaram o WhatsApp"}
           </h2>
-          <p className="mt-3 text-base text-muted-foreground sm:text-lg">
+          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
             Comércios, serviços e clínicas locais usando o {APP_DISPLAY_NAME} todos
             os dias.
           </p>
         </div>
 
-        <dl className="mt-10 grid grid-cols-2 gap-6 sm:grid-cols-4 sm:gap-8">
+        <dl className="mt-4 grid grid-cols-2 gap-4 sm:mt-6 sm:grid-cols-4 sm:gap-6">
           {STATS.map(({ value, label }) => (
             <div key={label} className="text-center">
-              <dt className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">
+              <dt className="text-xl font-bold tracking-tight text-primary sm:text-2xl lg:text-3xl">
                 {value}
               </dt>
-              <dd className="mt-1 text-sm text-muted-foreground">{label}</dd>
+              <dd className="mt-0.5 text-xs text-muted-foreground sm:text-sm">{label}</dd>
             </div>
           ))}
         </dl>
 
-        <div className="relative mt-14 flex w-full flex-col items-center justify-center gap-4 overflow-x-hidden overflow-y-visible py-2 [mask-image:linear-gradient(to_right,transparent_0%,black_10%,black_90%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_10%,black_90%,transparent_100%)]">
+        <div className="relative mt-6 flex w-full flex-col items-center justify-center gap-3 overflow-x-hidden overflow-y-visible py-2 sm:mt-8 [mask-image:linear-gradient(to_right,transparent_0%,black_10%,black_90%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_10%,black_90%,transparent_100%)]">
           <Marquee pauseOnHover className="py-1 [--duration:50s] [--gap:1rem]">
             {firstRow.map((item) => (
               <TestimonialCard key={item.id} {...item} />

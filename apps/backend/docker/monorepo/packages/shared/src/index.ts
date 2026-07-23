@@ -422,7 +422,7 @@ export function assertStoriesPublishQuota(plan: PlanTier, publishedCount: number
 }
 
 export const PLAN_PRICES = {
-  STARTER: { brl: 49.9, label: "Starter" },
+  STARTER: { brl: 69.9, label: "Starter" },
   PRO: { brl: 99, label: "Pro" },
   UNLIMITED: { brl: 199, label: "Unlimited" },
 } as const;

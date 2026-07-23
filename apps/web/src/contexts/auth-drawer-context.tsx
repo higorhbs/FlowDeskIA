@@ -27,6 +27,10 @@ function parseAuthParam(value: string | null): AuthMode | null {
   return null;
 }
 
+function safePathname(pathname: string | null) {
+  return pathname && pathname !== "null" ? pathname : "/";
+}
+
 function hrefWithAuth(pathname: string, search: string, mode: AuthMode | null) {
   const params = new URLSearchParams(search);
   if (mode) params.set("auth", mode);
@@ -37,7 +41,8 @@ function hrefWithAuth(pathname: string, search: string, mode: AuthMode | null) {
 
 export function AuthDrawerProvider({ children }: { children: React.ReactNode }) {
   const router = useAppRouter();
-  const pathname = usePathname();
+  const rawPathname = usePathname();
+  const pathname = safePathname(rawPathname);
   const searchParams = useSearchParams();
   const search = searchParams.toString();
   const [authMode, setAuthMode] = useState<AuthMode>("login");
@@ -54,12 +59,21 @@ export function AuthDrawerProvider({ children }: { children: React.ReactNode }) 
 
   const syncUrl = useCallback(
     (mode: AuthMode | null) => {
-      const target = hrefWithAuth(pathname, search, mode);
-      const current = search ? `${pathname}?${search}` : pathname;
+      const path =
+        typeof window !== "undefined"
+          ? safePathname(window.location.pathname)
+          : pathname;
+      const target = hrefWithAuth(path, search, mode);
+      const current =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : search
+            ? `${path}?${search}`
+            : path;
       if (target === current) return;
-      router.replace(target, { scroll: false });
+      window.history.pushState(null, "", target);
     },
-    [pathname, router, search],
+    [pathname, search],
   );
 
   useEffect(() => {
