@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowRight, CalendarOff, Pencil, Check, Trash2, Zap } from "lucide-react";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TemplateMessageField } from "@/components/business/TemplateMessageField";
 import { Switch } from "@/components/ui/switch";
+import { TimePicker } from "@/components/ui/time-picker";
 
 const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
@@ -21,8 +22,6 @@ const DAYS: Record<string, { short: string; weekday: boolean }> = {
   sun: { short: "Dom", weekday: false },
 };
 
-const pad = (n: number) => String(n).padStart(2, "0");
-
 function parseDateKey(key: string): Date {
   const [y, m, d] = key.split("-").map(Number);
   return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
@@ -32,10 +31,6 @@ function formatDateKey(key: string): string {
   const label = format(parseDateKey(key), "EEE, dd/MM", { locale: ptBR });
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
-
-const ITEM_H = 32;
-const COL_H  = 96;
-const SPACER = (COL_H - ITEM_H) / 2;
 
 export type WorkingHoursValue = Record<string, [string, string] | null>;
 export type SpecialHoursValue = Record<string, [string, string] | null>;
@@ -52,156 +47,6 @@ export const ALL_DAY_HOURS: [string, string] = ["00:00", "24:00"];
 export function isAllDayHours(slot: [string, string] | null | undefined): boolean {
   if (!slot) return false;
   return slot[0] === "00:00" && (slot[1] === "24:00" || slot[1] === "23:59");
-}
-
-// ── TimePicker ────────────────────────────────────────────────────────────────
-function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const parts = value.split(":");
-  const hh = parseInt(parts[0] ?? "09", 10);
-  const mm = parseInt(parts[1] ?? "00", 10);
-  const latestValueRef = useRef(value);
-
-  const hourRef = useRef<HTMLDivElement>(null);
-  const minRef  = useRef<HTMLDivElement>(null);
-  const hDrag    = useRef<{ startY: number; startTop: number } | null>(null);
-  const hDragged = useRef(false);
-  const mDrag    = useRef<{ startY: number; startTop: number } | null>(null);
-  const mDragged = useRef(false);
-
-  useEffect(() => {
-    latestValueRef.current = value;
-  }, [value]);
-
-  useEffect(() => {
-    if (hourRef.current) hourRef.current.scrollTop = hh * ITEM_H;
-    if (minRef.current)  minRef.current.scrollTop  = mm * ITEM_H;
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  function getCurrentParts() {
-    const [hRaw, mRaw] = (latestValueRef.current ?? "09:00").split(":");
-    const currentHour = Number.parseInt(hRaw ?? "09", 10);
-    const currentMinute = Number.parseInt(mRaw ?? "00", 10);
-    return {
-      currentHour: Number.isFinite(currentHour) ? currentHour : 9,
-      currentMinute: Number.isFinite(currentMinute) ? currentMinute : 0,
-    };
-  }
-
-  function onHourDown(e: React.PointerEvent<HTMLDivElement>) {
-    hDragged.current = false;
-    hDrag.current = { startY: e.clientY, startTop: hourRef.current?.scrollTop ?? 0 };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }
-  function onHourMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!hDrag.current || !hourRef.current) return;
-    const dy = e.clientY - hDrag.current.startY;
-    if (Math.abs(dy) > 3) hDragged.current = true;
-    hourRef.current.scrollTop = hDrag.current.startTop - dy;
-  }
-  function onHourUp() {
-    if (!hDrag.current || !hourRef.current) return;
-    hDrag.current = null;
-    if (!hDragged.current) return;
-    const h = Math.max(0, Math.min(23, Math.round(hourRef.current.scrollTop / ITEM_H)));
-    const { currentMinute } = getCurrentParts();
-    onChange(`${pad(h)}:${pad(currentMinute)}`);
-    hourRef.current.scrollTo({ top: h * ITEM_H, behavior: "smooth" });
-  }
-
-  function onMinDown(e: React.PointerEvent<HTMLDivElement>) {
-    mDragged.current = false;
-    mDrag.current = { startY: e.clientY, startTop: minRef.current?.scrollTop ?? 0 };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }
-  function onMinMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!mDrag.current || !minRef.current) return;
-    const dy = e.clientY - mDrag.current.startY;
-    if (Math.abs(dy) > 3) mDragged.current = true;
-    minRef.current.scrollTop = mDrag.current.startTop - dy;
-  }
-  function onMinUp() {
-    if (!mDrag.current || !minRef.current) return;
-    mDrag.current = null;
-    if (!mDragged.current) return;
-    const m = Math.max(0, Math.min(59, Math.round(minRef.current.scrollTop / ITEM_H)));
-    const { currentHour } = getCurrentParts();
-    onChange(`${pad(currentHour)}:${pad(m)}`);
-    minRef.current.scrollTo({ top: m * ITEM_H, behavior: "smooth" });
-  }
-
-  const colBase = "overflow-y-auto [&::-webkit-scrollbar]:hidden cursor-grab active:cursor-grabbing select-none w-9";
-
-  return (
-    <div className="inline-flex items-center rounded-xl border border-gray-200 bg-white overflow-hidden hover:border-brand-300 transition-colors px-1">
-      {/* Hour */}
-      <div className="relative">
-        <div className="absolute top-0 inset-x-0 h-6 bg-gradient-to-b from-white to-transparent pointer-events-none z-10" />
-        <div className="absolute bottom-0 inset-x-0 h-6 bg-gradient-to-t from-white to-transparent pointer-events-none z-10" />
-        <div className="absolute top-1/2 -translate-y-1/2 inset-x-0 h-8 bg-brand-50/70 border-y border-brand-100 pointer-events-none z-0" />
-        <div
-          ref={hourRef}
-          className={colBase}
-          style={{ height: COL_H, scrollbarWidth: "none" }}
-          onPointerDown={onHourDown}
-          onPointerMove={onHourMove}
-          onPointerUp={onHourUp}
-          onPointerCancel={onHourUp}
-        >
-          <div style={{ height: SPACER }} />
-          {Array.from({ length: 24 }, (_, h) => (
-            <Button key={h} type="button" variant="ghost" style={{ height: ITEM_H }}
-              onClick={() => {
-                if (hDragged.current) return;
-                const { currentMinute } = getCurrentParts();
-                onChange(`${pad(h)}:${pad(currentMinute)}`);
-                hourRef.current?.scrollTo({ top: h * ITEM_H, behavior: "smooth" });
-              }}
-              className={cn(
-                "relative z-10 w-full h-auto flex items-center justify-center font-mono font-semibold transition-all rounded-lg p-0 min-w-0",
-                h === hh ? "text-brand-700 text-xs" : "text-[11px] text-gray-400 hover:text-gray-700",
-              )}
-            >{pad(h)}</Button>
-          ))}
-          <div style={{ height: SPACER }} />
-        </div>
-      </div>
-
-      <span className="text-gray-300 text-xs font-bold select-none mx-0.5">:</span>
-
-      {/* Minute */}
-      <div className="relative">
-        <div className="absolute top-0 inset-x-0 h-6 bg-gradient-to-b from-white to-transparent pointer-events-none z-10" />
-        <div className="absolute bottom-0 inset-x-0 h-6 bg-gradient-to-t from-white to-transparent pointer-events-none z-10" />
-        <div className="absolute top-1/2 -translate-y-1/2 inset-x-0 h-8 bg-brand-50/70 border-y border-brand-100 pointer-events-none z-0" />
-        <div
-          ref={minRef}
-          className={colBase}
-          style={{ height: COL_H, scrollbarWidth: "none" }}
-          onPointerDown={onMinDown}
-          onPointerMove={onMinMove}
-          onPointerUp={onMinUp}
-          onPointerCancel={onMinUp}
-        >
-          <div style={{ height: SPACER }} />
-          {Array.from({ length: 60 }, (_, m) => (
-            <Button key={m} type="button" variant="ghost" style={{ height: ITEM_H }}
-              onClick={() => {
-                if (mDragged.current) return;
-                const { currentHour } = getCurrentParts();
-                onChange(`${pad(currentHour)}:${pad(m)}`);
-                minRef.current?.scrollTo({ top: m * ITEM_H, behavior: "smooth" });
-              }}
-              className={cn(
-                "relative z-10 w-full h-auto flex items-center justify-center font-mono font-semibold transition-all rounded-lg p-0 min-w-0",
-                m === mm ? "text-brand-700 text-xs" : "text-[11px] text-gray-400 hover:text-gray-700",
-              )}
-            >{pad(m)}</Button>
-          ))}
-          <div style={{ height: SPACER }} />
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // ── WorkingHoursEditor ────────────────────────────────────────────────────────
@@ -607,12 +452,7 @@ export function WorkingHoursEditor({
             <div className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5">
               <Zap className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
               <span className="text-xs text-amber-800">Fechar hoje às</span>
-              <input
-                type="time"
-                value={todayCloseAt}
-                onChange={(e) => setTodayCloseAt(e.target.value)}
-                className="input h-8 w-[110px] py-1"
-              />
+              <TimePicker value={todayCloseAt} onChange={setTodayCloseAt} />
               <Button
                 type="button"
                 variant="outline"

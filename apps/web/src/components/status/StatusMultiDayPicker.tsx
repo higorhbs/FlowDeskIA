@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarClock, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
+import { TimePicker } from "@/components/ui/time-picker";
 import { cn } from "@/lib/utils";
 import {
   MAX_SCHEDULE_DAYS,
@@ -44,12 +45,6 @@ export function StatusMultiDayPicker({
 }: Props) {
   const fallbackMounted = useMemo(() => new Date(), []);
   const mountedAt = mountedAtProp ?? fallbackMounted;
-  const hourRef = useRef<HTMLDivElement>(null);
-  const minuteRef = useRef<HTMLDivElement>(null);
-  const dragState = useRef<{ startY: number; startScrollTop: number } | null>(null);
-  const didDragRef = useRef(false);
-  const minuteDragState = useRef<{ startY: number; startScrollTop: number } | null>(null);
-  const minuteDidDragRef = useRef(false);
   const calendarGridRef = useRef<HTMLDivElement>(null);
   const calendarDragRef = useRef<{
     mode: "select" | "deselect";
@@ -67,11 +62,6 @@ export function StatusMultiDayPicker({
     const d = new Date();
     return { year: d.getFullYear(), month: d.getMonth() };
   });
-
-  useEffect(() => {
-    if (hourRef.current) hourRef.current.scrollTop = selectedHour * 40;
-    if (minuteRef.current) minuteRef.current.scrollTop = selectedMinute * 40;
-  }, []);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -115,8 +105,6 @@ export function StatusMultiDayPicker({
       const newH = nowM + 1 >= 60 ? Math.min(nowH + 1, 23) : nowH;
       onHourChange(newH);
       onMinuteChange(newM);
-      hourRef.current?.scrollTo({ top: newH * 40, behavior: "smooth" });
-      minuteRef.current?.scrollTo({ top: newM * 40, behavior: "smooth" });
     }
   }
 
@@ -250,50 +238,6 @@ export function StatusMultiDayPicker({
     while (cells.length % 7 !== 0) cells.push(null);
     return cells;
   }, [viewMonth]);
-
-  function onHourPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    didDragRef.current = false;
-    dragState.current = { startY: e.clientY, startScrollTop: hourRef.current?.scrollTop ?? 0 };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }
-
-  function onHourPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!dragState.current || !hourRef.current) return;
-    const dy = e.clientY - dragState.current.startY;
-    if (Math.abs(dy) > 4) didDragRef.current = true;
-    hourRef.current.scrollTop = dragState.current.startScrollTop - dy;
-  }
-
-  function onHourPointerUp() {
-    if (!dragState.current || !hourRef.current) return;
-    dragState.current = null;
-    if (!didDragRef.current) return;
-    const nearest = Math.max(0, Math.min(23, Math.round(hourRef.current.scrollTop / 40)));
-    onHourChange(nearest);
-    hourRef.current.scrollTo({ top: nearest * 40, behavior: "smooth" });
-  }
-
-  function onMinutePointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    minuteDidDragRef.current = false;
-    minuteDragState.current = { startY: e.clientY, startScrollTop: minuteRef.current?.scrollTop ?? 0 };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }
-
-  function onMinutePointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!minuteDragState.current || !minuteRef.current) return;
-    const dy = e.clientY - minuteDragState.current.startY;
-    if (Math.abs(dy) > 4) minuteDidDragRef.current = true;
-    minuteRef.current.scrollTop = minuteDragState.current.startScrollTop - dy;
-  }
-
-  function onMinutePointerUp() {
-    if (!minuteDragState.current || !minuteRef.current) return;
-    minuteDragState.current = null;
-    if (!minuteDidDragRef.current) return;
-    const nearest = Math.max(0, Math.min(59, Math.round(minuteRef.current.scrollTop / 40)));
-    onMinuteChange(nearest);
-    minuteRef.current.scrollTo({ top: nearest * 40, behavior: "smooth" });
-  }
 
   return (
     <div>
@@ -434,100 +378,15 @@ export function StatusMultiDayPicker({
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Horário</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <p className="text-center text-[11px] text-gray-400 font-medium tracking-wide">Hora</p>
-              <div className="relative">
-                <div className="absolute top-0 inset-x-0 h-8 bg-gradient-to-b from-gray-50 to-transparent pointer-events-none z-10 rounded-t-xl" />
-                <div className="absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none z-10 rounded-b-xl" />
-                <div className="absolute top-1/2 -translate-y-1/2 inset-x-0 h-10 bg-brand-50/60 border-y border-brand-100 pointer-events-none z-0" />
-                <div
-                  ref={hourRef}
-                  className="h-40 overflow-y-auto [&::-webkit-scrollbar]:hidden cursor-grab active:cursor-grabbing select-none"
-                  style={{ scrollbarWidth: "none" }}
-                  onPointerDown={onHourPointerDown}
-                  onPointerMove={onHourPointerMove}
-                  onPointerUp={onHourPointerUp}
-                  onPointerCancel={onHourPointerUp}
-                >
-                  <div className="h-[60px]" />
-                  {Array.from({ length: 24 }, (_, h) => {
-                    const isDisabled = hasTodaySelected && h < mountedAt.getHours();
-                    const isSelected = h === selectedHour;
-                    return (
-                      <button
-                        key={h}
-                        type="button"
-                        disabled={isDisabled}
-                        onClick={() => {
-                          if (didDragRef.current) return;
-                          onHourChange(h);
-                          hourRef.current?.scrollTo({ top: h * 40, behavior: "smooth" });
-                        }}
-                        className={cn(
-                          "relative z-10 w-full h-10 flex items-center justify-center text-sm rounded-xl transition-all font-semibold",
-                          isDisabled && "text-gray-200 cursor-not-allowed",
-                          !isDisabled && !isSelected && "text-gray-400 hover:text-gray-700",
-                          isSelected && "text-brand-700 text-base",
-                        )}
-                      >
-                        {pad(h)}
-                      </button>
-                    );
-                  })}
-                  <div className="h-[60px]" />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <p className="text-center text-[11px] text-gray-400 font-medium tracking-wide">Minuto</p>
-              <div className="relative">
-                <div className="absolute top-0 inset-x-0 h-8 bg-gradient-to-b from-gray-50 to-transparent pointer-events-none z-10 rounded-t-xl" />
-                <div className="absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none z-10 rounded-b-xl" />
-                <div className="absolute top-1/2 -translate-y-1/2 inset-x-0 h-10 bg-brand-50/60 border-y border-brand-100 pointer-events-none z-0" />
-                <div
-                  ref={minuteRef}
-                  className="h-40 overflow-y-auto [&::-webkit-scrollbar]:hidden cursor-grab active:cursor-grabbing select-none"
-                  style={{ scrollbarWidth: "none" }}
-                  onPointerDown={onMinutePointerDown}
-                  onPointerMove={onMinutePointerMove}
-                  onPointerUp={onMinutePointerUp}
-                  onPointerCancel={onMinutePointerUp}
-                >
-                  <div className="h-[60px]" />
-                  {Array.from({ length: 60 }, (_, m) => {
-                    const isDisabled =
-                      hasTodaySelected &&
-                      selectedHour === mountedAt.getHours() &&
-                      m < mountedAt.getMinutes();
-                    const isSelected = m === selectedMinute;
-                    return (
-                      <button
-                        key={m}
-                        type="button"
-                        disabled={isDisabled}
-                        onClick={() => {
-                          if (minuteDidDragRef.current) return;
-                          onMinuteChange(m);
-                          minuteRef.current?.scrollTo({ top: m * 40, behavior: "smooth" });
-                        }}
-                        className={cn(
-                          "relative z-10 w-full h-10 flex items-center justify-center text-sm rounded-xl transition-all font-semibold",
-                          isDisabled && "text-gray-200 cursor-not-allowed",
-                          !isDisabled && !isSelected && "text-gray-400 hover:text-gray-700",
-                          isSelected && "text-brand-700 text-base",
-                        )}
-                      >
-                        :{pad(m)}
-                      </button>
-                    );
-                  })}
-                  <div className="h-[60px]" />
-                </div>
-              </div>
-            </div>
-          </div>
+          <TimePicker
+            value={`${pad(selectedHour)}:${pad(selectedMinute)}`}
+            onChange={(time) => {
+              const [h, m] = time.split(":").map(Number);
+              onHourChange(h ?? 0);
+              onMinuteChange(m ?? 0);
+            }}
+            minTime={hasTodaySelected ? `${pad(mountedAt.getHours())}:${pad(mountedAt.getMinutes())}` : undefined}
+          />
         </div>
       </div>
     </div>

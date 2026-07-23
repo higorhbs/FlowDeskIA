@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { TimePicker } from "@/components/ui/time-picker";
 import { useBusinessId } from "@/lib/use-business-id";
 import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { getBookingStatusLabel, businessRequiresBookingApproval } from "@flowdesk/shared";
@@ -668,10 +669,9 @@ function AppointmentsCalendarView() {
                 </div>
                 <div>
                   <Label className="mb-1.5">Hora</Label>
-                  <Input
-                    type="time"
+                  <TimePicker
                     value={editing.form.time}
-                    onChange={(e) => updateEditForm({ time: e.target.value })}
+                    onChange={(time) => updateEditForm({ time })}
                   />
                 </div>
               </div>
@@ -972,10 +972,9 @@ function AppointmentsCalendarView() {
                 </div>
                 <div>
                   <Label className="mb-1.5">Hora</Label>
-                  <Input
-                    type="time"
+                  <TimePicker
                     value={creating.time}
-                    onChange={(e) => updateCreateForm({ time: e.target.value })}
+                    onChange={(time) => updateCreateForm({ time })}
                   />
                 </div>
               </div>

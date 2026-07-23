@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { TimePicker } from "@/components/ui/time-picker";
 import {
   Loader2,
   Building2,
@@ -19,7 +20,6 @@ import {
   Clock,
   CheckCircle2,
   ChevronRight,
-  ChevronDown,
   AlertTriangle,
   RotateCw,
   Scissors,
@@ -282,23 +282,6 @@ function IconInput({
     <div className="relative">
       <Icon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden />
       <Input className={cn(INPUT_CLS, "pl-10", className)} {...props} />
-    </div>
-  );
-}
-
-function PrettySelect({ className, children, ...props }: React.ComponentProps<"select">) {
-  return (
-    <div className="relative">
-      <select
-        {...props}
-        className={cn(
-          "h-11 w-full appearance-none rounded-xl border border-gray-200 bg-white pl-3.5 pr-9 text-sm shadow-sm transition-shadow focus:outline-none focus-visible:border-brand-400 focus-visible:ring-4 focus-visible:ring-brand-100",
-          className,
-        )}
-      >
-        {children}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden />
     </div>
   );
 }
@@ -773,27 +756,15 @@ export default function SettingsPage() {
 
               {dailyReportEnabled && (
                 <Field label="Horário de envio" icon={<Clock className="w-3.5 h-3.5" />} hint="Fuso do negócio">
-                  <div className="flex items-center gap-2">
-                    <PrettySelect
-                      value={dailyReportHour}
-                      onChange={(e) => { setDailyReportHour(Number(e.target.value)); markDirty(); }}
-                      className="w-24"
-                    >
-                      {Array.from({ length: 24 }, (_, h) => (
-                        <option key={h} value={h}>{String(h).padStart(2, "0")}</option>
-                      ))}
-                    </PrettySelect>
-                    <span className="text-gray-400">:</span>
-                    <PrettySelect
-                      value={dailyReportMinute}
-                      onChange={(e) => { setDailyReportMinute(Number(e.target.value)); markDirty(); }}
-                      className="w-24"
-                    >
-                      {[0, 15, 30, 45].map((m) => (
-                        <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
-                      ))}
-                    </PrettySelect>
-                  </div>
+                  <TimePicker
+                    value={`${String(dailyReportHour).padStart(2, "0")}:${String(dailyReportMinute).padStart(2, "0")}`}
+                    onChange={(time) => {
+                      const [h, m] = time.split(":").map(Number);
+                      setDailyReportHour(h ?? 0);
+                      setDailyReportMinute(m ?? 0);
+                      markDirty();
+                    }}
+                  />
                 </Field>
               )}
             </TabPanel>
