@@ -1,10 +1,10 @@
-import Stripe from 'stripe'
 import {
+  getPaymentsByMpPaymentId,
+  getBusinessMercadoPagoIntegration,
+  updatePayment,
+  updatePaymentsByMpPaymentId,
   getTenant,
   getTenantByStripeCustomerId,
-  getBusinessAsaasIntegration,
-  getPaymentsByAsaasId,
-  updatePaymentsByAsaasId,
   updateTenant,
 } from '@flowdesk/firebase'
 import { json } from '../../lib/auth-guard.js'
@@ -14,12 +14,12 @@ import {
   isSubscriptionCancelPending,
   subscriptionCancelPatch,
 } from '../../services/stripe-subscription.js'
+import {
+  fetchMercadoPagoPayment,
+  getValidMercadoPagoAccessToken,
+} from '../../services/mercadopago.js'
 import { notifyPaymentReceived } from '../../../dist/whatsapp/services/payment-notify.js'
-
-function optionalEnv(name) {
-  const v = process.env[name]?.trim()
-  return v || undefined
-}
+import Stripe from 'stripe'
 
 function planFromPriceId(priceId) {
   if (!priceId) return null
@@ -29,40 +29,68 @@ function planFromPriceId(priceId) {
   return null
 }
 
-export async function asaasWebhookHandler(c) {
-  const event = await c.req.json().catch(() => ({}))
-  const eventType = event.event
-  const payment = event.payment
-  const header = c.req.header('asaas-access-token')
-  const globalToken = optionalEnv('ASAAS_WEBHOOK_TOKEN')
+function parseExternalReference(ref) {
+  if (!ref || typeof ref !== 'string') return null
+  const [businessId, paymentId] = ref.split(':')
+  if (!businessId || !paymentId) return null
+  return { businessId, paymentId }
+}
 
-  if (payment?.id) {
-    const linked = await getPaymentsByAsaasId(payment.id)
-    const businessId = linked[0]?.businessId
-    if (businessId) {
-      const integration = await getBusinessAsaasIntegration(businessId)
-      if (integration?.webhookToken) {
-        if (header !== integration.webhookToken) {
-          return json(c, 401, { error: 'Token do webhook inválido para este negócio' })
-        }
-      } else if (globalToken && header !== globalToken) {
-        return json(c, 401, { error: 'Token do webhook Asaas inválido' })
-      }
-    } else if (globalToken && header !== globalToken) {
-      return json(c, 401, { error: 'Token do webhook Asaas inválido' })
+export async function mercadopagoWebhookHandler(c) {
+  let body = {}
+  try {
+    if (c.req.method !== 'GET') {
+      body = await c.req.json()
     }
-  } else if (globalToken && header !== globalToken) {
-    return json(c, 401, { error: 'Token do webhook Asaas inválido' })
+  } catch {
+    body = {}
   }
-
-  if (!payment?.id) {
+  const paymentId = body?.data?.id ?? body?.id ?? c.req.query('data.id') ?? c.req.query('id')
+  if (!paymentId) {
     return c.json({ received: true })
   }
 
-  if (eventType === 'PAYMENT_RECEIVED' || eventType === 'PAYMENT_CONFIRMED') {
-    const before = await getPaymentsByAsaasId(payment.id)
+  const mpId = String(paymentId)
+  let linked = await getPaymentsByMpPaymentId(mpId)
+  let businessId = linked[0]?.businessId
+
+  let mpPayment = null
+  if (businessId) {
+    try {
+      const tokenBundle = await getValidMercadoPagoAccessToken(businessId)
+      if (tokenBundle?.accessToken) {
+        mpPayment = await fetchMercadoPagoPayment(tokenBundle.accessToken, mpId)
+      }
+    } catch (err) {
+      console.error('[webhooks] mercadopago fetch failed:', err)
+    }
+  }
+
+  if (!mpPayment) {
+    return c.json({ received: true })
+  }
+
+  if (!businessId) {
+    const parsed = parseExternalReference(mpPayment.external_reference)
+    if (parsed) {
+      businessId = parsed.businessId
+      const integration = await getBusinessMercadoPagoIntegration(businessId)
+      if (!integration?.accessToken) {
+        return c.json({ received: true })
+      }
+      linked = await getPaymentsByMpPaymentId(mpId)
+      if (!linked.length && parsed.paymentId) {
+        await updatePayment(businessId, parsed.paymentId, { mpPaymentId: mpId })
+        linked = await getPaymentsByMpPaymentId(mpId)
+      }
+    }
+  }
+
+  const status = String(mpPayment.status || '')
+  if (status === 'approved') {
+    const before = linked.length ? linked : await getPaymentsByMpPaymentId(mpId)
     const paidAt = new Date().toISOString()
-    await updatePaymentsByAsaasId(payment.id, { status: 'PAID', paidAt })
+    await updatePaymentsByMpPaymentId(mpId, { status: 'PAID', paidAt })
     for (const p of before) {
       if (p.status !== 'PAID') {
         await notifyPaymentReceived({ ...p, status: 'PAID', paidAt })
@@ -70,8 +98,12 @@ export async function asaasWebhookHandler(c) {
     }
   }
 
-  if (eventType === 'PAYMENT_OVERDUE') {
-    await updatePaymentsByAsaasId(payment.id, { status: 'OVERDUE' })
+  if (status === 'cancelled' || status === 'rejected') {
+    await updatePaymentsByMpPaymentId(mpId, { status: 'CANCELLED' })
+  }
+
+  if (status === 'expired') {
+    await updatePaymentsByMpPaymentId(mpId, { status: 'OVERDUE' })
   }
 
   return c.json({ received: true })

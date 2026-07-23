@@ -145,7 +145,7 @@ const STEPS: StepDef[] = [
     features: [
       { icon: QrCode, text: "PIX gerado e enviado direto no chat" },
       { icon: CheckCircle2, text: "Confirmação automática quando pago" },
-      { icon: Wallet, text: "Dinheiro cai na sua conta Asaas na hora" },
+      { icon: Wallet, text: "Dinheiro cai na sua conta Mercado Pago na hora" },
     ],
     chat: {
       businessName: DEMO_BUSINESS,

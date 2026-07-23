@@ -87,7 +87,12 @@ export function getTodayDayOfWeek(timezone?: string): DayOfWeek {
 
 export function isWeeklyMenuTrigger(text: string, menu: WeeklyMenuConfig): boolean {
   const normalized = text.toLowerCase().trim();
-  return menu.triggerKeywords.some((kw) => normalized.includes(kw.toLowerCase().trim()));
+  const keywords =
+    menu.triggerKeywords?.length > 0 ? menu.triggerKeywords : DEFAULT_WEEKLY_MENU_KEYWORDS;
+  return keywords.some((kw) => {
+    const k = kw.toLowerCase().trim();
+    return k.length > 0 && normalized.includes(k);
+  });
 }
 
 export interface OrderMenuEntry {

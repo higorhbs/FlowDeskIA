@@ -70,7 +70,7 @@ export default function PrivacyPage() {
             <h2 className="font-semibold text-gray-900 mb-2">5. Compartilhamento e transferência</h2>
             <p>
               Podemos compartilhar dados com provedores necessários à operação: Google/Firebase
-              (hospedagem e autenticação), Stripe (assinaturas), Asaas (PIX, quando habilitado),
+              (hospedagem e autenticação), Stripe (assinaturas), Mercado Pago (PIX, quando habilitado),
               Meta/WhatsApp (mensageria) e ferramentas de analytics com consentimento. Alguns
               provedores podem processar dados fora do Brasil, com salvaguardas contratuais.
             </p>

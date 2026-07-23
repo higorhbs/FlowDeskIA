@@ -18,6 +18,12 @@ export function normalizeBusinessType(type?: string | null): BusinessType {
   return "OTHER";
 }
 
+/** Lead flow só para comércios/clínicas — não restaurante nem salão. */
+export function businessSupportsLeadFlow(type?: string | null): boolean {
+  const t = normalizeBusinessType(type);
+  return t !== "RESTAURANT" && t !== "BARBERSHOP";
+}
+
 export interface BusinessVocabulary {
   typeLabel: string;
   bookingsNav: string;

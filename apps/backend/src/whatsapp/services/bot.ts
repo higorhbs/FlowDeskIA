@@ -13,11 +13,11 @@ import {
   updateConversationStatus,
   createAppointment,
   createPayment,
+  updatePayment,
   createOrder,
   listCustomerOrders,
   findConflictingAppointment,
   listCustomerAppointments,
-  getBusinessAsaasIntegration,
   type Conversation,
   type OrderFulfillment,
   clearOutsideHoursNotice,
@@ -60,7 +60,7 @@ import {
   formatOrderMenuMessage,
   type OrderMenuEntry,
 } from "@flowdesk/shared";
-import { createPixCharge, resolveAsaasCredentials } from "./pix.js";
+import { createPixCharge } from "./pix.js";
 import { printOrderReceipt } from "./printer.js";
 import {
   isLeadFlowActive,
@@ -225,9 +225,35 @@ async function replyWhenClosed(
   return [{ text: response }];
 }
 
+function isRestaurantWeeklyMenuHit(
+  business: { type?: string; weeklyMenu?: { enabled?: boolean; triggerKeywords?: string[] } },
+  messageBody: string,
+): boolean {
+  if (business.type !== "RESTAURANT") return false;
+  const weeklyMenu = business.weeklyMenu;
+  if (!weeklyMenu?.enabled) return false;
+  return isWeeklyMenuTrigger(messageBody, weeklyMenu as any);
+}
+
+async function replyWeeklyMenu(
+  business: any,
+  conversation: Conversation,
+  sessionKey: string,
+): Promise<BotResponse[]> {
+  conversationState.delete(sessionKey);
+  botPausedSessions.delete(sessionKey);
+  await clearConversationBotFlowState(business.id, conversation.id).catch(() => undefined);
+  await clearLeadFlowIdleFollowUp(business.id, conversation.id).catch(() => undefined);
+  const tz = businessTimezone(business);
+  const dayOfWeek = getTodayDayOfWeek(tz);
+  const text = formatWeeklyMenuResponse(business.weeklyMenu, dayOfWeek, business.name);
+  await saveAndReturn(business.id, conversation.id, [{ text }]);
+  return [{ text }];
+}
+
 async function tryProgrammedQuickReply(
   ctx: BotContext,
-  business: { id: string; name: string; faqs?: any[]; leadFlow?: LeadCaptureFlow | null },
+  business: { id: string; name: string; type?: string; faqs?: any[]; leadFlow?: LeadCaptureFlow | null; weeklyMenu?: any },
   conversation: Conversation,
   sessionKey: string,
   activeFlow?: { step: string } | null,
@@ -241,6 +267,9 @@ async function tryProgrammedQuickReply(
   }
 
   if (isResumeFlowActive(activeFlow) || isLeadFlowActive(activeFlow)) return null;
+
+  // Cardápio do restaurante tem prioridade sobre atalho de nó do lead flow.
+  if (isRestaurantWeeklyMenuHit(business, ctx.messageBody)) return null;
 
   const flow = getLeadFlowConfig(business);
   if (flow) {
@@ -327,6 +356,10 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
     await clearOutsideHoursNotice(businessId, customerPhone);
   } else {
     return replyWhenClosed(business, conversation, customerName, sessionKey);
+  }
+
+  if (isRestaurantWeeklyMenuHit(business, messageBody)) {
+    return replyWeeklyMenu(business, conversation, sessionKey);
   }
 
   if (botPausedSessions.has(sessionKey)) {
@@ -486,20 +519,6 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
       saveAndReturn,
       fields,
     );
-  }
-
-  // ─── Cardápio semanal (restaurantes) ─────────────────────────────────────
-  const weeklyMenu = (business as any).weeklyMenu;
-  if (
-    business.type === "RESTAURANT" &&
-    weeklyMenu?.enabled &&
-    isWeeklyMenuTrigger(messageBody, weeklyMenu)
-  ) {
-    const tz = businessTimezone(business);
-    const dayOfWeek = getTodayDayOfWeek(tz);
-    const text = formatWeeklyMenuResponse(weeklyMenu, dayOfWeek, business.name);
-    await saveAndReturn(business.id, conversation.id, [{ text }]);
-    return [{ text }];
   }
 
   const intent = detectIntent(messageBody, business.type);
@@ -663,6 +682,14 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
 // ─── Handlers ─────────────────────────────────────────────────────────────────
 
 async function handleCatalog(business: any, conversation: Conversation): Promise<BotResponse[]> {
+  if (business.type === "RESTAURANT" && business.weeklyMenu?.enabled) {
+    const tz = businessTimezone(business);
+    const dayOfWeek = getTodayDayOfWeek(tz);
+    const text = formatWeeklyMenuResponse(business.weeklyMenu, dayOfWeek, business.name);
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+
   const v = voc(business);
   if (!business.catalog.length) {
     const text = v.botCatalogEmpty;
@@ -1190,12 +1217,12 @@ function tenantAllowsPix(plan?: string): boolean {
 }
 
 async function pixGate(
-  business: { id: string; tenantId: string; asaasConfigured?: boolean },
+  business: { id: string; tenantId: string; mercadoPagoConfigured?: boolean },
   conversation: Conversation
 ): Promise<BotResponse[] | null> {
-  if (!business.asaasConfigured) {
+  if (!business.mercadoPagoConfigured) {
     const text =
-      `💳 Pagamento PIX ainda não está ativo neste negócio. O dono precisa conectar a conta Asaas em *Pagamentos* no painel ${APP_DISPLAY_NAME}.`;
+      `💳 Pagamento PIX ainda não está ativo neste negócio. O dono precisa conectar a conta Mercado Pago em *Pagamentos* no painel ${APP_DISPLAY_NAME}.`;
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
@@ -1252,35 +1279,32 @@ async function handlePaymentAmount(
   let responses: BotResponse[];
 
   try {
-    const integration = await getBusinessAsaasIntegration(business.id);
-    const creds = resolveAsaasCredentials(integration);
-    if (!creds) {
-      throw new Error("Conta Asaas não conectada. Configure em Pagamentos no painel.");
-    }
-
-    const pix = await createPixCharge(
-      {
-        customerName: state.data.customerName ?? ctx.customerName ?? "Cliente",
-        customerPhone: ctx.customerPhone,
-        description: `Sinal - ${business.name}`,
-        amount,
-        externalRef: conversation.id,
-      },
-      creds
-    );
-
-    await createPayment({
+    const payment = await createPayment({
       businessId: business.id,
       conversationId: conversation.id,
       customerPhone: ctx.customerPhone,
       customerName: ctx.customerName,
       description: `Sinal - ${business.name}`,
       amount,
-      pixQrCode: pix.pixQrCode,
-      pixCopyPaste: pix.pixCopyPaste,
-      asaasId: pix.asaasId,
       status: "PENDING",
       dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      externalRef: conversation.id,
+    });
+
+    const pix = await createPixCharge({
+      businessId: business.id,
+      paymentId: payment.id,
+      customerName: state.data.customerName ?? ctx.customerName ?? "Cliente",
+      customerPhone: ctx.customerPhone,
+      description: `Sinal - ${business.name}`,
+      amount,
+      externalRef: `${business.id}:${payment.id}`,
+    });
+
+    await updatePayment(business.id, payment.id, {
+      pixQrCode: pix.pixQrCode,
+      pixCopyPaste: pix.pixCopyPaste,
+      mpPaymentId: pix.mpPaymentId,
     });
 
     const text =
@@ -1398,7 +1422,7 @@ function getEnabledMenuEntries(business?: {
   botMenu?: unknown[];
   botMenuEnabled?: boolean;
   type?: string;
-  asaasConfigured?: boolean;
+  mercadoPagoConfigured?: boolean;
   tenantPlan?: string;
 }): MenuPick[] {
   if (business?.botMenuEnabled === false) return [];
@@ -1414,15 +1438,15 @@ function getEnabledMenuEntries(business?: {
       enabled: true,
     }));
   }
-  return ensurePixMenuEntry(entries, business?.asaasConfigured, business?.tenantPlan);
+  return ensurePixMenuEntry(entries, business?.mercadoPagoConfigured, business?.tenantPlan);
 }
 
-function ensurePixMenuEntry(entries: MenuPick[], asaasConfigured?: boolean, tenantPlan?: string): MenuPick[] {
+function ensurePixMenuEntry(entries: MenuPick[], mercadoPagoConfigured?: boolean, tenantPlan?: string): MenuPick[] {
   const allowsPix = tenantPlan === "PRO" || tenantPlan === "UNLIMITED";
   const filtered = allowsPix
     ? entries
     : entries.filter((e) => e.action !== "PAYMENT" && !/pix|pagar|pagamento|sinal/i.test(`${e.label} ${e.response ?? ""}`));
-  if (!asaasConfigured || !allowsPix) return filtered;
+  if (!mercadoPagoConfigured || !allowsPix) return filtered;
   const hasPix = filtered.some(
     (e) => e.action === "PAYMENT" || /pix|pagar|pagamento|sinal/i.test(`${e.label} ${e.response ?? ""}`)
   );

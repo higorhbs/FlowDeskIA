@@ -6,6 +6,8 @@ import {
   normalizeAppointmentBotConfig,
   normalizeOrderBotConfig,
   normalizePrinterConfig,
+  DEFAULT_WEEKLY_MENU_KEYWORDS,
+  businessSupportsLeadFlow,
   type LeadCaptureFlow,
   type ResumeFlowConfig,
   type AppointmentBotConfig,
@@ -106,11 +108,12 @@ function readWeeklyMenu(raw: unknown): Business["weeklyMenu"] {
   if (!raw || typeof raw !== "object") return undefined;
   const source = raw as Partial<WeeklyMenuConfig>;
   if (!Array.isArray(source.days)) return undefined;
+  const triggerKeywords = Array.isArray(source.triggerKeywords)
+    ? (source.triggerKeywords as string[]).map((k) => String(k).trim()).filter(Boolean)
+    : [];
   return {
     enabled: source.enabled === true,
-    triggerKeywords: Array.isArray(source.triggerKeywords)
-      ? (source.triggerKeywords as string[])
-      : [],
+    triggerKeywords: triggerKeywords.length ? triggerKeywords : [...DEFAULT_WEEKLY_MENU_KEYWORDS],
     days: source.days,
     responsePrefix: typeof source.responsePrefix === "string" ? source.responsePrefix : undefined,
   };
@@ -170,11 +173,16 @@ export function buildBusinessCreateRecord(
 }
 
 export function normalizeBusiness(id: string, raw: Record<string, unknown>): Business {
+  const type = normalizeBusinessType(typeof raw.type === "string" ? raw.type : undefined);
+  let leadFlow = readLeadFlow(raw.leadFlow);
+  if (leadFlow && !businessSupportsLeadFlow(type)) {
+    leadFlow = { ...leadFlow, enabled: false };
+  }
   return {
     id,
     tenantId: String(raw.tenantId ?? ""),
     name: String(raw.name ?? ""),
-    type: normalizeBusinessType(typeof raw.type === "string" ? raw.type : undefined),
+    type,
     phone: String(raw.phone ?? ""),
     createdAt: String(raw.createdAt ?? ""),
     updatedAt: String(raw.updatedAt ?? ""),
@@ -208,7 +216,7 @@ export function normalizeBusiness(id: string, raw: Record<string, unknown>): Bus
       : undefined,
     attendantEnabled: raw.attendantEnabled !== false,
     manualAttendantPrefixEnabled: raw.manualAttendantPrefixEnabled !== false,
-    leadFlow: readLeadFlow(raw.leadFlow),
+    leadFlow,
     resumeFlow: readResumeFlow(raw.resumeFlow),
     weeklyMenu: readWeeklyMenu(raw.weeklyMenu),
     appointmentBot: readAppointmentBot(raw.appointmentBot),

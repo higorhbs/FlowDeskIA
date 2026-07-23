@@ -58,7 +58,7 @@ export const LANDING_FEATURES: LandingFeature[] = [
     id: "pix",
     icon: Wallet,
     title: "Cobrança PIX automática",
-    desc: "QR Code e copia-e-cola direto na conversa, via Asaas.",
+    desc: "QR Code e copia-e-cola direto na conversa, via Mercado Pago.",
     detail: "Disponível nos planos Pro e Unlimited.",
   },
   {

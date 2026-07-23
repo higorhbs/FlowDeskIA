@@ -97,7 +97,7 @@ src/
 | `POST` | `/auth/confirm-verification/session` | Confirmar sessão (Bearer) |
 | `POST` | `/auth/sync` | Criar tenant Firestore (Bearer) |
 
-Env: `FIREBASE_WEB_API_KEY`, credencial Admin, `WEB_ORIGIN`, `CORS_ORIGIN`, `STRIPE_*`, `ASAAS_*`.
+Env: `FIREBASE_WEB_API_KEY`, credencial Admin, `WEB_ORIGIN`, `CORS_ORIGIN`, `STRIPE_*`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_REDIRECT_URI`.
 
 ### Negócios (onboarding)
 
@@ -144,26 +144,28 @@ Requer `ENABLE_WORKERS=true` e credenciais Firebase (Storage, Firestore para ses
 | `POST` | `/privacy/anonymize` | Bearer |
 | `POST` | `/privacy/retention/run` | Bearer |
 
-### Integração Asaas
+### Integração Mercado Pago
 
-| Método | Path | Auth |
-| ------ | ---- | ---- |
-| `GET` | `/businesses/:id/integrations/asaas` | Bearer |
-| `PUT` | `/businesses/:id/integrations/asaas` | Bearer |
-| `DELETE` | `/businesses/:id/integrations/asaas` | Bearer |
+| Método | Rota | Auth |
+|--------|------|------|
+| `GET` | `/businesses/:id/integrations/mercadopago` | Bearer |
+| `GET` | `/businesses/:id/integrations/mercadopago/connect` | Bearer |
+| `DELETE` | `/businesses/:id/integrations/mercadopago` | Bearer |
+| `GET` | `/mercadopago/oauth/callback` | — |
+
 
 ### Webhooks (sem Bearer)
 
 | Método | Path |
 | ------ | ---- |
 | `POST` | `/webhooks/stripe` |
-| `POST` | `/webhooks/asaas` |
+| `POST` | `/webhooks/mercadopago` |
 
 ### Notificações internas (`INTERNAL_NOTIFY_SECRET` + header `x-internal-secret`)
 
 | Método | Path | Uso |
 | ------ | ---- | --- |
-| `POST` | `/internal/notifications/payment` | Legado — webhook Asaas chama in-process |
+| `POST` | `/internal/notifications/payment` | Legado — webhook Mercado Pago chama in-process |
 | `POST` | `/internal/notifications/booking` | Confirmação de agendamento via WA |
 
 ### Stories WhatsApp (Bearer + negócio do tenant)

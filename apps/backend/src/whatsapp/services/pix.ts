@@ -1,51 +1,29 @@
-import axios, { type AxiosInstance } from "axios";
+import axios from "axios";
+import {
+  getBusinessMercadoPagoIntegration,
+  setBusinessMercadoPagoIntegration,
+} from "@flowdesk/firebase";
 import { optionalEnv } from "../env.js";
 
-export type AsaasCredentials = {
-  apiKey: string;
-  baseUrl: string;
-};
+const MP_API = "https://api.mercadopago.com";
+const REFRESH_SKEW_MS = 5 * 60 * 1000;
 
-const SANDBOX_URL = "https://sandbox.asaas.com/api/v3";
-const PRODUCTION_URL = "https://api.asaas.com/api/v3";
-
-export function asaasBaseUrl(sandbox: boolean): string {
-  if (sandbox) return SANDBOX_URL;
-  return optionalEnv("ASAAS_BASE_URL") ?? PRODUCTION_URL;
+export interface PixChargeInput {
+  businessId: string;
+  paymentId: string;
+  customerName: string;
+  customerPhone: string;
+  description: string;
+  amount: number;
+  externalRef?: string;
 }
 
-export function isPlatformAsaasConfigured(): boolean {
-  return Boolean(optionalEnv("ASAAS_API_KEY"));
-}
-
-export function resolveAsaasCredentials(integration?: {
-  apiKey?: string;
-  sandbox?: boolean;
-} | null): AsaasCredentials | null {
-  if (integration?.apiKey?.trim()) {
-    return {
-      apiKey: integration.apiKey.trim(),
-      baseUrl: asaasBaseUrl(integration.sandbox === true),
-    };
-  }
-  const platformKey = optionalEnv("ASAAS_API_KEY");
-  if (!platformKey) return null;
-  const baseUrl = optionalEnv("ASAAS_BASE_URL") ?? PRODUCTION_URL;
-  return { apiKey: platformKey, baseUrl };
-}
-
-export function isAsaasConfigured(integration?: { apiKey?: string } | null): boolean {
-  return resolveAsaasCredentials(integration) !== null;
-}
-
-function asaasClient(creds: AsaasCredentials): AxiosInstance {
-  return axios.create({
-    baseURL: creds.baseUrl,
-    headers: {
-      access_token: creds.apiKey,
-      "Content-Type": "application/json",
-    },
-  });
+export interface PixChargeResult {
+  mpPaymentId: string;
+  pixQrCode: string;
+  pixCopyPaste: string;
+  amount: number;
+  status: string;
 }
 
 function normalizeBrPhone(phone: string): string {
@@ -57,81 +35,108 @@ function normalizeBrPhone(phone: string): string {
   return digits;
 }
 
-function resolveAsaasDefaultCpfCnpj(): string {
-  const raw =
-    optionalEnv("ASAAS_DEFAULT_CPF_CNPJ") ?? optionalEnv("ASAAS_DEFAULT_CPF");
-  const digits = raw?.replace(/\D/g, "") ?? "";
-  if (digits.length !== 11 && digits.length !== 14) {
-    throw new Error(
-      "Configure ASAAS_DEFAULT_CPF_CNPJ (CPF 11 ou CNPJ 14 dígitos) com o documento da conta Asaas da plataforma."
-    );
+function payerEmailFromPhone(phone: string): string {
+  const digits = normalizeBrPhone(phone) || "cliente";
+  return `${digits}@pix.flowdesk.local`;
+}
+
+function publicWebhookUrl(): string {
+  const envBase =
+    optionalEnv("API_PUBLIC_URL") ||
+    optionalEnv("WA_API_PUBLIC_URL") ||
+    optionalEnv("NEXT_PUBLIC_API_URL");
+  if (envBase && !/localhost|127\.0\.0\.1/.test(envBase)) {
+    return `${envBase.replace(/\/$/, "")}/webhooks/mercadopago`;
   }
-  return digits;
+  return "https://api.flowdesk.app/webhooks/mercadopago";
 }
 
-export interface PixChargeInput {
-  customerName: string;
-  customerPhone: string;
-  description: string;
-  amount: number;
-  dueDate?: string;
-  externalRef?: string;
-}
-
-export interface PixChargeResult {
-  asaasId: string;
-  pixQrCode: string;
-  pixCopyPaste: string;
-  amount: number;
-  status: string;
-}
-
-export async function createPixCharge(
-  input: PixChargeInput,
-  creds: AsaasCredentials
-): Promise<PixChargeResult> {
-  const client = asaasClient(creds);
-  const mobilePhone = normalizeBrPhone(input.customerPhone);
-  const cpfCnpj = resolveAsaasDefaultCpfCnpj();
-  let customerId: string;
-
-  const existing = await client.get("/customers", { params: { mobilePhone } });
-  if (existing.data.data?.length > 0) {
-    customerId = existing.data.data[0].id;
-  } else {
-    const created = await client.post("/customers", {
-      name: input.customerName,
-      mobilePhone,
-      cpfCnpj,
-    });
-    customerId = created.data.id;
+async function refreshAccessToken(refreshToken: string) {
+  const clientId = optionalEnv("MP_CLIENT_ID");
+  const clientSecret = optionalEnv("MP_CLIENT_SECRET");
+  if (!clientId || !clientSecret) {
+    throw new Error("MP_CLIENT_ID/MP_CLIENT_SECRET não configurados");
   }
-
-  const dueDate =
-    input.dueDate ?? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-
-  const charge = await client.post("/payments", {
-    customer: customerId,
-    billingType: "PIX",
-    value: input.amount,
-    dueDate,
-    description: input.description,
-    externalReference: input.externalRef,
-  });
-
-  const chargeId = charge.data.id as string;
-  const qrRes = await client.get(`/payments/${chargeId}/pixQrCode`);
-
+  const { data } = await axios.post(
+    `${MP_API}/oauth/token`,
+    {
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+    },
+    { headers: { "Content-Type": "application/json" }, timeout: 20_000 }
+  );
+  const expiresIn = Number(data.expires_in) || 21600;
   return {
-    asaasId: chargeId,
-    pixQrCode: qrRes.data.encodedImage,
-    pixCopyPaste: qrRes.data.payload,
-    amount: input.amount,
-    status: charge.data.status,
+    accessToken: String(data.access_token || ""),
+    refreshToken: String(data.refresh_token || refreshToken),
+    mpUserId: String(data.user_id ?? ""),
+    expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
+    liveMode: data.live_mode !== false,
   };
 }
 
-export async function checkPixStatus(asaasId: string, creds: AsaasCredentials): Promise<string> {
-  const res = await asaasClient(creds).get(`/payments/${asaasId}`);
-  return res.data.status;
+async function resolveAccessToken(businessId: string): Promise<string> {
+  const integration = await getBusinessMercadoPagoIntegration(businessId);
+  if (!integration?.accessToken) {
+    throw new Error("Conta Mercado Pago não conectada. Configure em Pagamentos no painel.");
+  }
+  const expiresAt = Date.parse(integration.expiresAt || "");
+  const stillValid = Number.isFinite(expiresAt) && expiresAt - Date.now() > REFRESH_SKEW_MS;
+  if (stillValid) return integration.accessToken;
+
+  if (!integration.refreshToken) return integration.accessToken;
+
+  const tokens = await refreshAccessToken(integration.refreshToken);
+  const saved = await setBusinessMercadoPagoIntegration(businessId, {
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    mpUserId: tokens.mpUserId || integration.mpUserId,
+    expiresAt: tokens.expiresAt,
+    email: integration.email,
+    liveMode: tokens.liveMode,
+  });
+  return saved.accessToken;
+}
+
+export async function createPixCharge(input: PixChargeInput): Promise<PixChargeResult> {
+  const accessToken = await resolveAccessToken(input.businessId);
+  const externalReference =
+    input.externalRef?.trim() || `${input.businessId}:${input.paymentId}`;
+
+  const { data } = await axios.post(
+    `${MP_API}/v1/payments`,
+    {
+      transaction_amount: Number(input.amount),
+      description: input.description,
+      payment_method_id: "pix",
+      payer: { email: payerEmailFromPhone(input.customerPhone) },
+      external_reference: externalReference,
+      notification_url: publicWebhookUrl(),
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        "X-Idempotency-Key": `${input.businessId}-${input.paymentId}`,
+      },
+      timeout: 25_000,
+    }
+  );
+
+  const tx = data?.point_of_interaction?.transaction_data || {};
+  const pixCopyPaste = String(tx.qr_code || "");
+  const pixQrCode = String(tx.qr_code_base64 || "");
+  if (!pixCopyPaste) {
+    throw new Error("Mercado Pago não retornou código PIX. Verifique se a conta tem PIX ativo.");
+  }
+
+  return {
+    mpPaymentId: String(data.id),
+    pixQrCode,
+    pixCopyPaste,
+    amount: input.amount,
+    status: String(data.status || ""),
+  };
 }

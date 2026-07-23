@@ -60,7 +60,7 @@ export default function TermsPage() {
           <div>
             <h2 className="font-semibold text-gray-900 mb-2">5. Integrações de terceiros</h2>
             <p>
-              O serviço pode depender de Google, Firebase, Stripe, Asaas, WhatsApp e outros
+              O serviço pode depender de Google, Firebase, Stripe, Mercado Pago, WhatsApp e outros
               provedores. Indisponibilidades ou mudanças nesses serviços podem afetar funcionalidades
               sem que isso configure inadimplemento imediato por parte do {APP_DISPLAY_NAME}.
             </p>

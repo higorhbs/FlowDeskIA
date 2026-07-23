@@ -6,18 +6,24 @@ const receivedSchema = {
 }
 
 export const webhooksPaths = {
-  '/webhooks/asaas': {
+  '/webhooks/mercadopago': {
     post: {
       tags: ['Webhooks'],
-      summary: 'Webhook Asaas (pagamentos PIX)',
-      description: 'Valida header asaas-access-token (global ou por negócio).',
+      summary: 'Webhook Mercado Pago (pagamentos PIX)',
+      description: 'Recebe notificações de pagamento; consulta API com token do negócio.',
       requestBody: {
         required: true,
         content: { 'application/json': { schema: { type: 'object', additionalProperties: true } } },
       },
       responses: {
         200: { description: 'Evento processado', content: { 'application/json': { schema: receivedSchema } } },
-        401: responses.unauthorized,
+      },
+    },
+    get: {
+      tags: ['Webhooks'],
+      summary: 'Webhook Mercado Pago (query)',
+      responses: {
+        200: { description: 'Evento processado', content: { 'application/json': { schema: receivedSchema } } },
       },
     },
   },

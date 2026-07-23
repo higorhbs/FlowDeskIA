@@ -28,6 +28,7 @@ import {
   renderTemplate,
   DEFAULT_THANKS_MSG,
   normalizeAppointmentBotConfig,
+  businessSupportsLeadFlow,
   type AppointmentBotConfig,
 } from "@flowdesk/shared";
 import { IaIcon } from "@/lib/ia-brand";
@@ -1808,7 +1809,7 @@ export default function BotPage() {
 
   const isRestaurant = business?.type === "RESTAURANT";
   const isSalon = business?.type === "BARBERSHOP";
-  const showLeadFlow = !isSalon && !isRestaurant;
+  const showLeadFlow = businessSupportsLeadFlow(business?.type);
   const showResumeFlow = !isRestaurant && !isSalon;
 
   const autoReplyMutation = useMutation({

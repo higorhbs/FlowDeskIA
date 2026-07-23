@@ -7,7 +7,7 @@ import { APP_DISPLAY_NAME } from "@flowdesk/shared";
 import { Loader2, QrCode, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AsaasMerchantForm } from "@/components/payments/AsaasMerchantForm";
+import { MercadoPagoConnectPanel } from "@/components/payments/MercadoPagoConnectPanel";
 
 type PaymentRow = {
   id: string;
@@ -37,18 +37,16 @@ export function PaymentsPixPanel({ businessId }: { businessId: string }) {
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2">
-        <p className="text-sm font-semibold text-emerald-900">Integracao focada em PIX</p>
+        <p className="text-sm font-semibold text-emerald-900">Integração focada em PIX</p>
         <p className="text-sm text-emerald-800 leading-relaxed">
-          Esta funcionalidade do {APP_DISPLAY_NAME} usa somente PIX via Asaas. Os valores recebidos caem direto na conta Asaas do negocio.
-        </p>
-        <p className="text-sm text-emerald-800">
-          Taxas PIX Asaas: <strong>R$ 0,99</strong> por transacao nos 3 primeiros meses e <strong>R$ 1,99</strong> apos o periodo promocional.
+          O {APP_DISPLAY_NAME} gera PIX via Mercado Pago da sua conta. O valor cai direto para você —
+          a plataforma não intermedia o dinheiro.
         </p>
         <p className="text-xs text-emerald-700">
-          As tarifas sao definidas pela Asaas e podem mudar conforme regras comerciais da propria plataforma.
+          Tarifas seguem as regras comerciais do Mercado Pago na sua conta.
         </p>
       </div>
-      <AsaasMerchantForm businessId={businessId} />
+      <MercadoPagoConnectPanel businessId={businessId} />
       <div>
         <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
           <QrCode className="w-4 h-4" />
@@ -59,40 +57,37 @@ export function PaymentsPixPanel({ businessId }: { businessId: string }) {
             <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
           </div>
         ) : payments.length === 0 ? (
-          <p className="text-center text-sm text-gray-500 py-8 rounded-xl border border-dashed border-gray-200">
-            Nenhuma cobrança ainda. Após conectar o Asaas, o cliente digite <strong>pix</strong> ou escolhe{" "}
-            <strong>Pagar com PIX</strong> no menu do WhatsApp.
+          <p className="text-sm text-gray-500 py-8 text-center">
+            Nenhuma cobrança ainda. Após conectar o Mercado Pago, o cliente digita{" "}
+            <strong>pix</strong> ou escolhe pagar no menu do WhatsApp.
           </p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white">
             {payments.map((p) => {
-              const meta = STATUS[p.status] ?? STATUS.PENDING;
-              const Icon = meta.icon;
+              const st = STATUS[p.status] ?? STATUS.PENDING;
+              const Icon = st.icon;
               return (
-                <li key={p.id} className="card flex items-start gap-4">
-                  <div
-                    className={cn(
-                      "w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0",
-                      meta.className
-                    )}
-                  >
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-semibold text-gray-900">{formatCurrency(p.amount)}</p>
-                      <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", meta.className)}>
-                        {meta.label}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 truncate">{p.description}</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {p.customerName ?? p.customerPhone} ·{" "}
-                      {format(new Date(p.createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                      {p.paidAt
-                        ? ` · pago ${format(new Date(p.paidAt), "dd/MM HH:mm", { locale: ptBR })}`
-                        : ""}
+                <li key={p.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {p.customerName || p.customerPhone}
                     </p>
+                    <p className="text-xs text-gray-500 truncate">{p.description}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      {format(new Date(p.createdAt), "dd MMM yyyy HH:mm", { locale: ptBR })}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0 space-y-1">
+                    <p className="text-sm font-semibold text-gray-900">{formatCurrency(p.amount)}</p>
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full",
+                        st.className
+                      )}
+                    >
+                      <Icon className="w-3 h-3" />
+                      {st.label}
+                    </span>
                   </div>
                 </li>
               );

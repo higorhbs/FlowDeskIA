@@ -437,15 +437,13 @@ export const paymentApi = {
   list: (businessId: string) => webApi.payments.listPayments(businessId),
 };
 
-export const asaasApi = {
+export const mercadoPagoApi = {
   get: (businessId: string) =>
-    api.get(`/businesses/${businessId}/integrations/asaas`).then((r) => r.data),
-  save: (
-    businessId: string,
-    data: { apiKey?: string; sandbox?: boolean; webhookToken?: string }
-  ) => api.put(`/businesses/${businessId}/integrations/asaas`, data).then((r) => r.data),
+    api.get(`/businesses/${businessId}/integrations/mercadopago`).then((r) => r.data),
+  connect: (businessId: string) =>
+    api.get(`/businesses/${businessId}/integrations/mercadopago/connect`).then((r) => r.data),
   remove: (businessId: string) =>
-    api.delete(`/businesses/${businessId}/integrations/asaas`),
+    api.delete(`/businesses/${businessId}/integrations/mercadopago`),
 };
 
 export const privacyApi = {

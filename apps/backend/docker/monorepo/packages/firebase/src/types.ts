@@ -255,7 +255,7 @@ export interface Payment {
   status: PaymentStatus;
   pixQrCode?: string;
   pixCopyPaste?: string;
-  asaasId?: string;
+  mpPaymentId?: string;
   externalRef?: string;
   paidAt?: string;
   dueDate?: string;
@@ -263,10 +263,13 @@ export interface Payment {
   updatedAt: string;
 }
 
-export interface BusinessAsaasIntegration {
-  apiKey: string;
-  sandbox: boolean;
-  webhookToken?: string;
+export interface BusinessMercadoPagoIntegration {
+  accessToken: string;
+  refreshToken: string;
+  mpUserId: string;
+  expiresAt: string;
+  email?: string;
+  liveMode?: boolean;
   updatedAt: string;
 }
 
@@ -304,5 +307,5 @@ export interface BusinessWithRelations extends Business {
   faqs: FAQ[];
   tenantPlan?: Plan;
   /** Preenchido só no servidor (bot); nunca expor ao client web */
-  asaasConfigured?: boolean;
+  mercadoPagoConfigured?: boolean;
 }

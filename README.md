@@ -18,7 +18,7 @@ Automatize atendimento, agendamentos, catálogo, FAQ, fluxo conversacional com b
 | **Consulta de agendamento** | Cliente pergunta “meu agendamento” → bot localiza e informa |
 | **FAQ inteligente** | Palavras-chave configuradas no painel → respostas automáticas |
 | **Fluxo conversacional** | Passos com botões clicáveis, imagens e ramificações — ideal para captação de leads e vendas guiadas |
-| **PIX automático** | QR Code + copia-e-cola na conversa via Asaas (planos Pro e Unlimited) |
+| **PIX automático** | QR Code + copia-e-cola na conversa via Mercado Pago (planos Pro e Unlimited) |
 | **Atendimento humano** | Cliente pede atendente → bot pausa; operador responde pelo painel |
 | **Fora do horário** | Mensagem de ausência configurável quando o negócio está fechado |
 
@@ -58,7 +58,7 @@ O monorepo é dividido em três camadas em produção:
 │  Dashboard Web  │ ◄──────────────────────► │  Firebase Auth   │
 │  (Next.js SPA)  │                            │  + Firestore     │
 └────────┬────────┘                            └──────────────────┘
-         │ REST (billing, privacy, Asaas, WhatsApp)
+         │ REST (billing, privacy, Mercado Pago, WhatsApp)
          ▼
 ┌─────────────────┐
 │  Backend Hono   │  VM Oracle (Docker) ou local :3001
@@ -66,7 +66,7 @@ O monorepo é dividido em três camadas em produção:
 ```
 
 - **Dashboard**: lê e grava negócios, catálogo, FAQ, conversas e agendamentos **direto no Firestore** (regras de segurança por `tenantId`).
-- **Backend**: WhatsApp (Baileys), cobrança Stripe, webhooks, integração Asaas, privacidade/LGPD e auth sync.
+- **Backend**: WhatsApp (Baileys), cobrança Stripe, webhooks, integração Mercado Pago, privacidade/LGPD e auth sync.
 
 ---
 
@@ -79,7 +79,7 @@ O monorepo é dividido em três camadas em produção:
 | Backend | Hono + Node.js (WhatsApp em TypeScript) |
 | Banco / Auth | Firebase Firestore + Firebase Authentication |
 | Pagamentos assinatura | Stripe |
-| Pagamentos PIX | Asaas |
+| Pagamentos PIX | Mercado Pago |
 | WhatsApp | Baileys (agente externo `flowdesk-wa`) |
 | Deploy web | Vercel (Next.js SSR, Root Directory `apps/web`) |
 | Deploy backend | Node.js na VM/servidor (`pnpm build` + `node src/index.js`) |
@@ -156,7 +156,7 @@ Configure `NEXT_PUBLIC_WA_API_URL` e `NEXT_PUBLIC_API_URL` para a mesma URL do b
 | Plano | Preço | Mensagens/mês | Catálogo | Agendamentos/mês | Extras |
 | --- | --- | --- | --- | --- | --- |
 | **Starter** | R$ 69,90 | 500 | 3 itens | 30 | Trial 7 dias |
-| **Pro** | R$ 99 | 5.000 | 100 itens | 500 | PIX Asaas |
+| **Pro** | R$ 99 | 5.000 | 100 itens | 500 | PIX Mercado Pago |
 | **Unlimited** | R$ 199 | Ilimitado | Ilimitado | Ilimitado | — |
 
 Sincronizar preços Stripe: `pnpm stripe:sync-prices`
@@ -190,7 +190,7 @@ Variáveis essenciais no painel Vercel:
 
 | Variável | Uso |
 | --- | --- |
-| `NEXT_PUBLIC_API_URL` | Backend (billing/privacy/Asaas) — mesma URL do WA |
+| `NEXT_PUBLIC_API_URL` | Backend (billing/privacy/Mercado Pago) — mesma URL do WA |
 | `NEXT_PUBLIC_WA_API_URL` | Backend WhatsApp (ex.: `https://wa.seudominio.com`) |
 | `NEXT_PUBLIC_FIREBASE_*` | Config do projeto Firebase |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Login Google |
@@ -205,7 +205,7 @@ Deixe os Payment Links Stripe vazios em produção — checkout passa pela API p
 | `FIREBASE_WEB_API_KEY` | Auth REST (mesma do web) |
 | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | Admin SDK |
 | `STRIPE_*` | Assinaturas e webhooks |
-| `ASAAS_*` | PIX (global ou por negócio via painel) |
+| `MP_CLIENT_ID` / `MP_CLIENT_SECRET` / `MP_REDIRECT_URI` | OAuth Mercado Pago (PIX por negócio) |
 | `CORS_ORIGIN` | URL(s) do front Vercel (ex.: `https://flowdesk.ia.br`) |
 | `PRIVACY_RETENTION_INTERVAL_HOURS` | Job de retenção LGPD (0 = desligado) |
 | `FIREBASE_STORAGE_BUCKET` | Mídia de chat (Firebase Storage) |

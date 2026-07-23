@@ -6,7 +6,7 @@ import { schedulePath } from '../routes/schedule/openapi.js'
 import { chatWhatsappPath } from '../routes/chat/whatsapp/openapi.js'
 import { billingPaths } from '../routes/billing/openapi.js'
 import { privacyPaths } from '../routes/privacy/openapi.js'
-import { asaasPaths } from '../routes/asaas/openapi.js'
+import { mercadoPagoPaths } from '../routes/mercadopago/openapi.js'
 import { storiesWhatsappPaths } from '../routes/stories/whatsapp/openapi.js'
 import { webhooksPaths } from '../routes/webhooks/openapi.js'
 
@@ -19,7 +19,7 @@ const pathModules = [
   chatWhatsappPath,
   billingPaths,
   privacyPaths,
-  asaasPaths,
+  mercadoPagoPaths,
   storiesWhatsappPaths,
 ]
 

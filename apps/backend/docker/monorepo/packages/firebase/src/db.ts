@@ -15,7 +15,7 @@ import type {
   PaymentStatus,
   Plan,
   PlanStatus,
-  BusinessAsaasIntegration,
+  BusinessMercadoPagoIntegration,
   BusinessCreateInput,
   ScheduledStatus,
   ScheduledStatusState,
@@ -26,6 +26,7 @@ import {
   assertLeadFlowMediaQuota,
   normalizeBusinessType,
   normalizeLeadCaptureFlow,
+  businessSupportsLeadFlow,
   STARTER_TRIAL_DAYS,
   monthKey,
   type PlanTier,
@@ -121,8 +122,8 @@ function scheduledStatusesCol(businessId: string) {
   return businessRef(businessId).collection("scheduledStatuses");
 }
 
-function asaasIntegrationRef(businessId: string) {
-  return businessRef(businessId).collection("integrations").doc("asaas");
+function mercadoPagoIntegrationRef(businessId: string) {
+  return businessRef(businessId).collection("integrations").doc("mercadopago");
 }
 
 function phoneToJid(phone: string): string | null {
@@ -270,42 +271,52 @@ async function resolveFaqsForBot(business: Business): Promise<FAQ[]> {
   return [];
 }
 
-export async function getBusinessAsaasIntegration(
+export async function getBusinessMercadoPagoIntegration(
   businessId: string
-): Promise<BusinessAsaasIntegration | null> {
-  const snap = await asaasIntegrationRef(businessId).get();
+): Promise<BusinessMercadoPagoIntegration | null> {
+  const snap = await mercadoPagoIntegrationRef(businessId).get();
   if (!snap.exists) return null;
-  const data = snap.data() as BusinessAsaasIntegration;
-  if (!data.apiKey?.trim()) return null;
+  const data = snap.data() as BusinessMercadoPagoIntegration;
+  if (!data.accessToken?.trim()) return null;
   return data;
 }
 
-export async function setBusinessAsaasIntegration(
+export async function setBusinessMercadoPagoIntegration(
   businessId: string,
-  data: { apiKey: string; sandbox?: boolean; webhookToken?: string }
-): Promise<BusinessAsaasIntegration> {
-  const record: BusinessAsaasIntegration = {
-    apiKey: data.apiKey.trim(),
-    sandbox: data.sandbox === true,
+  data: {
+    accessToken: string;
+    refreshToken: string;
+    mpUserId: string;
+    expiresAt: string;
+    email?: string;
+    liveMode?: boolean;
+  }
+): Promise<BusinessMercadoPagoIntegration> {
+  const record: BusinessMercadoPagoIntegration = {
+    accessToken: data.accessToken.trim(),
+    refreshToken: data.refreshToken.trim(),
+    mpUserId: String(data.mpUserId).trim(),
+    expiresAt: data.expiresAt,
+    liveMode: data.liveMode !== false,
     updatedAt: nowIso(),
   };
-  const token = data.webhookToken?.trim();
-  if (token) record.webhookToken = token;
-  await asaasIntegrationRef(businessId).set(record);
+  const email = data.email?.trim();
+  if (email) record.email = email;
+  await mercadoPagoIntegrationRef(businessId).set(record);
   return record;
 }
 
-export async function deleteBusinessAsaasIntegration(businessId: string): Promise<void> {
-  await asaasIntegrationRef(businessId).delete();
+export async function deleteBusinessMercadoPagoIntegration(businessId: string): Promise<void> {
+  await mercadoPagoIntegrationRef(businessId).delete();
 }
 
 export async function getBusinessForBot(id: string): Promise<BusinessWithRelations | null> {
   const business = await getBusiness(id);
   if (!business) return null;
-  const [catalog, faqs, asaas, schedule] = await Promise.all([
+  const [catalog, faqs, mp, schedule] = await Promise.all([
     resolveCatalogForBot(business),
     resolveFaqsForBot(business),
-    getBusinessAsaasIntegration(id),
+    getBusinessMercadoPagoIntegration(id),
     getBusinessSchedule(id),
   ]);
   const tenant = await getTenant(business.tenantId);
@@ -316,7 +327,7 @@ export async function getBusinessForBot(id: string): Promise<BusinessWithRelatio
     catalog,
     faqs,
     tenantPlan: tenant?.plan,
-    asaasConfigured: Boolean(asaas?.apiKey),
+    mercadoPagoConfigured: Boolean(mp?.accessToken),
   };
 }
 
@@ -341,12 +352,31 @@ export async function updateBusiness(
   const patch: Record<string, unknown> = removeUndefined({ ...data, updatedAt: nowIso() });
   delete patch.id;
   delete patch.tenantId;
+
+  if (patch.type) {
+    patch.type = normalizeBusinessType(String(patch.type));
+    if (patch.type !== "OTHER") patch.typeLabel = AdminFieldValue.delete();
+    else if (typeof patch.typeLabel === "string") patch.typeLabel = patch.typeLabel.trim() || AdminFieldValue.delete();
+  } else if (typeof patch.typeLabel === "string") {
+    patch.typeLabel = patch.typeLabel.trim() || AdminFieldValue.delete();
+  }
+
+  const effectiveType = String(patch.type ?? exists.type);
+  const leadAllowed = businessSupportsLeadFlow(effectiveType);
+
   if (patch.leadFlow && typeof patch.leadFlow === "object") {
-    const normalized = normalizeLeadCaptureFlow(patch.leadFlow as LeadCaptureFlow);
+    let normalized = normalizeLeadCaptureFlow(patch.leadFlow as LeadCaptureFlow);
+    if (!leadAllowed) normalized = { ...normalized, enabled: false };
     const tenant = await getTenant(tenantId);
     assertLeadFlowMediaQuota(normalized, (tenant?.plan ?? "STARTER") as PlanTier);
     patch.leadFlow = serializeLeadFlowForFirestore(normalized);
+  } else if (!leadAllowed && exists.leadFlow?.enabled) {
+    patch.leadFlow = serializeLeadFlowForFirestore({
+      ...normalizeLeadCaptureFlow(exists.leadFlow),
+      enabled: false,
+    });
   }
+
   if (patch.resumeFlow && typeof patch.resumeFlow === "object") {
     patch.resumeFlow = serializeResumeFlowForFirestore(patch.resumeFlow as ResumeFlowConfig);
   }
@@ -360,13 +390,6 @@ export async function updateBusiness(
   }
   if (patch.printerConfig && typeof patch.printerConfig === "object") {
     patch.printerConfig = serializePrinterConfigForFirestore(patch.printerConfig as PrinterConfig);
-  }
-  if (patch.type) {
-    patch.type = normalizeBusinessType(String(patch.type));
-    if (patch.type !== "OTHER") patch.typeLabel = AdminFieldValue.delete();
-    else if (typeof patch.typeLabel === "string") patch.typeLabel = patch.typeLabel.trim() || AdminFieldValue.delete();
-  } else if (typeof patch.typeLabel === "string") {
-    patch.typeLabel = patch.typeLabel.trim() || AdminFieldValue.delete();
   }
   await businessRef(id).update(patch);
   return getBusiness(id, tenantId);
@@ -1110,19 +1133,38 @@ export async function createPayment(
   return payment;
 }
 
-export async function getPaymentsByAsaasId(asaasId: string): Promise<Payment[]> {
-  const snap = await getDb().collectionGroup("payments").where("asaasId", "==", asaasId).get();
+export async function updatePayment(
+  businessId: string,
+  paymentId: string,
+  data: Partial<Payment>
+): Promise<Payment | null> {
+  const ref = paymentsCol(businessId).doc(paymentId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const patch = { ...data, updatedAt: nowIso() };
+  await ref.update(removeUndefined(patch as Record<string, unknown>));
+  return { id: paymentId, businessId, ...snap.data(), ...patch } as Payment;
+}
+
+export async function getPaymentsByMpPaymentId(mpPaymentId: string): Promise<Payment[]> {
+  const snap = await getDb()
+    .collectionGroup("payments")
+    .where("mpPaymentId", "==", mpPaymentId)
+    .get();
   return snap.docs.map((d) => {
     const businessId = d.ref.parent.parent!.id;
     return { id: d.id, businessId, ...d.data() } as Payment;
   });
 }
 
-export async function updatePaymentsByAsaasId(
-  asaasId: string,
+export async function updatePaymentsByMpPaymentId(
+  mpPaymentId: string,
   data: Partial<Payment>
 ): Promise<Payment[]> {
-  const snap = await getDb().collectionGroup("payments").where("asaasId", "==", asaasId).get();
+  const snap = await getDb()
+    .collectionGroup("payments")
+    .where("mpPaymentId", "==", mpPaymentId)
+    .get();
   if (snap.empty) return [];
 
   const batch = getDb().batch();

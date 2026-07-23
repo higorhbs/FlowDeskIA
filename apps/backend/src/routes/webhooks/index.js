@@ -1,6 +1,7 @@
-import { asaasWebhookHandler, stripeWebhookHandler } from './handler.js'
+import { mercadopagoWebhookHandler, stripeWebhookHandler } from './handler.js'
 
 export function register(app) {
-  app.post('/webhooks/asaas', asaasWebhookHandler)
+  app.post('/webhooks/mercadopago', mercadopagoWebhookHandler)
+  app.get('/webhooks/mercadopago', mercadopagoWebhookHandler)
   app.post('/webhooks/stripe', stripeWebhookHandler)
 }

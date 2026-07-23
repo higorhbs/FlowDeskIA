@@ -9,6 +9,7 @@ import {
   leadFlowTriggerMatch,
   matchesLeadFlowRestartTrigger,
   normalizeLeadCaptureFlow,
+  businessSupportsLeadFlow,
   renderTemplate,
   resolveLeadFlowButton,
   resolveLeadFlowEntryNode,
@@ -77,7 +78,7 @@ export function getLeadFlowConfig(business: {
   type?: string;
   leadFlow?: LeadCaptureFlow | null;
 }): LeadCaptureFlow | null {
-  if (business.type === "BARBERSHOP") return null;
+  if (!businessSupportsLeadFlow(business.type)) return null;
   const flow = normalizeLeadCaptureFlow(business.leadFlow);
   if (!flow.enabled || !flow.nodes.length) return null;
   if (!findLeadFlowNode(flow, flow.startNodeId)) return null;

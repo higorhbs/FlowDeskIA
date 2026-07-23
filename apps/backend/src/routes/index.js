@@ -5,7 +5,7 @@ import { register as registerSchedule } from './schedule/index.js'
 import { register as registerWebhooks } from './webhooks/index.js'
 import { register as registerBilling } from './billing/index.js'
 import { register as registerPrivacy } from './privacy/index.js'
-import { register as registerAsaas } from './asaas/index.js'
+import { register as registerMercadoPago } from './mercadopago/index.js'
 
 const routeModules = [
   registerHealth,
@@ -15,7 +15,7 @@ const routeModules = [
   registerSchedule,
   registerBilling,
   registerPrivacy,
-  registerAsaas,
+  registerMercadoPago,
 ]
 
 function registerWhatsAppRoutes(app) {
