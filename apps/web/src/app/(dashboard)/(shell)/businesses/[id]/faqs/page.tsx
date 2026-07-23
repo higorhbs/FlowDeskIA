@@ -1759,7 +1759,7 @@ export default function BotPage() {
   const router = useAppRouter();
   const queryClient = useQueryClient();
   const { pixEnabled } = usePlanAllowsPix();
-  const [tab, setTab] = useState<Tab>("menu");
+  const [tab, setTab] = useState<Tab>("mensagens");
   const [autoReplyEnabled, setAutoReplyEnabled] = useState(true);
   const pixRedirected = useRef(false);
 
