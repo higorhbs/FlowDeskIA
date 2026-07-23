@@ -158,8 +158,7 @@ export interface BotResponse {
   sendDocumentToSelf?: boolean;
 }
 
-// Estado simples de conversa por sessão (em memória — para MVP)
-// Em produção: mover para Firestore com TTL
+// Estado de conversa por sessão (memória + Firestore para ORDER_*/LEAD/RESUME)
 const conversationState = new Map<
   string,
   { step: string; data: Record<string, string> }
@@ -168,6 +167,36 @@ const botPausedSessions = new Set<string>();
 const closedNoticeClaims = new Map<string, Promise<boolean>>();
 const replyPersistenceStore = new AsyncLocalStorage<{ defer: boolean }>();
 let lastProcessMeta: { businessId: string; conversationId: string } | null = null;
+
+const ORDER_FLOW_STEPS = new Set([
+  "ORDER_ITEMS",
+  "ORDER_FULFILLMENT",
+  "ORDER_ADDRESS",
+  "ORDER_PAYMENT",
+]);
+
+function isOrderFlowStep(step?: string | null): boolean {
+  return !!step && ORDER_FLOW_STEPS.has(step);
+}
+
+async function setOrderFlowState(
+  businessId: string,
+  conversationId: string,
+  sessionKey: string,
+  state: { step: string; data: Record<string, string> },
+): Promise<void> {
+  conversationState.set(sessionKey, state);
+  await setConversationBotFlowState(businessId, conversationId, state).catch(() => undefined);
+}
+
+async function clearOrderFlowState(
+  businessId: string,
+  conversationId: string,
+  sessionKey: string,
+): Promise<void> {
+  conversationState.delete(sessionKey);
+  await clearConversationBotFlowState(businessId, conversationId).catch(() => undefined);
+}
 
 function shouldDeferReplyPersistence() {
   return replyPersistenceStore.getStore()?.defer === true;
@@ -270,11 +299,23 @@ async function replyWeeklyMenu(
 
 async function tryProgrammedQuickReply(
   ctx: BotContext,
-  business: { id: string; name: string; type?: string; faqs?: any[]; leadFlow?: LeadCaptureFlow | null; weeklyMenu?: any },
+  business: { id: string; name: string; type?: string; faqs?: any[]; leadFlow?: LeadCaptureFlow | null; weeklyMenu?: any; orderBot?: unknown },
   conversation: Conversation,
   sessionKey: string,
   activeFlow?: { step: string } | null,
 ): Promise<BotResponse[] | null> {
+  if (isResumeFlowActive(activeFlow) || isLeadFlowActive(activeFlow) || isOrderFlowStep(activeFlow?.step)) {
+    return null;
+  }
+
+  if (
+    isOrderCloseCommand(ctx.messageBody) &&
+    business.type === "RESTAURANT" &&
+    normalizeOrderBotConfig(business.orderBot).enabled
+  ) {
+    return null;
+  }
+
   const faqHit = matchFaq(ctx.messageBody, business.faqs);
   if (faqHit) {
     conversationState.delete(sessionKey);
@@ -282,8 +323,6 @@ async function tryProgrammedQuickReply(
     await saveAndReturn(business.id, conversation.id, responses);
     return responses;
   }
-
-  if (isResumeFlowActive(activeFlow) || isLeadFlowActive(activeFlow)) return null;
 
   // Cardápio do restaurante tem prioridade sobre atalho de nó do lead flow.
   if (isRestaurantWeeklyMenuHit(business, ctx.messageBody)) return null;
@@ -337,6 +376,9 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
   if (!conversationState.has(sessionKey) && conversation.botFlowState?.step === "RESUME_FLOW") {
     conversationState.set(sessionKey, conversation.botFlowState);
   }
+  if (!conversationState.has(sessionKey) && isOrderFlowStep(conversation.botFlowState?.step)) {
+    conversationState.set(sessionKey, conversation.botFlowState!);
+  }
 
   const activeFlow = conversationState.get(sessionKey) ?? conversation.botFlowState;
 
@@ -388,11 +430,10 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
   // Fluxo de pedido ativo tem prioridade sobre gatilho "pedido" (ex: "fechar pedido").
   if (state?.step === "ORDER_ITEMS") {
     if (isExitCommand(messageBody)) {
-      conversationState.delete(sessionKey);
       return handleBotExit(business, conversation, sessionKey);
     }
     if (isMenuRequest(messageBody)) {
-      conversationState.delete(sessionKey);
+      await clearOrderFlowState(business.id, conversation.id, sessionKey);
       const menu = buildMainMenu(business);
       await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
       return [{ text: menu }];
@@ -401,8 +442,8 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
   }
   if (state?.step === "ORDER_FULFILLMENT") {
     if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
-      conversationState.delete(sessionKey);
       if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
+      await clearOrderFlowState(business.id, conversation.id, sessionKey);
       const menu = buildMainMenu(business);
       await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
       return [{ text: menu }];
@@ -411,8 +452,8 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
   }
   if (state?.step === "ORDER_ADDRESS") {
     if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
-      conversationState.delete(sessionKey);
       if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
+      await clearOrderFlowState(business.id, conversation.id, sessionKey);
       const menu = buildMainMenu(business);
       await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
       return [{ text: menu }];
@@ -421,16 +462,25 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
   }
   if (state?.step === "ORDER_PAYMENT") {
     if (isExitCommand(messageBody)) {
-      conversationState.delete(sessionKey);
       return handleBotExit(business, conversation, sessionKey);
     }
     return handleOrderPayment(ctx, business, conversation, state, sessionKey);
   }
 
+  if (
+    isOrderCloseCommand(messageBody) &&
+    business.type === "RESTAURANT" &&
+    normalizeOrderBotConfig(business.orderBot).enabled
+  ) {
+    const text =
+      "Não há pedido em andamento. Digite *pedido* para começar e, ao terminar, *fechar pedido*.";
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+
   if (isRestaurantOrderBotHit(business, messageBody)) {
     botPausedSessions.delete(sessionKey);
-    conversationState.delete(sessionKey);
-    await clearConversationBotFlowState(business.id, conversation.id).catch(() => undefined);
+    await clearOrderFlowState(business.id, conversation.id, sessionKey);
     await clearLeadFlowIdleFollowUp(business.id, conversation.id).catch(() => undefined);
     return startOrderFlow(business, conversation, sessionKey, customerName);
   }
@@ -1005,7 +1055,7 @@ async function startOrderFlow(
     return [{ text }];
   }
 
-  conversationState.set(sessionKey, {
+  await setOrderFlowState(business.id, conversation.id, sessionKey, {
     step: "ORDER_ITEMS",
     data: { menuJson: JSON.stringify(entries), itemsJson: "[]" },
   });
@@ -1076,7 +1126,7 @@ async function handleOrderItems(
     return [{ text }];
   }
 
-  conversationState.set(sessionKey, {
+  await setOrderFlowState(business.id, conversation.id, sessionKey, {
     step: "ORDER_ITEMS",
     data: { ...state.data, itemsJson: JSON.stringify(cart) },
   });
@@ -1100,7 +1150,7 @@ async function promptOrderPayment(
   data: Record<string, string>,
   cfg: ReturnType<typeof normalizeOrderBotConfig>,
 ): Promise<BotResponse[]> {
-  conversationState.set(sessionKey, { step: "ORDER_PAYMENT", data });
+  await setOrderFlowState(business.id, conversation.id, sessionKey, { step: "ORDER_PAYMENT", data });
   const lines = cfg.paymentMethods.map((m, i) => `*${i + 1}* — ${m}`);
   const text = `Como você vai pagar?\n\n${lines.join("\n")}`;
   await saveAndReturn(business.id, conversation.id, [{ text }]);
@@ -1117,14 +1167,20 @@ async function advanceAfterOrderItems(
 ): Promise<BotResponse[]> {
   const dataBase = { ...data, itemsJson: JSON.stringify(cart) };
   if (cfg.fulfillmentDelivery && cfg.fulfillmentPickup) {
-    conversationState.set(sessionKey, { step: "ORDER_FULFILLMENT", data: dataBase });
+    await setOrderFlowState(business.id, conversation.id, sessionKey, {
+      step: "ORDER_FULFILLMENT",
+      data: dataBase,
+    });
     const text = "Como prefere receber?\n\n*1* — Entrega\n*2* — Retirada no local";
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
   const fulfillment: OrderFulfillment = cfg.fulfillmentDelivery ? "DELIVERY" : "PICKUP";
   if (fulfillment === "DELIVERY") {
-    conversationState.set(sessionKey, { step: "ORDER_ADDRESS", data: { ...dataBase, fulfillment } });
+    await setOrderFlowState(business.id, conversation.id, sessionKey, {
+      step: "ORDER_ADDRESS",
+      data: { ...dataBase, fulfillment },
+    });
     const text = "Qual o endereço de entrega? (rua, número, bairro)";
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
@@ -1152,7 +1208,10 @@ async function handleOrderFulfillment(
 
   const fulfillment: OrderFulfillment = isDelivery ? "DELIVERY" : "PICKUP";
   if (fulfillment === "DELIVERY") {
-    conversationState.set(sessionKey, { step: "ORDER_ADDRESS", data: { ...state.data, fulfillment } });
+    await setOrderFlowState(business.id, conversation.id, sessionKey, {
+      step: "ORDER_ADDRESS",
+      data: { ...state.data, fulfillment },
+    });
     const text = "Qual o endereço de entrega? (rua, número, bairro)";
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
@@ -1222,7 +1281,7 @@ async function handleOrderPayment(
     })
     .catch((err) => console.error(`[printer] Erro inesperado ao imprimir pedido ${order.id}:`, err));
 
-  conversationState.delete(sessionKey);
+  await clearOrderFlowState(business.id, conversation.id, sessionKey);
 
   const itensText = cart.map((i) => `• ${i.quantity}x ${i.name}`).join("\n");
   const text = renderTemplate(needsApproval ? cfg.awaitingMessage : cfg.completedMessage, {
