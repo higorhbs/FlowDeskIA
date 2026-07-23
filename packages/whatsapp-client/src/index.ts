@@ -1,4 +1,4 @@
-import { sendNativeButtons } from "./native-buttons.js";
+import { sendNativeButtons, sendNativeList, type ListSection } from "./native-buttons.js";
 import makeWASocket, {
   DisconnectReason,
   downloadMediaMessage,
@@ -773,6 +773,38 @@ export class WhatsAppClient extends EventEmitter {
 
     waLog.error(`[wa:${this.businessId}] sendButtons exhausted targets:`, lastErr);
     throw lastErr instanceof Error ? lastErr : new Error("Falha ao enviar botoes");
+  }
+
+  async sendList(
+    to: string,
+    text: string,
+    buttonText: string,
+    sections: ListSection[],
+  ): Promise<string | undefined> {
+    if (!this.sock) throw new Error("Socket not connected");
+    const items = sections.map((s) => ({ ...s, rows: s.rows.slice(0, 10) })).filter((s) => s.rows.length);
+    if (!items.length) return this.sendText(to, text);
+
+    const targets = this.collectButtonSendTargets(to);
+    if (!targets.length) return this.sendText(to, text);
+
+    let lastErr: unknown;
+    for (const jid of targets) {
+      try {
+        await this.ensurePreKeys();
+        await this.showTypingBeforeSend(jid);
+        const footer = text.trim() ? undefined : "Toque para escolher";
+        const result = await sendNativeList(this.sock, jid, text, buttonText, items, footer);
+        this.stashSentMessage(result as WAMessage);
+        return result?.key?.id ?? undefined;
+      } catch (err) {
+        lastErr = err;
+        waLog.warn(`[wa:${this.businessId}] sendList failed jid=${jid}:`, err);
+      }
+    }
+
+    waLog.error(`[wa:${this.businessId}] sendList exhausted targets:`, lastErr);
+    throw lastErr instanceof Error ? lastErr : new Error("Falha ao enviar lista");
   }
 
   async sendImage(to: string, imageUrl: string, caption?: string): Promise<string | undefined> {

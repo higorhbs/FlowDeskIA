@@ -58,8 +58,10 @@ import {
   normalizeOrderBotConfig,
   buildOrderMenuForDay,
   formatOrderMenuMessage,
+  buildOrderMenuListSections,
   isOrderBotTrigger,
   isMyOrderStatusTrigger,
+  isOrderCloseCommand,
   type OrderMenuEntry,
 } from "@flowdesk/shared";
 import { createPixCharge } from "./pix.js";
@@ -142,6 +144,10 @@ export interface BotResponse {
   imageStoragePath?: string;
   mediaType?: "image" | "video" | "gif";
   buttons?: { id: string; label: string }[];
+  list?: {
+    buttonText: string;
+    sections: { title?: string; rows: { id: string; title: string; description?: string }[] }[];
+  };
   documentBuffer?: Buffer;
   documentFilename?: string;
   documentMimetype?: string;
@@ -378,6 +384,48 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
     return handleMyOrders(ctx, business, conversation);
   }
 
+  // Fluxo de pedido ativo tem prioridade sobre gatilho "pedido" (ex: "fechar pedido").
+  if (state?.step === "ORDER_ITEMS") {
+    if (isExitCommand(messageBody)) {
+      conversationState.delete(sessionKey);
+      return handleBotExit(business, conversation, sessionKey);
+    }
+    if (isMenuRequest(messageBody)) {
+      conversationState.delete(sessionKey);
+      const menu = buildMainMenu(business);
+      await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
+      return [{ text: menu }];
+    }
+    return handleOrderItems(ctx, business, conversation, state, sessionKey);
+  }
+  if (state?.step === "ORDER_FULFILLMENT") {
+    if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
+      conversationState.delete(sessionKey);
+      if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
+      const menu = buildMainMenu(business);
+      await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
+      return [{ text: menu }];
+    }
+    return handleOrderFulfillment(ctx, business, conversation, state, sessionKey);
+  }
+  if (state?.step === "ORDER_ADDRESS") {
+    if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
+      conversationState.delete(sessionKey);
+      if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
+      const menu = buildMainMenu(business);
+      await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
+      return [{ text: menu }];
+    }
+    return handleOrderAddress(ctx, business, conversation, state, sessionKey);
+  }
+  if (state?.step === "ORDER_PAYMENT") {
+    if (isExitCommand(messageBody)) {
+      conversationState.delete(sessionKey);
+      return handleBotExit(business, conversation, sessionKey);
+    }
+    return handleOrderPayment(ctx, business, conversation, state, sessionKey);
+  }
+
   if (isRestaurantOrderBotHit(business, messageBody)) {
     botPausedSessions.delete(sessionKey);
     conversationState.delete(sessionKey);
@@ -546,48 +594,6 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
   }
 
   const intent = detectIntent(messageBody, business.type);
-
-  // ─── Fluxo de pedido guiado (multi-step, restaurantes) ────────────────────
-  if (state?.step === "ORDER_ITEMS") {
-    if (isExitCommand(messageBody)) {
-      conversationState.delete(sessionKey);
-      return handleBotExit(business, conversation, sessionKey);
-    }
-    if (isMenuRequest(messageBody)) {
-      conversationState.delete(sessionKey);
-      const menu = buildMainMenu(business);
-      await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
-      return [{ text: menu }];
-    }
-    return handleOrderItems(ctx, business, conversation, state, sessionKey);
-  }
-  if (state?.step === "ORDER_FULFILLMENT") {
-    if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
-      conversationState.delete(sessionKey);
-      if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
-      const menu = buildMainMenu(business);
-      await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
-      return [{ text: menu }];
-    }
-    return handleOrderFulfillment(ctx, business, conversation, state, sessionKey);
-  }
-  if (state?.step === "ORDER_ADDRESS") {
-    if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
-      conversationState.delete(sessionKey);
-      if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
-      const menu = buildMainMenu(business);
-      await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
-      return [{ text: menu }];
-    }
-    return handleOrderAddress(ctx, business, conversation, state, sessionKey);
-  }
-  if (state?.step === "ORDER_PAYMENT") {
-    if (isExitCommand(messageBody)) {
-      conversationState.delete(sessionKey);
-      return handleBotExit(business, conversation, sessionKey);
-    }
-    return handleOrderPayment(ctx, business, conversation, state, sessionKey);
-  }
 
   // ─── Fluxo de agendamento (multi-step) ────────────────────────────────────
   if (state?.step === "APPOINTMENT_DATE") {
@@ -960,8 +966,6 @@ function parseOrderItemTokens(text: string): { num: number; qty: number }[] {
   return parsed;
 }
 
-const ORDER_CLOSE_COMMANDS = ["fechar pedido", "fechar", "finalizar", "finalizar pedido", "concluir", "concluir pedido"];
-
 async function startOrderFlow(
   business: any,
   conversation: Conversation,
@@ -991,8 +995,10 @@ async function startOrderFlow(
   }).trim();
   const menuText = formatOrderMenuMessage(entries, business.name, dayOfWeek);
   const text = `${intro}\n\n${menuText}`;
-  await saveAndReturn(business.id, conversation.id, [{ text }]);
-  return [{ text }];
+  const sections = buildOrderMenuListSections(entries);
+  const list = sections.length ? { buttonText: "Ver cardápio", sections } : undefined;
+  await saveAndReturn(business.id, conversation.id, [{ text, list }]);
+  return [{ text, list }];
 }
 
 async function handleOrderItems(
@@ -1007,7 +1013,7 @@ async function handleOrderItems(
   const cfg = normalizeOrderBotConfig(business.orderBot);
   const cart: OrderCartLine[] = JSON.parse(state.data.itemsJson || "[]");
 
-  if (ORDER_CLOSE_COMMANDS.includes(lower)) {
+  if (isOrderCloseCommand(lower)) {
     if (!cart.length) {
       const text = "Seu carrinho está vazio. Digite o número de um prato para adicionar antes de fechar o pedido.";
       await saveAndReturn(business.id, conversation.id, [{ text }]);
@@ -1058,10 +1064,10 @@ async function handleOrderItems(
   const lines = cart.map(
     (i) => `• ${i.quantity}x ${i.name}${i.price ? ` — ${formatCurrency(i.price * i.quantity)}` : ""}`,
   );
+  const footer = cfg.askAddMoreItems ? `\n\n${cfg.cartFooterMessage}` : "";
   const text =
     `🛒 *Seu pedido até agora:*\n${lines.join("\n")}\n\n` +
-    `💰 Total parcial: *${formatCurrency(total)}*\n\n` +
-    `Digite outro número pra adicionar mais, ou *fechar pedido* pra continuar.`;
+    `💰 Total parcial: *${formatCurrency(total)}*` + footer;
   await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
 }

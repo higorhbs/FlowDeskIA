@@ -130,6 +130,52 @@ export function formatOrderMenuMessage(
   return text.trim();
 }
 
+export interface OrderMenuListRow {
+  id: string;
+  title: string;
+  description?: string;
+}
+
+export interface OrderMenuListSection {
+  title?: string;
+  rows: OrderMenuListRow[];
+}
+
+const ORDER_LIST_MAX_ROWS_PER_SECTION = 10;
+const ORDER_LIST_MAX_TOTAL_ROWS = 24;
+
+/** Agrupa os itens do dia em seções de lista (WhatsApp list message) — usada pelo fluxo de pedido guiado. */
+export function buildOrderMenuListSections(entries: OrderMenuEntry[]): OrderMenuListSection[] {
+  const categories = new Map<string, OrderMenuEntry[]>();
+  for (const entry of entries) {
+    const cat = entry.item.category?.trim() || "";
+    if (!categories.has(cat)) categories.set(cat, []);
+    categories.get(cat)!.push(entry);
+  }
+  const hasCategories = [...categories.keys()].some((k) => k !== "");
+
+  const sections: OrderMenuListSection[] = [];
+  let totalRows = 0;
+  for (const [category, items] of categories) {
+    if (totalRows >= ORDER_LIST_MAX_TOTAL_ROWS) break;
+    const remaining = ORDER_LIST_MAX_TOTAL_ROWS - totalRows;
+    const rows: OrderMenuListRow[] = items
+      .slice(0, Math.min(ORDER_LIST_MAX_ROWS_PER_SECTION, remaining))
+      .map(({ num, item }) => ({
+        id: String(num),
+        title: `${item.isDailySpecial ? "⭐ " : ""}${item.name}`,
+        description:
+          item.price != null && item.price > 0
+            ? `R$ ${item.price.toFixed(2).replace(".", ",")}`
+            : undefined,
+      }));
+    if (!rows.length) continue;
+    totalRows += rows.length;
+    sections.push({ title: hasCategories && category ? category : undefined, rows });
+  }
+  return sections;
+}
+
 export function formatWeeklyMenuResponse(
   menu: WeeklyMenuConfig,
   dayOfWeek: DayOfWeek,

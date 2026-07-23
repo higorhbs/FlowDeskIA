@@ -98,11 +98,14 @@ export {
   formatWeeklyMenuResponse,
   buildOrderMenuForDay,
   formatOrderMenuMessage,
+  buildOrderMenuListSections,
   type DayOfWeek,
   type WeeklyMenuItem,
   type DailyMenu,
   type WeeklyMenuConfig,
   type OrderMenuEntry,
+  type OrderMenuListRow,
+  type OrderMenuListSection,
 } from "./weekly-menu.js";
 
 export function customerConversationKey(phone: string): string {

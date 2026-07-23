@@ -206,6 +206,31 @@ export function OrderBotEditor({ businessId, businessName, initialConfig }: Prop
           </div>
         </div>
 
+        <div className="rounded-xl border border-gray-200 px-4 py-3.5 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium text-gray-900">
+              Perguntar se quer adicionar mais itens
+            </span>
+            <Switch
+              checked={cfg.askAddMoreItems}
+              onCheckedChange={(askAddMoreItems) => setCfg((prev) => ({ ...prev, askAddMoreItems }))}
+            />
+          </div>
+          <p className="text-xs text-gray-400">
+            Aparece no fim da mensagem de carrinho (🛒 Seu pedido até agora), depois que o cliente adiciona um item.
+          </p>
+          <textarea
+            className={cn(
+              "w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm resize-none",
+              !cfg.askAddMoreItems && "opacity-50",
+            )}
+            rows={2}
+            value={cfg.cartFooterMessage}
+            onChange={(e) => setCfg((prev) => ({ ...prev, cartFooterMessage: e.target.value }))}
+            disabled={!cfg.askAddMoreItems}
+          />
+        </div>
+
         <div>
           <Label className="text-xs font-bold uppercase tracking-wider text-gray-500">
             Mensagem inicial (mostra o cardápio de hoje em seguida)

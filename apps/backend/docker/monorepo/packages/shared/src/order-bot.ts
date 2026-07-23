@@ -8,6 +8,8 @@ export interface OrderBotConfig {
   completedMessage: string;
   awaitingMessage: string;
   requiresApproval: boolean;
+  askAddMoreItems: boolean;
+  cartFooterMessage: string;
 }
 
 export const DEFAULT_ORDER_TRIGGER_KEYWORDS = [
@@ -41,6 +43,9 @@ export const DEFAULT_ORDER_AWAITING_MESSAGE =
   "🔖 Código: *{codigo}*\n\n" +
   "Você receberá uma mensagem quando o restaurante confirmar.\n\nPara acompanhar, digite *meu pedido*.";
 
+export const DEFAULT_ORDER_CART_FOOTER_MESSAGE =
+  "Digite outro número pra adicionar mais, ou *fechar pedido* pra continuar.";
+
 export function defaultOrderBotConfig(): OrderBotConfig {
   return {
     enabled: false,
@@ -52,6 +57,8 @@ export function defaultOrderBotConfig(): OrderBotConfig {
     completedMessage: DEFAULT_ORDER_COMPLETED_MESSAGE,
     awaitingMessage: DEFAULT_ORDER_AWAITING_MESSAGE,
     requiresApproval: true,
+    askAddMoreItems: true,
+    cartFooterMessage: DEFAULT_ORDER_CART_FOOTER_MESSAGE,
   };
 }
 
@@ -85,6 +92,11 @@ export function normalizeOrderBotConfig(
         ? raw.awaitingMessage
         : base.awaitingMessage,
     requiresApproval: raw.requiresApproval !== false,
+    askAddMoreItems: raw.askAddMoreItems !== false,
+    cartFooterMessage:
+      typeof raw.cartFooterMessage === "string" && raw.cartFooterMessage.trim()
+        ? raw.cartFooterMessage
+        : base.cartFooterMessage,
   };
 }
 
@@ -96,9 +108,22 @@ const MY_ORDER_HINTS = [
   "onde está meu pedido",
 ];
 
+export const ORDER_CLOSE_COMMANDS = [
+  "fechar pedido",
+  "fechar",
+  "finalizar",
+  "finalizar pedido",
+  "concluir",
+  "concluir pedido",
+];
+
 export function isMyOrderStatusTrigger(text: string): boolean {
   const normalized = text.toLowerCase().trim();
   return MY_ORDER_HINTS.some((h) => normalized.includes(h));
+}
+
+export function isOrderCloseCommand(text: string): boolean {
+  return ORDER_CLOSE_COMMANDS.includes(text.toLowerCase().trim());
 }
 
 export function isOrderBotTrigger(
@@ -107,7 +132,9 @@ export function isOrderBotTrigger(
 ): boolean {
   if (!config.enabled) return false;
   const normalized = text.toLowerCase().trim();
-  if (!normalized || isMyOrderStatusTrigger(normalized)) return false;
+  if (!normalized || isMyOrderStatusTrigger(normalized) || isOrderCloseCommand(normalized)) {
+    return false;
+  }
   const keywords =
     config.triggerKeywords.length > 0
       ? config.triggerKeywords

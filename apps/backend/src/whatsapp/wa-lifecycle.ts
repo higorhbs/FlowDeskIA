@@ -231,6 +231,8 @@ export async function deliverBotResponses(
             }
           }
         }
+      } else if (resp.list?.sections?.length) {
+        waMessageId = await client.sendList(dest, resp.text, resp.list.buttonText, resp.list.sections);
       } else if (resp.buttons?.length) {
         waMessageId = await client.sendButtons(dest, resp.text, resp.buttons);
       } else if (resp.text?.trim()) {

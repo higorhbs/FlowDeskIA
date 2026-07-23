@@ -86,6 +86,8 @@ export function serializeOrderBotForFirestore(flow: OrderBotConfig): Record<stri
     completedMessage: normalized.completedMessage,
     awaitingMessage: normalized.awaitingMessage,
     requiresApproval: normalized.requiresApproval === true,
+    askAddMoreItems: normalized.askAddMoreItems === true,
+    cartFooterMessage: normalized.cartFooterMessage,
   };
 }
 
