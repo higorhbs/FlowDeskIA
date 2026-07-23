@@ -97,7 +97,7 @@ src/
 | `POST` | `/auth/confirm-verification/session` | Confirmar sessão (Bearer) |
 | `POST` | `/auth/sync` | Criar tenant Firestore (Bearer) |
 
-Env: `FIREBASE_WEB_API_KEY`, credencial Admin, `WEB_ORIGIN`, `CORS_ORIGIN`, `STRIPE_*`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_REDIRECT_URI`.
+Env: `FIREBASE_WEB_API_KEY`, credencial Admin, `WEB_ORIGIN`, `CORS_ORIGIN`, `STRIPE_*`, chaves Mercado Pago por negócio (painel).
 
 ### Negócios (onboarding)
 
@@ -149,9 +149,8 @@ Requer `ENABLE_WORKERS=true` e credenciais Firebase (Storage, Firestore para ses
 | Método | Rota | Auth |
 |--------|------|------|
 | `GET` | `/businesses/:id/integrations/mercadopago` | Bearer |
-| `GET` | `/businesses/:id/integrations/mercadopago/connect` | Bearer |
+| `PUT` | `/businesses/:id/integrations/mercadopago` | Bearer |
 | `DELETE` | `/businesses/:id/integrations/mercadopago` | Bearer |
-| `GET` | `/mercadopago/oauth/callback` | — |
 
 
 ### Webhooks (sem Bearer)

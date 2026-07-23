@@ -39,8 +39,8 @@ export function PaymentsPixPanel({ businessId }: { businessId: string }) {
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2">
         <p className="text-sm font-semibold text-emerald-900">Integração focada em PIX</p>
         <p className="text-sm text-emerald-800 leading-relaxed">
-          O {APP_DISPLAY_NAME} gera PIX via Mercado Pago da sua conta. O valor cai direto para você —
-          a plataforma não intermedia o dinheiro.
+          Cada negócio salva o Access Token da própria conta Mercado Pago. O PIX é gerado com
+          essa chave e o valor cai direto para o dono — a plataforma não intermedia o dinheiro.
         </p>
         <p className="text-xs text-emerald-700">
           Tarifas seguem as regras comerciais do Mercado Pago na sua conta.

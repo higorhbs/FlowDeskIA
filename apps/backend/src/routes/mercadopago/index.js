@@ -1,13 +1,11 @@
 import {
-  mercadoPagoConnectHandler,
   mercadoPagoDeleteHandler,
   mercadoPagoGetHandler,
-  mercadoPagoOAuthCallbackHandler,
+  mercadoPagoPutHandler,
 } from './handler.js'
 
 export function register(app) {
   app.get('/businesses/:id/integrations/mercadopago', mercadoPagoGetHandler)
-  app.get('/businesses/:id/integrations/mercadopago/connect', mercadoPagoConnectHandler)
+  app.put('/businesses/:id/integrations/mercadopago', mercadoPagoPutHandler)
   app.delete('/businesses/:id/integrations/mercadopago', mercadoPagoDeleteHandler)
-  app.get('/mercadopago/oauth/callback', mercadoPagoOAuthCallbackHandler)
 }

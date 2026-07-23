@@ -440,8 +440,11 @@ export const paymentApi = {
 export const mercadoPagoApi = {
   get: (businessId: string) =>
     api.get(`/businesses/${businessId}/integrations/mercadopago`).then((r) => r.data),
-  connect: (businessId: string) =>
-    api.get(`/businesses/${businessId}/integrations/mercadopago/connect`).then((r) => r.data),
+  save: (
+    businessId: string,
+    data: { accessToken?: string; publicKey?: string }
+  ) =>
+    api.put(`/businesses/${businessId}/integrations/mercadopago`, data).then((r) => r.data),
   remove: (businessId: string) =>
     api.delete(`/businesses/${businessId}/integrations/mercadopago`),
 };

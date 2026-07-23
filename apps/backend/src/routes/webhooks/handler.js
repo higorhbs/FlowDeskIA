@@ -16,7 +16,7 @@ import {
 } from '../../services/stripe-subscription.js'
 import {
   fetchMercadoPagoPayment,
-  getValidMercadoPagoAccessToken,
+  getBusinessMercadoPagoAccessToken,
 } from '../../services/mercadopago.js'
 import { notifyPaymentReceived } from '../../../dist/whatsapp/services/payment-notify.js'
 import Stripe from 'stripe'
@@ -57,7 +57,7 @@ export async function mercadopagoWebhookHandler(c) {
   let mpPayment = null
   if (businessId) {
     try {
-      const tokenBundle = await getValidMercadoPagoAccessToken(businessId)
+      const tokenBundle = await getBusinessMercadoPagoAccessToken(businessId)
       if (tokenBundle?.accessToken) {
         mpPayment = await fetchMercadoPagoPayment(tokenBundle.accessToken, mpId)
       }

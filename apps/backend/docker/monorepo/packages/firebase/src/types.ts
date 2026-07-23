@@ -265,9 +265,8 @@ export interface Payment {
 
 export interface BusinessMercadoPagoIntegration {
   accessToken: string;
-  refreshToken: string;
-  mpUserId: string;
-  expiresAt: string;
+  publicKey?: string;
+  mpUserId?: string;
   email?: string;
   liveMode?: boolean;
   updatedAt: string;

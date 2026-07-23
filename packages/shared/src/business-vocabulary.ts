@@ -81,6 +81,7 @@ const MERGED_APPOINTMENT_KEYWORDS = [
   "pedidos",
   "fazer pedido",
   "quero pedir",
+  "quero fazer um pedido",
   "encomenda",
   "delivery",
   "retirada",

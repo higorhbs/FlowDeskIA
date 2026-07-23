@@ -205,7 +205,7 @@ Deixe os Payment Links Stripe vazios em produção — checkout passa pela API p
 | `FIREBASE_WEB_API_KEY` | Auth REST (mesma do web) |
 | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | Admin SDK |
 | `STRIPE_*` | Assinaturas e webhooks |
-| `MP_CLIENT_ID` / `MP_CLIENT_SECRET` / `MP_REDIRECT_URI` | OAuth Mercado Pago (PIX por negócio) |
+| Chaves MP por negócio | Access Token salvo em `integrations/mercadopago` (painel Pagamentos) |
 | `CORS_ORIGIN` | URL(s) do front Vercel (ex.: `https://flowdesk.ia.br`) |
 | `PRIVACY_RETENTION_INTERVAL_HOURS` | Job de retenção LGPD (0 = desligado) |
 | `FIREBASE_STORAGE_BUCKET` | Mídia de chat (Firebase Storage) |

@@ -1,12 +1,8 @@
 import axios from "axios";
-import {
-  getBusinessMercadoPagoIntegration,
-  setBusinessMercadoPagoIntegration,
-} from "@flowdesk/firebase";
+import { getBusinessMercadoPagoIntegration } from "@flowdesk/firebase";
 import { optionalEnv } from "../env.js";
 
 const MP_API = "https://api.mercadopago.com";
-const REFRESH_SKEW_MS = 5 * 60 * 1000;
 
 export interface PixChargeInput {
   businessId: string;
@@ -51,57 +47,13 @@ function publicWebhookUrl(): string {
   return "https://api.flowdesk.app/webhooks/mercadopago";
 }
 
-async function refreshAccessToken(refreshToken: string) {
-  const clientId = optionalEnv("MP_CLIENT_ID");
-  const clientSecret = optionalEnv("MP_CLIENT_SECRET");
-  if (!clientId || !clientSecret) {
-    throw new Error("MP_CLIENT_ID/MP_CLIENT_SECRET não configurados");
-  }
-  const { data } = await axios.post(
-    `${MP_API}/oauth/token`,
-    {
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-    },
-    { headers: { "Content-Type": "application/json" }, timeout: 20_000 }
-  );
-  const expiresIn = Number(data.expires_in) || 21600;
-  return {
-    accessToken: String(data.access_token || ""),
-    refreshToken: String(data.refresh_token || refreshToken),
-    mpUserId: String(data.user_id ?? ""),
-    expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
-    liveMode: data.live_mode !== false,
-  };
-}
-
-async function resolveAccessToken(businessId: string): Promise<string> {
-  const integration = await getBusinessMercadoPagoIntegration(businessId);
-  if (!integration?.accessToken) {
-    throw new Error("Conta Mercado Pago não conectada. Configure em Pagamentos no painel.");
-  }
-  const expiresAt = Date.parse(integration.expiresAt || "");
-  const stillValid = Number.isFinite(expiresAt) && expiresAt - Date.now() > REFRESH_SKEW_MS;
-  if (stillValid) return integration.accessToken;
-
-  if (!integration.refreshToken) return integration.accessToken;
-
-  const tokens = await refreshAccessToken(integration.refreshToken);
-  const saved = await setBusinessMercadoPagoIntegration(businessId, {
-    accessToken: tokens.accessToken,
-    refreshToken: tokens.refreshToken,
-    mpUserId: tokens.mpUserId || integration.mpUserId,
-    expiresAt: tokens.expiresAt,
-    email: integration.email,
-    liveMode: tokens.liveMode,
-  });
-  return saved.accessToken;
-}
-
 export async function createPixCharge(input: PixChargeInput): Promise<PixChargeResult> {
-  const accessToken = await resolveAccessToken(input.businessId);
+  const integration = await getBusinessMercadoPagoIntegration(input.businessId);
+  const accessToken = integration?.accessToken?.trim();
+  if (!accessToken) {
+    throw new Error("Conta Mercado Pago não configurada. Salve o Access Token em Pagamentos.");
+  }
+
   const externalReference =
     input.externalRef?.trim() || `${input.businessId}:${input.paymentId}`;
 

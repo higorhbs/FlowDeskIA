@@ -285,21 +285,21 @@ export async function setBusinessMercadoPagoIntegration(
   businessId: string,
   data: {
     accessToken: string;
-    refreshToken: string;
-    mpUserId: string;
-    expiresAt: string;
+    publicKey?: string;
+    mpUserId?: string;
     email?: string;
     liveMode?: boolean;
   }
 ): Promise<BusinessMercadoPagoIntegration> {
   const record: BusinessMercadoPagoIntegration = {
     accessToken: data.accessToken.trim(),
-    refreshToken: data.refreshToken.trim(),
-    mpUserId: String(data.mpUserId).trim(),
-    expiresAt: data.expiresAt,
     liveMode: data.liveMode !== false,
     updatedAt: nowIso(),
   };
+  const publicKey = data.publicKey?.trim();
+  if (publicKey) record.publicKey = publicKey;
+  const mpUserId = data.mpUserId?.trim();
+  if (mpUserId) record.mpUserId = mpUserId;
   const email = data.email?.trim();
   if (email) record.email = email;
   await mercadoPagoIntegrationRef(businessId).set(record);

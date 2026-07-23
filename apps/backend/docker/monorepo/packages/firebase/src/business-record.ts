@@ -205,7 +205,7 @@ export function normalizeBusiness(id: string, raw: Record<string, unknown>): Bus
         ? raw.awayMsg
         : "Olá! No momento estamos fechados, mas logo retornamos. Deixe sua mensagem!",
     botMenu: raw.botMenu as Business["botMenu"],
-    botMenuEnabled: raw.botMenuEnabled === true,
+    botMenuEnabled: raw.botMenuEnabled !== false,
     greetingEnabled: raw.greetingEnabled !== false,
     botAutoReplyEnabled: raw.botAutoReplyEnabled !== false,
     thanksMsg: typeof raw.thanksMsg === "string" ? raw.thanksMsg : undefined,

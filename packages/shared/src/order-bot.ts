@@ -87,3 +87,33 @@ export function normalizeOrderBotConfig(
     requiresApproval: raw.requiresApproval !== false,
   };
 }
+
+const MY_ORDER_HINTS = [
+  "meu pedido",
+  "ver pedido",
+  "status do pedido",
+  "pedido marcado",
+  "onde está meu pedido",
+];
+
+export function isMyOrderStatusTrigger(text: string): boolean {
+  const normalized = text.toLowerCase().trim();
+  return MY_ORDER_HINTS.some((h) => normalized.includes(h));
+}
+
+export function isOrderBotTrigger(
+  text: string,
+  config: OrderBotConfig,
+): boolean {
+  if (!config.enabled) return false;
+  const normalized = text.toLowerCase().trim();
+  if (!normalized || isMyOrderStatusTrigger(normalized)) return false;
+  const keywords =
+    config.triggerKeywords.length > 0
+      ? config.triggerKeywords
+      : DEFAULT_ORDER_TRIGGER_KEYWORDS;
+  return keywords.some((kw) => {
+    const k = kw.toLowerCase().trim();
+    return k.length > 0 && normalized.includes(k);
+  });
+}

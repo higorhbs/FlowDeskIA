@@ -7,36 +7,16 @@ import { usePlanAllowsPix } from "@/lib/use-plan-allows-pix";
 import { useAppRouter } from "@/lib/app-navigation";
 import { panelHref } from "@/lib/business-nav";
 import { PaymentsPixPanel } from "@/components/payments/PaymentsPixPanel";
-import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
 
 export default function PaymentsPage() {
   const businessId = useBusinessId();
   const router = useAppRouter();
-  const queryClient = useQueryClient();
   const { pixEnabled, isLoading } = usePlanAllowsPix();
 
   useEffect(() => {
     if (!businessId || isLoading) return;
     if (!pixEnabled) router.replace(panelHref(businessId, "faqs"));
   }, [businessId, isLoading, pixEnabled, router]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mp = new URLSearchParams(window.location.search).get("mp");
-    if (!mp) return;
-    if (mp === "connected") {
-      toast.success("Mercado Pago conectado!");
-      if (businessId) {
-        queryClient.invalidateQueries({ queryKey: ["mercadopago", businessId] });
-      }
-    } else if (mp === "error" || mp === "invalid" || mp === "token_error") {
-      toast.error("Falha ao conectar Mercado Pago. Tente de novo.");
-    }
-    const url = new URL(window.location.href);
-    url.searchParams.delete("mp");
-    window.history.replaceState({}, "", url.pathname + url.search);
-  }, [businessId, queryClient]);
 
   if (isLoading || !pixEnabled) {
     return (
@@ -58,7 +38,7 @@ export default function PaymentsPage() {
           <div>
             <h1 className="text-2xl font-bold text-white">Pagamentos por PIX</h1>
             <p className="text-white/80 text-sm mt-0.5">
-              Conecte o Mercado Pago e receba PIX direto no WhatsApp
+              Salve suas chaves Mercado Pago e receba PIX no WhatsApp
             </p>
           </div>
         </div>

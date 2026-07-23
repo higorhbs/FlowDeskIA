@@ -58,6 +58,8 @@ import {
   normalizeOrderBotConfig,
   buildOrderMenuForDay,
   formatOrderMenuMessage,
+  isOrderBotTrigger,
+  isMyOrderStatusTrigger,
   type OrderMenuEntry,
 } from "@flowdesk/shared";
 import { createPixCharge } from "./pix.js";
@@ -235,6 +237,14 @@ function isRestaurantWeeklyMenuHit(
   return isWeeklyMenuTrigger(messageBody, weeklyMenu as any);
 }
 
+function isRestaurantOrderBotHit(
+  business: { type?: string; orderBot?: unknown },
+  messageBody: string,
+): boolean {
+  if (business.type !== "RESTAURANT") return false;
+  return isOrderBotTrigger(messageBody, normalizeOrderBotConfig(business.orderBot));
+}
+
 async function replyWeeklyMenu(
   business: any,
   conversation: Conversation,
@@ -270,6 +280,7 @@ async function tryProgrammedQuickReply(
 
   // Cardápio do restaurante tem prioridade sobre atalho de nó do lead flow.
   if (isRestaurantWeeklyMenuHit(business, ctx.messageBody)) return null;
+  if (isRestaurantOrderBotHit(business, ctx.messageBody)) return null;
 
   const flow = getLeadFlowConfig(business);
   if (flow) {
@@ -360,6 +371,19 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
 
   if (isRestaurantWeeklyMenuHit(business, messageBody)) {
     return replyWeeklyMenu(business, conversation, sessionKey);
+  }
+
+  if (isMyOrderStatusTrigger(messageBody) && business.type === "RESTAURANT" && normalizeOrderBotConfig(business.orderBot).enabled) {
+    botPausedSessions.delete(sessionKey);
+    return handleMyOrders(ctx, business, conversation);
+  }
+
+  if (isRestaurantOrderBotHit(business, messageBody)) {
+    botPausedSessions.delete(sessionKey);
+    conversationState.delete(sessionKey);
+    await clearConversationBotFlowState(business.id, conversation.id).catch(() => undefined);
+    await clearLeadFlowIdleFollowUp(business.id, conversation.id).catch(() => undefined);
+    return startOrderFlow(business, conversation, sessionKey, customerName);
   }
 
   if (botPausedSessions.has(sessionKey)) {
@@ -637,10 +661,6 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
     return [{ text }];
   }
 
-  if (!isBotMenuEnabled(business) && !state) {
-    return [];
-  }
-
   // ─── Respostas por intenção ────────────────────────────────────────────────
   switch (intent) {
     case "CATALOG":
@@ -672,6 +692,9 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
       return saveHumanHandoff(businessId, conversation.id);
 
     default: {
+      if (!isBotMenuEnabled(business) && !state) {
+        return [];
+      }
       const fallback = buildFallbackMessage(business);
       await saveAndReturn(business.id, conversation.id, [{ text: fallback }]);
       return [{ text: fallback }];
@@ -1222,7 +1245,7 @@ async function pixGate(
 ): Promise<BotResponse[] | null> {
   if (!business.mercadoPagoConfigured) {
     const text =
-      `💳 Pagamento PIX ainda não está ativo neste negócio. O dono precisa conectar a conta Mercado Pago em *Pagamentos* no painel ${APP_DISPLAY_NAME}.`;
+      `💳 Pagamento PIX ainda não está ativo neste negócio. O dono precisa salvar o Access Token do Mercado Pago em *Pagamentos* no painel ${APP_DISPLAY_NAME}.`;
     await saveAndReturn(business.id, conversation.id, [{ text }]);
     return [{ text }];
   }
@@ -1542,6 +1565,9 @@ async function handleMenuItemSelection(
   sessionKey: string,
 ): Promise<BotResponse[]> {
   if (isAppointmentMenuItem(item, business.type)) {
+    if (business.type === "RESTAURANT" && normalizeOrderBotConfig(business.orderBot).enabled) {
+      return startOrderFlow(business, conversation, sessionKey, ctx.customerName);
+    }
     return startAppointmentFlow(business, conversation, sessionKey, ctx.customerName);
   }
   if (isCatalogMenuItem(item, business.type)) {
@@ -1597,6 +1623,9 @@ async function routeMenuAction(
     case "CATALOG":
       return handleCatalog(business, conversation);
     case "APPOINTMENT":
+      if (business.type === "RESTAURANT" && normalizeOrderBotConfig(business.orderBot).enabled) {
+        return startOrderFlow(business, conversation, sessionKey, ctx.customerName);
+      }
       return startAppointmentFlow(business, conversation, sessionKey, ctx.customerName);
     case "FAQ":
       return handleFAQ(ctx.messageBody, business, conversation, sessionKey);
