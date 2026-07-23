@@ -4,7 +4,7 @@ import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-export type IaTab = "menu" | "faqs" | "leadflow" | "resume" | "weeklymenu" | "orderbot";
+export type IaTab = "mensagens" | "menu" | "faqs" | "leadflow" | "resume" | "weeklymenu" | "orderbot";
 
 export type IaSectionTab = {
   id: IaTab;

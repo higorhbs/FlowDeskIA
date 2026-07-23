@@ -14,7 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import {
-  MessageSquare, HelpCircle, Plus, Trash2, Loader2, X,
+  MessageSquare, MessageCircle, HelpCircle, Plus, Trash2, Loader2, X,
   ChevronUp, ChevronDown, Eye, Save, Pencil, Check,
   Sparkles, Hash, MessageCircleQuestion, Zap, GitBranch, FileText, UtensilsCrossed, ShoppingBag,
 } from "lucide-react";
@@ -33,6 +33,7 @@ import {
 } from "@flowdesk/shared";
 import { IaIcon } from "@/lib/ia-brand";
 import { usePlanAllowsPix } from "@/lib/use-plan-allows-pix";
+import { AutomaticMessagesEditor } from "@/components/ia/AutomaticMessagesEditor";
 import { LeadFlowEditor } from "@/components/ia/LeadFlowEditor";
 import { ResumeFlowEditor } from "@/components/ia/ResumeFlowEditor";
 import { WeeklyMenuEditor } from "@/components/ia/WeeklyMenuEditor";
@@ -291,6 +292,7 @@ function BotMenuEditor({
   initialManualAttendantPrefixEnabled,
   initialAppointmentBot,
   autoReplyEnabled,
+  onEditGreeting,
 }: {
   businessId: string;
   initialMenu: BotMenuItemConfig[];
@@ -307,14 +309,15 @@ function BotMenuEditor({
   initialManualAttendantPrefixEnabled: boolean;
   initialAppointmentBot?: AppointmentBotConfig | null;
   autoReplyEnabled: boolean;
+  onEditGreeting: () => void;
 }) {
   const v = getBusinessVocabulary(businessType);
   const isSalon = businessType === "BARBERSHOP";
   const queryClient = useQueryClient();
   const [items, setItems] = useState<BotMenuItemConfig[]>(initialMenu);
   const [menuEnabled, setMenuEnabled] = useState(initialMenuEnabled);
-  const [greetingEnabled, setGreetingEnabled] = useState(initialGreetingEnabled);
-  const [greetingMsg, setGreetingMsg] = useState(initialGreetingMsg);
+  const greetingEnabled = initialGreetingEnabled;
+  const greetingMsg = initialGreetingMsg;
   const [thanksMsg, setThanksMsg] = useState(initialThanksMsg);
   const [thanksEnabled, setThanksEnabled] = useState(initialThanksEnabled);
   const [attendantNames, setAttendantNames] = useState<string[]>(() => {
@@ -345,23 +348,8 @@ function BotMenuEditor({
   }>({ open: false, index: null, label: "", response: "", emoji: "" });
 
   const [pickerAnchor, setPickerAnchor] = useState<{ el: HTMLElement } | null>(null);
-  const greetingRef = useRef<HTMLTextAreaElement>(null);
   const thanksRef = useRef<HTMLTextAreaElement>(null);
   const modalResponseRef = useRef<HTMLTextAreaElement>(null);
-
-  function dropTokenInGreeting(token: string) {
-    const el = greetingRef.current;
-    if (!el) return;
-    const start = el.selectionStart ?? greetingMsg.length;
-    const end = el.selectionEnd ?? greetingMsg.length;
-    const next = insertToken(greetingMsg, token, start, end);
-    setGreetingMsg(next);
-    requestAnimationFrame(() => {
-      const cursor = start + token.length;
-      el.focus();
-      el.setSelectionRange(cursor, cursor);
-    });
-  }
 
   function dropTokenInThanks(token: string) {
     const el = thanksRef.current;
@@ -407,8 +395,6 @@ function BotMenuEditor({
         botMenu: items.map(({ action: _legacy, ...it }) => it),
         botMenuEnabled: menuEnabled,
         botAutoReplyEnabled: autoReplyEnabled,
-        greetingEnabled,
-        greetingMsg: greetingMsg.trim() || "Olá! Como posso ajudar?",
         thanksEnabled,
         thanksMsg: thanksMsg.trim() || DEFAULT_THANKS_MSG,
         attendantEnabled,
@@ -632,44 +618,34 @@ function BotMenuEditor({
       {/* Editor */}
       <div>
         <div className="space-y-3 mb-6">
-          <ToggleRow
-            label="Saudação inicial"
-            hint="Mensagem de boas-vindas antes do menu ou das respostas automáticas."
-            checked={greetingEnabled}
-            onChange={(v) => {
-              setGreetingEnabled(v);
+          <button
+            type="button"
+            onClick={() => {
               setPreviewFocus("greeting");
+              onEditGreeting();
             }}
             disabled={!autoReplyEnabled}
-            onPreview={() => setPreviewFocus("greeting")}
-          />
-          {greetingEnabled && autoReplyEnabled && (
-            <div className="space-y-2">
-              <TemplateVariableBar onPick={dropTokenInGreeting} />
-              <textarea
-                ref={greetingRef}
-                value={greetingMsg}
-                onChange={(e) => setGreetingMsg(e.target.value)}
-                onFocus={() => setPreviewFocus("greeting")}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const token = e.dataTransfer.getData("text/plain");
-                  if (token.startsWith("{") && token.endsWith("}")) {
-                    dropTokenInGreeting(token);
-                  }
-                }}
-                rows={3}
-                className="input resize-none w-full"
-                placeholder={`Olá {nome}! Bem-vindo ao {negocio} 😊 Como posso ajudar?`}
-              />
-              <p className="text-xs text-gray-500">
-                Variáveis: <code className="bg-gray-100 px-1 rounded font-mono">{"{nome}"}</code>,{" "}
-                <code className="bg-gray-100 px-1 rounded font-mono">{"{negocio}"}</code>,{" "}
-                <code className="bg-gray-100 px-1 rounded font-mono">{"{atendente}"}</code>.
+            className={cn(
+              "flex w-full items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-left transition-colors hover:border-brand-200 hover:bg-brand-50/40",
+              !autoReplyEnabled && "opacity-50 pointer-events-none"
+            )}
+          >
+            <div className="min-w-0">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
+                Saudação inicial
+                <span
+                  className={cn("h-1.5 w-1.5 flex-shrink-0 rounded-full", greetingEnabled ? "bg-emerald-500" : "bg-gray-300")}
+                  title={greetingEnabled ? "Ativada" : "Desativada"}
+                />
+              </p>
+              <p className="mt-0.5 truncate text-xs text-gray-500">
+                {greetingEnabled
+                  ? greetingMsg || "Sem mensagem definida"
+                  : "Desativada — configure em Mensagens automáticas"}
               </p>
             </div>
-          )}
+            <span className="mt-0.5 flex-shrink-0 text-xs font-medium text-brand-700">Editar</span>
+          </button>
 
           <ToggleRow
             label="Menu numérico"
@@ -1831,6 +1807,13 @@ export default function BotPage() {
   const iaTabs: IaSectionTab[] = autoReplyEnabled
     ? [
         {
+          id: "mensagens",
+          label: "Mensagens automáticas",
+          icon: MessageCircle,
+          description: "Boas-vindas e respostas fora do expediente",
+          active: (business as { greetingEnabled?: boolean })?.greetingEnabled !== false,
+        },
+        {
           id: "menu",
           label: "Menu da IA",
           icon: MessageSquare,
@@ -1890,6 +1873,7 @@ export default function BotPage() {
       return;
     }
     const allowed =
+      tab === "mensagens" ||
       tab === "menu" ||
       tab === "faqs" ||
       (tab === "leadflow" && showLeadFlow) ||
@@ -1981,7 +1965,18 @@ export default function BotPage() {
             <div className="flex items-center justify-center h-48">
               <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
             </div>
-          ) : !autoReplyEnabled ? null : tab === "menu" && autoReplyEnabled ? (
+          ) : !autoReplyEnabled ? null : tab === "mensagens" && autoReplyEnabled ? (
+            <AutomaticMessagesEditor
+              businessId={businessId}
+              businessName={business?.name ?? "Meu Negócio"}
+              initialGreetingEnabled={(business as { greetingEnabled?: boolean })?.greetingEnabled !== false}
+              initialGreetingMsg={business?.greetingMsg ?? "Olá {nome}! Bem-vindo ao {negocio} 😊 Como posso ajudar?"}
+              initialAwayMsg={
+                (business as { awayMsg?: string })?.awayMsg ??
+                "No momento estamos fechados. Em breve retornaremos!"
+              }
+            />
+          ) : tab === "menu" && autoReplyEnabled ? (
             <BotMenuEditor
               businessId={businessId}
               initialMenu={initialMenu}
@@ -2005,6 +2000,7 @@ export default function BotPage() {
               }
               initialAppointmentBot={(business as { appointmentBot?: AppointmentBotConfig })?.appointmentBot}
               autoReplyEnabled={autoReplyEnabled}
+              onEditGreeting={() => setTab("mensagens")}
             />
           ) : tab === "faqs" && autoReplyEnabled ? (
             <FAQsEditor businessId={businessId} businessType={business?.type} />

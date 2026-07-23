@@ -17,9 +17,6 @@ import {
   Phone,
   FileText,
   Clock,
-  MessageSquare,
-  MessageCircle,
-  DoorClosed,
   CheckCircle2,
   ChevronRight,
   ChevronDown,
@@ -32,14 +29,9 @@ import {
   LayoutGrid,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  TemplateMessageField,
-  TemplateVariablesHelp,
-} from "@/components/business/TemplateMessageField";
+import { useEffect, useRef, useState } from "react";
 import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
 import { AddressCepField } from "@/components/business/AddressCepField";
-import { WhatsAppMessagePreview, type PreviewMessage } from "@/components/business/WhatsAppMessagePreview";
 import {
   WorkingHoursEditor,
   defaultWorkingHours,
@@ -63,8 +55,6 @@ const schema = z
     phone: z.string().min(10),
     address: z.string().optional(),
     description: z.string().optional(),
-    greetingMsg: z.string().min(5),
-    awayMsg: z.string().min(5),
   })
   .superRefine((data, ctx) => {
     if (data.type === "OTHER" && (!data.typeLabel || data.typeLabel.trim().length < 2)) {
@@ -118,13 +108,9 @@ function normalizeSpecialHours(raw: unknown): SpecialHoursValue {
   return out;
 }
 
-function renderPreviewTemplate(text: string, businessName: string) {
-  return text.replaceAll("{nome}", "Maria").replaceAll("{negocio}", businessName.trim() || "seu negócio");
-}
-
 // ── UI helpers ─────────────────────────────────────────────────────────────────
 
-const TAB_IDS = ["geral", "horarios", "mensagens", "relatorio"] as const;
+const TAB_IDS = ["geral", "horarios", "relatorio"] as const;
 type SettingsTab = (typeof TAB_IDS)[number];
 
 const FIELD_TAB: Partial<Record<keyof FormData, SettingsTab>> = {
@@ -134,8 +120,6 @@ const FIELD_TAB: Partial<Record<keyof FormData, SettingsTab>> = {
   phone: "geral",
   address: "geral",
   description: "geral",
-  greetingMsg: "mensagens",
-  awayMsg: "mensagens",
 };
 
 type TabConfig = {
@@ -288,9 +272,6 @@ const INPUT_CLS =
 const TEXTAREA_CLS =
   "rounded-xl border-gray-200 bg-white px-3.5 py-3 text-sm shadow-sm transition-shadow focus-visible:border-brand-400 focus-visible:ring-4 focus-visible:ring-brand-100";
 const ERROR_RING_CLS = "border-red-300 focus-visible:border-red-400 focus-visible:ring-red-100";
-// Usada sobre o TemplateMessageField, que já define seu próprio focus ring via a classe global ".input".
-const TEMPLATE_FIELD_CLS = "rounded-xl border-gray-200 shadow-sm px-3.5 py-3";
-const TEMPLATE_FIELD_ERROR_CLS = "border-red-300";
 
 function IconInput({
   icon: Icon,
@@ -395,7 +376,6 @@ export default function SettingsPage() {
   const [dailyReportMinute, setDailyReportMinute] = useState(0);
   const [hoursDirty, setHoursDirty] = useState(false);
   const [activeTab, setActiveTab] = useState<SettingsTab>("geral");
-  const [previewMode, setPreviewMode] = useState<"greeting" | "away">("greeting");
 
   const {
     register,
@@ -407,11 +387,8 @@ export default function SettingsPage() {
     formState: { errors, isDirty },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
-  const greetingMsg = watch("greetingMsg") ?? "";
-  const awayMsg = watch("awayMsg") ?? "";
   const description = watch("description") ?? "";
   const businessType = watch("type");
-  const businessName = watch("name") ?? "";
 
   useEffect(() => {
     if (!business) return;
@@ -425,8 +402,6 @@ export default function SettingsPage() {
       phone: business.phone ?? "",
       address: business.address ?? "",
       description: business.description ?? "",
-      greetingMsg: business.greetingMsg ?? "Olá! Como posso ajudar?",
-      awayMsg: business.awayMsg ?? "No momento estamos fechados. Em breve retornaremos!",
     });
     setWorkingHours(normalizeWorkingHours(business.workingHours));
     setSpecialHours(normalizeSpecialHours((business as { specialHours?: unknown }).specialHours));
@@ -560,13 +535,11 @@ export default function SettingsPage() {
   const W = "w-full max-w-2xl mx-auto px-4 sm:px-6";
 
   const geralHasError = Boolean(errors.name || errors.type || errors.typeLabel || errors.phone);
-  const mensagensHasError = Boolean(errors.greetingMsg || errors.awayMsg);
   const isRestaurantReport = businessType === "RESTAURANT";
 
   const tabs: TabConfig[] = [
     { id: "geral", label: "Geral", description: "Nome, tipo e contato", icon: Building2, color: "bg-blue-100 text-blue-600", hasError: geralHasError },
     { id: "horarios", label: "Horários", description: "Funcionamento, almoço e exceções", icon: Clock, color: "bg-emerald-100 text-emerald-600" },
-    { id: "mensagens", label: "Mensagens", description: "Boas-vindas e fora do horário", icon: MessageSquare, color: "bg-violet-100 text-violet-600", hasError: mensagensHasError },
     {
       id: "relatorio",
       label: "Relatório",
@@ -576,14 +549,6 @@ export default function SettingsPage() {
       active: dailyReportEnabled,
     },
   ];
-
-  const previewMessages: PreviewMessage[] = useMemo(() => {
-    const botText = previewMode === "greeting" ? greetingMsg : awayMsg;
-    return [
-      { from: "customer", text: previewMode === "greeting" ? "Oi, boa tarde!" : "Vocês estão abertos agora?" },
-      { from: "bot", text: renderPreviewTemplate(botText, businessName) },
-    ];
-  }, [previewMode, greetingMsg, awayMsg, businessName]);
 
   if (!businessId || isLoading) {
     return (
@@ -784,91 +749,6 @@ export default function SettingsPage() {
                 </div>
               )}
             </TabPanel>
-          )}
-
-          {activeTab === "mensagens" && (
-            <div className="grid gap-4 lg:grid-cols-[1fr_260px] lg:items-start">
-              <TabPanel title="Mensagens automáticas" description="Boas-vindas e respostas fora do expediente">
-                <TemplateVariablesHelp />
-                <Field
-                  label="Mensagem de boas-vindas"
-                  icon={<MessageCircle className="w-3.5 h-3.5" />}
-                  error={errors.greetingMsg?.message}
-                  hint="Enviada na primeira interação do cliente"
-                >
-                  <Controller
-                    name="greetingMsg"
-                    control={control}
-                    render={({ field }) => (
-                      <TemplateMessageField
-                        value={field.value}
-                        onChange={field.onChange}
-                        rows={4}
-                        maxLength={500}
-                        placeholder="Olá {nome}! Bem-vindo ao {negocio}. Como posso ajudar?"
-                        className={cn(TEMPLATE_FIELD_CLS, "pb-7", errors.greetingMsg && TEMPLATE_FIELD_ERROR_CLS)}
-                        footer={
-                          <div className="flex justify-end">
-                            <CharCount value={greetingMsg} max={500} />
-                          </div>
-                        }
-                      />
-                    )}
-                  />
-                </Field>
-
-                <div className="h-px bg-gray-100" />
-
-                <Field
-                  label="Mensagem fora do horário"
-                  icon={<DoorClosed className="w-3.5 h-3.5" />}
-                  error={errors.awayMsg?.message}
-                  hint="Enviada quando o cliente escreve fora do expediente"
-                >
-                  <Controller
-                    name="awayMsg"
-                    control={control}
-                    render={({ field }) => (
-                      <TemplateMessageField
-                        value={field.value}
-                        onChange={field.onChange}
-                        rows={4}
-                        maxLength={500}
-                        placeholder="Olá {nome}! No momento estamos fechados. Retornaremos em breve!"
-                        className={cn(TEMPLATE_FIELD_CLS, "pb-1", errors.awayMsg && TEMPLATE_FIELD_ERROR_CLS)}
-                        footer={
-                          <div className="flex justify-end">
-                            <CharCount value={awayMsg} max={500} />
-                          </div>
-                        }
-                      />
-                    )}
-                  />
-                </Field>
-              </TabPanel>
-
-              <div className="lg:sticky lg:top-6 space-y-2.5">
-                <p className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Como o cliente vê
-                </p>
-                <div className="flex gap-1.5 rounded-full bg-gray-100 p-1">
-                  {(["greeting", "away"] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => setPreviewMode(mode)}
-                      className={cn(
-                        "flex-1 rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors",
-                        previewMode === mode ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700",
-                      )}
-                    >
-                      {mode === "greeting" ? "Boas-vindas" : "Fora do horário"}
-                    </button>
-                  ))}
-                </div>
-                <WhatsAppMessagePreview businessName={businessName} messages={previewMessages} />
-              </div>
-            </div>
           )}
 
           {activeTab === "relatorio" && (

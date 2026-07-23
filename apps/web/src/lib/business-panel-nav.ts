@@ -64,13 +64,13 @@ export function buildBusinessPanelLinks(opts: {
 
   return [
     { href: panelHref(businessId, "conversations"), icon: MessageSquare, label: "Conversas", desc: "Histórico e atendimentos", color: "bg-blue-50 text-blue-600", vocab: false },
-    { href: panelHref(businessId, "faqs"), icon: IaIcon, label: "IA", desc: "Menu, vendas guiadas e perguntas automáticas", color: "bg-green-50 text-green-600", vocab: false },
+    { href: panelHref(businessId, "faqs"), icon: IaIcon, label: "IA", desc: "Mensagens, menu, vendas guiadas e perguntas automáticas", color: "bg-green-50 text-green-600", vocab: false },
     { href: panelHref(businessId, "appointments"), icon: Calendar, label: v.bookingsNav, desc: v.bookingsSectionDesc, color: "bg-violet-50 text-violet-600", vocab: true },
     { href: panelHref(businessId, "catalog"), icon: BookOpen, label: v.catalogNav, desc: `${v.catalogItemPlural} no catálogo`, color: "bg-amber-50 text-amber-600", vocab: true },
     ...(pixEnabled
       ? [{ href: panelHref(businessId, "payments"), icon: Banknote, label: "Pagamentos", desc: "PIX e recebimentos", color: "bg-emerald-50 text-emerald-600", vocab: false }]
       : []),
     { href: panelHref(businessId, "whatsapp"), icon: Phone, label: "WhatsApp", desc: "Conectar dispositivo", color: "bg-emerald-50 text-emerald-600", vocab: false },
-    { href: panelHref(businessId, "settings"), icon: Settings, label: "Configurações", desc: "Dados, horários e mensagens", color: "bg-gray-100 text-gray-600", vocab: false },
+    { href: panelHref(businessId, "settings"), icon: Settings, label: "Configurações", desc: "Dados e horário de funcionamento", color: "bg-gray-100 text-gray-600", vocab: false },
   ];
 }
