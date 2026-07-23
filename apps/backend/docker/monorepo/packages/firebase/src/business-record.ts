@@ -1,9 +1,12 @@
-import type { Business, BusinessCreateInput, BusinessType } from "./types.js";
+import type { Business, BusinessCreateInput } from "./types.js";
 import {
+  normalizeBusinessType,
   normalizeLeadCaptureFlow,
   normalizeResumeFlowConfig,
+  normalizeAppointmentBotConfig,
   type LeadCaptureFlow,
   type ResumeFlowConfig,
+  type AppointmentBotConfig,
 } from "@flowdesk/shared";
 
 export function stripUndefined<T extends Record<string, unknown>>(data: T): T {
@@ -54,6 +57,24 @@ function readResumeFlow(raw: unknown): Business["resumeFlow"] {
   return cfg;
 }
 
+function readAppointmentBot(raw: unknown): Business["appointmentBot"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  return normalizeAppointmentBotConfig(raw as AppointmentBotConfig);
+}
+
+export function serializeAppointmentBotForFirestore(
+  flow: AppointmentBotConfig,
+): Record<string, unknown> {
+  const normalized = normalizeAppointmentBotConfig(flow);
+  return {
+    startMessage: normalized.startMessage,
+    clientInputExample: normalized.clientInputExample,
+    completedMessage: normalized.completedMessage,
+    awaitingMessage: normalized.awaitingMessage,
+    requiresApproval: normalized.requiresApproval === true,
+  };
+}
+
 export function serializeResumeFlowForFirestore(flow: ResumeFlowConfig): Record<string, unknown> {
   const normalized = normalizeResumeFlowConfig(flow);
   return stripUndefined({
@@ -99,7 +120,7 @@ export function normalizeBusiness(id: string, raw: Record<string, unknown>): Bus
     id,
     tenantId: String(raw.tenantId ?? ""),
     name: String(raw.name ?? ""),
-    type: raw.type as BusinessType,
+    type: normalizeBusinessType(typeof raw.type === "string" ? raw.type : undefined),
     phone: String(raw.phone ?? ""),
     createdAt: String(raw.createdAt ?? ""),
     updatedAt: String(raw.updatedAt ?? ""),
@@ -135,9 +156,19 @@ export function normalizeBusiness(id: string, raw: Record<string, unknown>): Bus
     manualAttendantPrefixEnabled: raw.manualAttendantPrefixEnabled !== false,
     leadFlow: readLeadFlow(raw.leadFlow),
     resumeFlow: readResumeFlow(raw.resumeFlow),
+    appointmentBot: readAppointmentBot(raw.appointmentBot),
     appointmentBufferMins:
       typeof raw.appointmentBufferMins === "number" && raw.appointmentBufferMins >= 0
         ? raw.appointmentBufferMins
+        : undefined,
+    dailyReportEnabled: raw.dailyReportEnabled === true,
+    dailyReportHour:
+      typeof raw.dailyReportHour === "number" && raw.dailyReportHour >= 0 && raw.dailyReportHour <= 23
+        ? raw.dailyReportHour
+        : undefined,
+    dailyReportMinute:
+      typeof raw.dailyReportMinute === "number" && raw.dailyReportMinute >= 0 && raw.dailyReportMinute <= 59
+        ? raw.dailyReportMinute
         : undefined,
     isConnected: raw.isConnected === true,
   };

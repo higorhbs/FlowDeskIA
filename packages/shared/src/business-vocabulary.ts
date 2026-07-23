@@ -3,13 +3,20 @@ import { APP_DISPLAY_NAME } from "./brand.js";
 export const BUSINESS_TYPE_ORDER = [
   "STORE",
   "BARBERSHOP",
-  "SALON",
   "RESTAURANT",
   "DENTAL",
   "OTHER",
 ] as const;
 
 export type BusinessType = (typeof BUSINESS_TYPE_ORDER)[number];
+
+/** Legado: SALON → BARBERSHOP (Salão de Beleza). */
+export function normalizeBusinessType(type?: string | null): BusinessType {
+  const raw = String(type ?? "").trim().toUpperCase();
+  if (raw === "SALON") return "BARBERSHOP";
+  if ((BUSINESS_TYPE_ORDER as readonly string[]).includes(raw)) return raw as BusinessType;
+  return "OTHER";
+}
 
 export interface BusinessVocabulary {
   typeLabel: string;
@@ -187,7 +194,6 @@ const BY_TYPE: Record<BusinessType, BusinessVocabulary> = {
     bookingSingular: "Agendamento",
     bookingsPlural: "Agendamentos",
   },
-  SALON: { ...DEFAULT, typeLabel: "Salão / Manicure" },
   RESTAURANT: { ...DEFAULT, typeLabel: "Restaurante", ...APPROVAL_OVERRIDES },
   DENTAL: { ...DEFAULT, typeLabel: "Clínica", ...APPROVAL_OVERRIDES },
   STORE: { ...DEFAULT, typeLabel: "Comércio", ...APPROVAL_OVERRIDES },
@@ -196,10 +202,16 @@ const BY_TYPE: Record<BusinessType, BusinessVocabulary> = {
 
 export function getBusinessVocabulary(type?: string | null): BusinessVocabulary {
   if (!type) return DEFAULT;
-  return BY_TYPE[type as BusinessType] ?? DEFAULT;
+  return BY_TYPE[normalizeBusinessType(type)] ?? DEFAULT;
 }
 
-export function businessRequiresBookingApproval(type?: string | null): boolean {
+export function businessRequiresBookingApproval(
+  type?: string | null,
+  appointmentBot?: { requiresApproval?: boolean } | null,
+): boolean {
+  if (type === "BARBERSHOP") {
+    return appointmentBot?.requiresApproval === true;
+  }
   return getBusinessVocabulary(type).bookingRequiresApproval;
 }
 
@@ -227,7 +239,6 @@ export function getIntentKeywordsForType(type?: string | null) {
 export const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
   STORE: "Comércio local",
   BARBERSHOP: "Salão de Beleza",
-  SALON: "Salão / Manicure",
   RESTAURANT: "Restaurante",
   DENTAL: "Dentista / Clínica",
   OTHER: "Outro",
@@ -238,7 +249,8 @@ export function getBusinessTypeLabel(
   typeLabel?: string | null
 ): string {
   const custom = typeLabel?.trim();
-  if (type === "OTHER" && custom) return custom;
-  if (type && type in BUSINESS_TYPE_LABELS) return BUSINESS_TYPE_LABELS[type as BusinessType];
+  const normalized = type ? normalizeBusinessType(type) : null;
+  if (normalized === "OTHER" && custom) return custom;
+  if (normalized) return BUSINESS_TYPE_LABELS[normalized];
   return custom || "Outro";
 }

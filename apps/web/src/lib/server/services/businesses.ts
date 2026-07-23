@@ -10,7 +10,6 @@ import { ApiError } from "../api-error";
 
 const BUSINESS_TYPES = new Set<BusinessType>([
   "BARBERSHOP",
-  "SALON",
   "RESTAURANT",
   "DENTAL",
   "STORE",
@@ -38,7 +37,8 @@ export type CreateBusinessBody = {
 
 function parseCreateBody(body: CreateBusinessBody): BusinessCreateInput {
   const name = typeof body.name === "string" ? body.name.trim() : "";
-  const type = typeof body.type === "string" ? body.type.trim().toUpperCase() : "";
+  const typeRaw = typeof body.type === "string" ? body.type.trim().toUpperCase() : "";
+  const type = typeRaw === "SALON" ? "BARBERSHOP" : typeRaw;
   const phone = normalizePhone(
     typeof body.whatsapp === "string"
       ? body.whatsapp
@@ -61,7 +61,7 @@ function parseCreateBody(body: CreateBusinessBody): BusinessCreateInput {
   }
   if (!BUSINESS_TYPES.has(type as BusinessType)) {
     throw new ApiError(
-      "Tipo inválido. Use: BARBERSHOP, SALON, RESTAURANT, DENTAL, STORE ou OTHER.",
+      "Tipo inválido. Use: BARBERSHOP, RESTAURANT, DENTAL, STORE ou OTHER.",
       400,
     );
   }

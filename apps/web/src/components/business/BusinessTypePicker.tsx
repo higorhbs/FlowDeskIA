@@ -2,7 +2,6 @@
 
 import {
   Scissors,
-  Sparkles,
   UtensilsCrossed,
   Stethoscope,
   Store,
@@ -21,7 +20,6 @@ const BUSINESS_TYPE_META: Record<
 > = {
   STORE: { icon: Store, color: "bg-violet-50 text-violet-700 border-violet-200" },
   BARBERSHOP: { icon: Scissors, color: "bg-slate-100 text-slate-700 border-slate-200" },
-  SALON: { icon: Sparkles, color: "bg-pink-50 text-pink-700 border-pink-200" },
   RESTAURANT: { icon: UtensilsCrossed, color: "bg-orange-50 text-orange-700 border-orange-200" },
   DENTAL: { icon: Stethoscope, color: "bg-teal-50 text-teal-700 border-teal-200" },
   OTHER: { icon: LayoutGrid, color: "bg-gray-100 text-gray-700 border-gray-200" },

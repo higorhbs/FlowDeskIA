@@ -50,6 +50,7 @@ import {
   isWeeklyMenuTrigger,
   formatWeeklyMenuResponse,
   getTodayDayOfWeek,
+  normalizeAppointmentBotConfig,
 } from "@flowdesk/shared";
 import { createPixCharge, resolveAsaasCredentials } from "./pix.js";
 import {
@@ -579,7 +580,7 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
       return handleMyAppointments(ctx, business, conversation);
 
     case "APPOINTMENT":
-      return startAppointmentFlow(business, conversation, sessionKey);
+      return startAppointmentFlow(business, conversation, sessionKey, ctx.customerName);
 
     case "QUOTE":
       return handleQuote(business, conversation);
@@ -628,15 +629,18 @@ async function startAppointmentFlow(
   business: any,
   conversation: Conversation,
   sessionKey: string,
+  customerName?: string,
 ): Promise<BotResponse[]> {
   const v = voc(business);
   conversationState.set(sessionKey, {
     step: "APPOINTMENT_DATE",
     data: { serviceName: v.botBookingServiceDefault },
   });
-  const text =
-    `📅 *${v.botStartBookingTitle} — ${business.name}*\n\n` +
-    v.botStartBookingPrompt;
+  const cfg = normalizeAppointmentBotConfig(business.appointmentBot);
+  const text = renderTemplate(cfg.startMessage, {
+    nome: customerName ?? "cliente",
+    negocio: business.name,
+  }).trim();
   await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
 }
@@ -752,7 +756,7 @@ async function handleAppointmentTime(
   }
 
   const v = voc(business);
-  const needsApproval = businessRequiresBookingApproval(business.type);
+  const needsApproval = businessRequiresBookingApproval(business.type, business.appointmentBot);
   const appointment = await createAppointment({
     businessId: business.id,
     conversationId: conversation.id,
@@ -766,14 +770,17 @@ async function handleAppointmentTime(
 
   conversationState.delete(sessionKey);
 
-  const dateLine = `📅 Data: *${format(baseDate, "dd/MM/yyyy", { locale: ptBR })}*\n` +
-    `🕐 Horário: *${format(baseDate, "HH:mm")}*\n` +
-    `🔖 Código: *${appointment.id.slice(0, 8)}*\n\n`;
-  const text = needsApproval
-    ? `📋 *${v.botBookingAwaitingTitle}!*\n\n${dateLine}${v.botBookingAwaitingHint}\n\nPara acompanhar: *${v.botMyBookingPrompt}*.`
-    : `✅ *${v.botBookingConfirmedTitle}!*\n\n${dateLine}` +
-      `Para consultar depois, digite *${v.botMyBookingPrompt}*.\n\n` +
-      `Te esperamos! 😊 Qualquer dúvida é só chamar.`;
+  const cfg = normalizeAppointmentBotConfig(business.appointmentBot);
+  const text = renderTemplate(
+    needsApproval ? cfg.awaitingMessage : cfg.completedMessage,
+    {
+      nome: ctx.customerName ?? "cliente",
+      negocio: business.name,
+      data: format(baseDate, "dd/MM/yyyy", { locale: ptBR }),
+      hora: format(baseDate, "HH:mm"),
+      codigo: appointment.id.slice(0, 8),
+    },
+  ).trim();
 
   await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
@@ -1162,7 +1169,7 @@ async function handleMenuItemSelection(
   sessionKey: string,
 ): Promise<BotResponse[]> {
   if (isAppointmentMenuItem(item, business.type)) {
-    return startAppointmentFlow(business, conversation, sessionKey);
+    return startAppointmentFlow(business, conversation, sessionKey, ctx.customerName);
   }
   if (isCatalogMenuItem(item, business.type)) {
     return handleCatalog(business, conversation);
@@ -1217,7 +1224,7 @@ async function routeMenuAction(
     case "CATALOG":
       return handleCatalog(business, conversation);
     case "APPOINTMENT":
-      return startAppointmentFlow(business, conversation, sessionKey);
+      return startAppointmentFlow(business, conversation, sessionKey, ctx.customerName);
     case "FAQ":
       return handleFAQ(ctx.messageBody, business, conversation, sessionKey);
     case "PAYMENT":
