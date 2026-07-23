@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Pencil, Check } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { ArrowRight, CalendarOff, Pencil, Check, Trash2, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TemplateMessageField } from "@/components/business/TemplateMessageField";
@@ -20,6 +22,16 @@ const DAYS: Record<string, { short: string; weekday: boolean }> = {
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
+
+function parseDateKey(key: string): Date {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+}
+
+function formatDateKey(key: string): string {
+  const label = format(parseDateKey(key), "EEE, dd/MM", { locale: ptBR });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
 
 const ITEM_H = 32;
 const COL_H  = 96;
@@ -540,32 +552,40 @@ export function WorkingHoursEditor({
         )}
       </div>
 
-      <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-white">
-        <p className="text-sm font-semibold text-gray-900">Horários excepcionais por data</p>
-        <p className="text-xs text-gray-500">
-          Use para feriado, evento ou dia atípico. Esta data sobrescreve o horário semanal.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-[140px_1fr_1fr_auto] gap-2 items-center">
-          <input
-            type="date"
-            value={specialDate}
-            onChange={(e) => setSpecialDate(e.target.value)}
-            className="input"
-          />
-          <input
-            type="time"
-            value={specialOpen}
-            onChange={(e) => setSpecialOpen(e.target.value)}
-            className="input"
-            disabled={specialClosed}
-          />
-          <input
-            type="time"
-            value={specialClose}
-            onChange={(e) => setSpecialClose(e.target.value)}
-            className="input"
-            disabled={specialClosed}
-          />
+      <div className="rounded-xl border border-gray-200 p-3 space-y-4 bg-white">
+        <div>
+          <p className="text-sm font-semibold text-gray-900">Horários excepcionais por data</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Use para feriado, evento ou dia atípico — a data escolhida sobrescreve o horário semanal só naquele dia.
+          </p>
+        </div>
+
+        {/* Add / edit an exception */}
+        <div className="rounded-lg border border-gray-100 bg-gray-50/60 p-3 space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-600">Data</label>
+              <input
+                type="date"
+                value={specialDate}
+                onChange={(e) => setSpecialDate(e.target.value)}
+                className="input block"
+              />
+            </div>
+            <label className="flex items-center gap-2 pt-4">
+              <Switch checked={specialClosed} onCheckedChange={setSpecialClosed} />
+              <span className="text-xs text-gray-600">Fechado o dia todo</span>
+            </label>
+          </div>
+
+          {!specialClosed && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <TimePicker value={specialOpen} onChange={setSpecialOpen} />
+              <ArrowRight className="w-3 h-3 text-gray-300 flex-shrink-0" />
+              <TimePicker value={specialClose} onChange={setSpecialClose} />
+            </div>
+          )}
+
           <Button
             type="button"
             variant="outline"
@@ -574,82 +594,102 @@ export function WorkingHoursEditor({
             className="text-xs border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100 h-auto"
             disabled={!specialDate}
           >
-            Adicionar
+            {specialClosed ? "Marcar data como fechada" : "Salvar horário especial"}
           </Button>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <div className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5">
-            <span className="text-xs text-amber-800">Fechar hoje às</span>
-            <input
-              type="time"
-              value={todayCloseAt}
-              onChange={(e) => setTodayCloseAt(e.target.value)}
-              className="input h-8 w-[110px] py-1"
-            />
+
+        {/* Today shortcuts */}
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+            Atalhos para hoje
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <div className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5">
+              <Zap className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+              <span className="text-xs text-amber-800">Fechar hoje às</span>
+              <input
+                type="time"
+                value={todayCloseAt}
+                onChange={(e) => setTodayCloseAt(e.target.value)}
+                className="input h-8 w-[110px] py-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => closeTodayAt(todayCloseAt)}
+                className="text-xs border-amber-300 bg-white text-amber-800 hover:bg-amber-100 h-auto"
+              >
+                Aplicar
+              </Button>
+            </div>
             <Button
               type="button"
-              variant="outline"
+              variant="destructive"
               size="xs"
-              onClick={() => closeTodayAt(todayCloseAt)}
-              className="text-xs border-amber-300 bg-white text-amber-800 hover:bg-amber-100 h-auto"
+              onClick={() => {
+                const nextSpecial = { ...specialHours, [dateKeyFromOffset(0)]: null };
+                onSpecialHoursChange(nextSpecial);
+                commit({ specialHours: nextSpecial });
+              }}
+              className="text-xs h-auto"
             >
-              Aplicar
+              <CalendarOff className="w-3.5 h-3.5" />
+              Fechar hoje o dia todo
             </Button>
           </div>
-          <Button
-            type="button"
-            variant="destructive"
-            size="xs"
-            onClick={() => {
-              const nextSpecial = { ...specialHours, [dateKeyFromOffset(0)]: null };
-              onSpecialHoursChange(nextSpecial);
-              commit({ specialHours: nextSpecial });
-            }}
-            className="text-xs h-auto"
-          >
-            Fechar hoje o dia todo
-          </Button>
+          <p className="text-[11px] text-gray-400">
+            São só um jeito rápido de criar a exceção de hoje — aparecem na lista abaixo como qualquer outra data.
+          </p>
         </div>
-        <label className="inline-flex items-center gap-2 text-xs text-gray-600">
-          <input
-            type="checkbox"
-            checked={specialClosed}
-            onChange={(e) => setSpecialClosed(e.target.checked)}
-          />
-          Fechado nesta data
-        </label>
 
-        {specialEntries.length > 0 && (
-          <div className="space-y-2">
-            {specialEntries.map(([day, slot]) => (
-              <div
-                key={day}
-                className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"
-              >
-                <div className="text-xs text-gray-700">
-                  <span className="font-semibold">{day}</span>
-                  <span className="ml-2">
-                    {slot ? `${slot[0]} → ${slot[1]}` : "Fechado"}
-                  </span>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => {
-                    const next = { ...specialHours };
-                    delete next[day];
-                    onSpecialHoursChange(next);
-                    commit({ specialHours: next });
-                  }}
-                  className="text-xs text-red-600 hover:text-red-700 h-auto px-0"
+        {/* Registered exceptions */}
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+            Datas cadastradas {specialEntries.length > 0 && `(${specialEntries.length})`}
+          </p>
+          {specialEntries.length === 0 ? (
+            <p className="text-xs text-gray-400 italic">Nenhuma exceção cadastrada ainda.</p>
+          ) : (
+            <div className="space-y-2">
+              {specialEntries.map(([dateKey, slot]) => (
+                <div
+                  key={dateKey}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"
                 >
-                  Remover
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xs font-semibold text-gray-700 whitespace-nowrap">
+                      {formatDateKey(dateKey)}
+                    </span>
+                    {slot ? (
+                      <span className="text-xs font-mono font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                        {slot[0]} → {slot[1]}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                        Fechado
+                      </span>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => {
+                      const next = { ...specialHours };
+                      delete next[dateKey];
+                      onSpecialHoursChange(next);
+                      commit({ specialHours: next });
+                    }}
+                    className="text-xs text-red-600 hover:text-red-700 h-auto px-0 flex-shrink-0"
+                  >
+                    Remover
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
