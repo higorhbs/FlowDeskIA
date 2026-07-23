@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import {
   MessageSquare, HelpCircle, Plus, Trash2, Loader2, X,
   ChevronUp, ChevronDown, Eye, Save, Pencil, Check,
-  Sparkles, Hash, MessageCircleQuestion, Zap, GitBranch, FileText, UtensilsCrossed, CalendarDays,
+  Sparkles, Hash, MessageCircleQuestion, Zap, GitBranch, FileText, UtensilsCrossed,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -327,6 +327,7 @@ function BotMenuEditor({
   const [appointmentBot, setAppointmentBot] = useState<AppointmentBotConfig>(() =>
     normalizeAppointmentBotConfig(initialAppointmentBot)
   );
+  const [appointmentExpanded, setAppointmentExpanded] = useState(false);
   const [previewFocus, setPreviewFocus] = useState<PreviewFocus>("greeting");
 
   // Modal state (shared for create + edit)
@@ -480,7 +481,19 @@ function BotMenuEditor({
   const appointmentPreview = isSalon
     ? buildAppointmentPreview(businessName, appointmentBot)
     : null;
-  const showPreview = previewLines.length > 0 || (previewFocus === "appointment" && !!appointmentPreview);
+  const menuPreview =
+    previewFocus === "menu"
+      ? buildMenuPreview(items, businessName, {
+          menuEnabled,
+          greetingEnabled,
+          greetingMsg,
+          attendantName: attendantNames.map((name) => name.trim()).find(Boolean) || "",
+        })
+      : null;
+  const showPreview =
+    previewLines.length > 0 ||
+    (previewFocus === "appointment" && !!appointmentPreview) ||
+    (previewFocus === "menu" && !!menuPreview);
   const previewTitle: Record<PreviewFocus, string> = {
     greeting: "Prévia da saudação inicial",
     menu: "Prévia do menu numérico",
@@ -618,7 +631,10 @@ function BotMenuEditor({
             label="Saudação inicial"
             hint="Mensagem de boas-vindas antes do menu ou das respostas automáticas."
             checked={greetingEnabled}
-            onChange={setGreetingEnabled}
+            onChange={(v) => {
+              setGreetingEnabled(v);
+              setPreviewFocus("greeting");
+            }}
             disabled={!autoReplyEnabled}
             onPreview={() => setPreviewFocus("greeting")}
           />
@@ -629,6 +645,7 @@ function BotMenuEditor({
                 ref={greetingRef}
                 value={greetingMsg}
                 onChange={(e) => setGreetingMsg(e.target.value)}
+                onFocus={() => setPreviewFocus("greeting")}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
@@ -653,7 +670,10 @@ function BotMenuEditor({
             label="Menu numérico"
             hint="Desativado: a IA responde só pelas perguntas e respostas cadastradas."
             checked={menuEnabled}
-            onChange={setMenuEnabled}
+            onChange={(v) => {
+              setMenuEnabled(v);
+              setPreviewFocus("menu");
+            }}
             disabled={!autoReplyEnabled}
             onPreview={() => setPreviewFocus("menu")}
           />
@@ -750,115 +770,140 @@ function BotMenuEditor({
           {isSalon && (
             <div
               className={cn(
-                "rounded-2xl border border-gray-200 bg-white px-4 py-4 mb-4",
+                "rounded-2xl border border-gray-200 bg-white px-4 py-3.5 mb-4",
                 !autoReplyEnabled && "opacity-50 pointer-events-none"
               )}
-              onFocusCapture={() => setPreviewFocus("appointment")}
             >
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center flex-shrink-0">
-                  <CalendarDays className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900">Configuração de agendamentos</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Mensagens padrão ativas — edite se quiser. Cliente agenda pelo WhatsApp com este fluxo.
-                  </p>
-                </div>
+              <div className="flex items-start justify-between gap-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setAppointmentExpanded((o) => !o)}
+                  className="h-auto flex-1 min-w-0 justify-start text-left rounded-xl px-0 py-0 hover:bg-transparent"
+                >
+                  <span className="flex items-start gap-2 min-w-0">
+                    <ChevronDown
+                      className={cn(
+                        "w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0 transition-transform",
+                        appointmentExpanded && "rotate-180"
+                      )}
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-gray-900">
+                        Configuração de agendamentos
+                      </span>
+                      <span className="block text-xs text-gray-500 mt-0.5 font-normal">
+                        Mensagens padrão ativas — edite se quiser. Cliente agenda pelo WhatsApp com este fluxo.
+                      </span>
+                    </span>
+                  </span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={() => setPreviewFocus("appointment")}
+                  className="text-xs text-brand-700 hover:text-brand-900 border-brand-200 bg-brand-50 h-auto flex-shrink-0"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  Prévia
+                </Button>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Mensagem de agendamento
-                  </label>
-                  <textarea
-                    value={appointmentBot.startMessage}
-                    onChange={(e) =>
-                      setAppointmentBot((c) => ({ ...c, startMessage: e.target.value }))
-                    }
-                    onFocus={() => setPreviewFocus("appointment")}
-                    rows={4}
-                    className="input resize-none w-full text-sm"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Variáveis: <code className="bg-gray-100 px-1 rounded font-mono">{"{nome}"}</code>,{" "}
-                    <code className="bg-gray-100 px-1 rounded font-mono">{"{negocio}"}</code>
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    O que o cliente deve digitar
-                  </label>
-                  <input
-                    type="text"
-                    value={appointmentBot.clientInputExample}
-                    onChange={(e) =>
-                      setAppointmentBot((c) => ({ ...c, clientInputExample: e.target.value }))
-                    }
-                    onFocus={() => setPreviewFocus("appointment")}
-                    className="input w-full text-sm"
-                    placeholder="Ex: 15/06"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Exemplo na prévia (data no formato dd/mm). Depois a IA pede o horário.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    {appointmentBot.requiresApproval
-                      ? "Resposta após solicitar (aguardando confirmação)"
-                      : "Resposta de agendamento concluído"}
-                  </label>
-                  <textarea
-                    value={
-                      appointmentBot.requiresApproval
-                        ? appointmentBot.awaitingMessage
-                        : appointmentBot.completedMessage
-                    }
-                    onChange={(e) =>
-                      setAppointmentBot((c) =>
-                        c.requiresApproval
-                          ? { ...c, awaitingMessage: e.target.value }
-                          : { ...c, completedMessage: e.target.value }
-                      )
-                    }
-                    onFocus={() => setPreviewFocus("appointment")}
-                    rows={6}
-                    className="input resize-none w-full text-sm"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Variáveis:{" "}
-                    <code className="bg-gray-100 px-1 rounded font-mono">{"{data}"}</code>,{" "}
-                    <code className="bg-gray-100 px-1 rounded font-mono">{"{hora}"}</code>,{" "}
-                    <code className="bg-gray-100 px-1 rounded font-mono">{"{codigo}"}</code>,{" "}
-                    <code className="bg-gray-100 px-1 rounded font-mono">{"{nome}"}</code>,{" "}
-                    <code className="bg-gray-100 px-1 rounded font-mono">{"{negocio}"}</code>
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-amber-950">Confirmar agendamentos manualmente</p>
-                      <p className="text-xs text-amber-800 mt-1 leading-relaxed">
-                        {appointmentBot.requiresApproval
-                          ? "Ativo: cliente solicita no WhatsApp e fica aguardando. Você confirma ou recusa na tela de Agendamentos. Só depois o cliente recebe a confirmação."
-                          : "Desligado (padrão): agendamento já entra confirmado no WhatsApp. Se ligar, você passa a confirmar na tela de Agendamentos."}
-                      </p>
-                    </div>
-                    <Switch
-                      checked={appointmentBot.requiresApproval}
-                      onCheckedChange={(checked) => {
-                        setAppointmentBot((c) => ({ ...c, requiresApproval: checked }));
-                        setPreviewFocus("appointment");
-                      }}
+              {appointmentExpanded && (
+                <div className="space-y-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Mensagem de agendamento
+                    </label>
+                    <textarea
+                      value={appointmentBot.startMessage}
+                      onChange={(e) =>
+                        setAppointmentBot((c) => ({ ...c, startMessage: e.target.value }))
+                      }
+                      onFocus={() => setPreviewFocus("appointment")}
+                      rows={4}
+                      className="input resize-none w-full text-sm"
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Variáveis: <code className="bg-gray-100 px-1 rounded font-mono">{"{nome}"}</code>,{" "}
+                      <code className="bg-gray-100 px-1 rounded font-mono">{"{negocio}"}</code>
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      O que o cliente deve digitar
+                    </label>
+                    <input
+                      type="text"
+                      value={appointmentBot.clientInputExample}
+                      onChange={(e) =>
+                        setAppointmentBot((c) => ({ ...c, clientInputExample: e.target.value }))
+                      }
+                      onFocus={() => setPreviewFocus("appointment")}
+                      className="input w-full text-sm"
+                      placeholder="Ex: 15/06"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Exemplo na prévia (data no formato dd/mm). Depois a IA pede o horário.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      {appointmentBot.requiresApproval
+                        ? "Resposta após solicitar (aguardando confirmação)"
+                        : "Resposta de agendamento concluído"}
+                    </label>
+                    <textarea
+                      value={
+                        appointmentBot.requiresApproval
+                          ? appointmentBot.awaitingMessage
+                          : appointmentBot.completedMessage
+                      }
+                      onChange={(e) =>
+                        setAppointmentBot((c) =>
+                          c.requiresApproval
+                            ? { ...c, awaitingMessage: e.target.value }
+                            : { ...c, completedMessage: e.target.value }
+                        )
+                      }
+                      onFocus={() => setPreviewFocus("appointment")}
+                      rows={6}
+                      className="input resize-none w-full text-sm"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Variáveis:{" "}
+                      <code className="bg-gray-100 px-1 rounded font-mono">{"{data}"}</code>,{" "}
+                      <code className="bg-gray-100 px-1 rounded font-mono">{"{hora}"}</code>,{" "}
+                      <code className="bg-gray-100 px-1 rounded font-mono">{"{codigo}"}</code>,{" "}
+                      <code className="bg-gray-100 px-1 rounded font-mono">{"{nome}"}</code>,{" "}
+                      <code className="bg-gray-100 px-1 rounded font-mono">{"{negocio}"}</code>
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-amber-950">Confirmar agendamentos manualmente</p>
+                        <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                          {appointmentBot.requiresApproval
+                            ? "Ativo: cliente solicita no WhatsApp e fica aguardando. Você confirma ou recusa na tela de Agendamentos. Só depois o cliente recebe a confirmação."
+                            : "Desligado (padrão): agendamento já entra confirmado no WhatsApp. Se ligar, você passa a confirmar na tela de Agendamentos."}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={appointmentBot.requiresApproval}
+                        onCheckedChange={(checked) => {
+                          setAppointmentBot((c) => ({ ...c, requiresApproval: checked }));
+                          setPreviewFocus("appointment");
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -888,7 +933,10 @@ function BotMenuEditor({
                 </Button>
                 <Switch
                   checked={thanksEnabled}
-                  onCheckedChange={setThanksEnabled}
+                  onCheckedChange={(v) => {
+                    setThanksEnabled(v);
+                    setPreviewFocus("thanks");
+                  }}
                   className="mt-0.5"
                   title="Ativar/desativar resposta de agradecimento"
                 />
@@ -900,6 +948,7 @@ function BotMenuEditor({
                   ref={thanksRef}
                   value={thanksMsg}
                   onChange={(e) => setThanksMsg(e.target.value)}
+                  onFocus={() => setPreviewFocus("thanks")}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     e.preventDefault();
@@ -953,7 +1002,10 @@ function BotMenuEditor({
                 </Button>
                 <Switch
                   checked={attendantEnabled}
-                  onCheckedChange={setAttendantEnabled}
+                  onCheckedChange={(v) => {
+                    setAttendantEnabled(v);
+                    setPreviewFocus("attendant");
+                  }}
                   className="mt-0.5"
                   title="Ativar/desativar nome de quem atende"
                 />
@@ -971,6 +1023,7 @@ function BotMenuEditor({
                             prev.map((current, i) => (i === index ? e.target.value : current))
                           )
                         }
+                        onFocus={() => setPreviewFocus("attendant")}
                         className="input w-full"
                         placeholder={`Nome do atendente ${index + 1}`}
                         disabled={!autoReplyEnabled}
@@ -1110,6 +1163,17 @@ function BotMenuEditor({
                     </PreviewBubble>
                     <PreviewBubble side="bot">
                       <WaMessage lines={appointmentPreview.done} />
+                    </PreviewBubble>
+                  </div>
+                ) : previewFocus === "menu" && menuPreview ? (
+                  <div className="space-y-2.5">
+                    {menuPreview.greeting && (
+                      <PreviewBubble side="bot">
+                        <WaMessage lines={menuPreview.greeting} />
+                      </PreviewBubble>
+                    )}
+                    <PreviewBubble side="bot">
+                      <WaMessage lines={menuPreview.menu} />
                     </PreviewBubble>
                   </div>
                 ) : (
@@ -1267,6 +1331,54 @@ function WaInline({ text }: { text: string }) {
 
 interface WaLine { text?: string; blank?: boolean }
 
+function buildMenuPreview(
+  items: BotMenuItemConfig[],
+  name: string,
+  opts: {
+    menuEnabled: boolean;
+    greetingEnabled: boolean;
+    greetingMsg: string;
+    attendantName: string;
+  },
+): { greeting: WaLine[] | null; menu: WaLine[] } {
+  if (!opts.menuEnabled) {
+    return { greeting: null, menu: [{ text: "_Menu está desativado_" }] };
+  }
+
+  let greeting: WaLine[] | null = null;
+  if (opts.greetingEnabled && opts.greetingMsg.trim()) {
+    const text = renderTemplate(opts.greetingMsg, {
+      nome: "Maria",
+      negocio: name,
+      atendente: opts.attendantName?.trim() || "Equipe",
+    }).trim();
+    greeting = textToWaLines(text || "_Saudação vazia_");
+  }
+
+  const enabled = items.filter((i) => i.enabled);
+  const menuLines: WaLine[] = [];
+  if (!enabled.length) {
+    menuLines.push({ text: `*${name}*` });
+    menuLines.push({ blank: true });
+    menuLines.push({
+      text: "_Menu ainda não configurado no painel. Enquanto isso, envie sua mensagem que a IA tenta ajudar._",
+    });
+  } else {
+    menuLines.push({ text: `*Menu — ${name}*` });
+    menuLines.push({ blank: true });
+    enabled.forEach((e, i) => {
+      const prefix = e.emoji ? `${e.emoji} ` : "";
+      menuLines.push({ text: `*${i + 1}* — ${prefix}${e.label}` });
+    });
+    menuLines.push({ blank: true });
+    menuLines.push({ text: `*0* — 👋 Sair` });
+    menuLines.push({ blank: true });
+    menuLines.push({ text: `_Digite o número da opção desejada_` });
+  }
+
+  return { greeting, menu: menuLines };
+}
+
 function buildPreviewLines(
   items: BotMenuItemConfig[],
   name: string,
@@ -1283,11 +1395,9 @@ function buildPreviewLines(
     focus: PreviewFocus;
   },
 ): WaLine[] {
-  if (opts.focus === "appointment") return [];
+  if (opts.focus === "appointment" || opts.focus === "menu") return [];
 
   const hasGreeting = opts.greetingEnabled && opts.greetingMsg.trim();
-
-  const lines: WaLine[] = [];
 
   if (opts.focus === "greeting") {
     if (!hasGreeting) return [{ text: "_Saudação está desativada_" }];
@@ -1296,6 +1406,7 @@ function buildPreviewLines(
       negocio: name,
       atendente: opts.attendantName?.trim() || "Equipe",
     });
+    const lines: WaLine[] = [];
     for (const part of greeting.split("\n")) {
       if (part.trim()) lines.push({ text: part });
     }
@@ -1309,6 +1420,7 @@ function buildPreviewLines(
       negocio: name,
       atendente: opts.attendantName?.trim() || "Equipe",
     });
+    const lines: WaLine[] = [];
     for (const part of msg.split("\n")) {
       if (part.trim()) lines.push({ text: part });
     }
@@ -1324,26 +1436,7 @@ function buildPreviewLines(
     return [{ text: `${who}:` }, { text: "Olá bom dia, como vai?" }];
   }
 
-  if (!opts.menuEnabled) return [{ text: "_Menu está desativado_" }];
-
-  const enabled = items.filter((i) => i.enabled);
-  if (!enabled.length) {
-    lines.push({ text: `*${name}*` });
-    lines.push({ blank: true });
-    lines.push({ text: "_Menu vazio — adicione itens ao lado_" });
-    return lines;
-  }
-  lines.push({ text: `*Menu — ${name}*` });
-  lines.push({ blank: true });
-  enabled.forEach((e) => {
-    const prefix = e.emoji ? `${e.emoji} ` : "";
-    lines.push({ text: `*${e.num}* — ${prefix}${e.label}` });
-  });
-  lines.push({ blank: true });
-  lines.push({ text: `*0* — 👋 Sair` });
-  lines.push({ blank: true });
-  lines.push({ text: `_Digite o número da opção desejada_` });
-  return lines;
+  return [];
 }
 
 // ── FAQsEditor ─────────────────────────────────────────────────────────────────
