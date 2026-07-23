@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { CalendarDays, Repeat, Rows3 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
@@ -25,16 +26,22 @@ type Props = {
 };
 
 const WEEKDAY_OPTIONS = [
-  { value: 0, label: "Dom" },
-  { value: 1, label: "Seg" },
-  { value: 2, label: "Ter" },
-  { value: 3, label: "Qua" },
-  { value: 4, label: "Qui" },
-  { value: 5, label: "Sex" },
-  { value: 6, label: "Sab" },
+  { value: 0, label: "D" },
+  { value: 1, label: "S" },
+  { value: 2, label: "T" },
+  { value: 3, label: "Q" },
+  { value: 4, label: "Q" },
+  { value: 5, label: "S" },
+  { value: 6, label: "S" },
 ] as const;
 
 const INTERVAL_OPTIONS = [1, 2, 7, 15] as const;
+
+const MODE_OPTIONS = [
+  { value: "none" as const, label: "Única / manual", icon: CalendarDays },
+  { value: "interval" as const, label: "A cada X dias", icon: Repeat },
+  { value: "weekdays" as const, label: "Dias da semana", icon: Rows3 },
+];
 
 export function StatusRecurrenceControls({
   mode,
@@ -68,82 +75,56 @@ export function StatusRecurrenceControls({
   }, [mode, startDayKey, intervalDays, weekdayNumbers]);
 
   return (
-    <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 space-y-3">
-      <div className="space-y-1">
+    <div className="rounded-2xl border border-gray-100 bg-gray-50/40 p-4 space-y-3">
+      <div>
         <Label className="text-sm">Recorrência</Label>
-        <p className="text-xs text-gray-500">Gera datas só dentro da janela de {MAX_SCHEDULE_DAYS} dias.</p>
+        <p className="text-xs text-gray-500 mt-0.5">
+          Gera datas automaticamente, sempre dentro da janela de {MAX_SCHEDULE_DAYS} dias.
+        </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            onModeChange("none");
-            onApplyGeneratedDays([startDayKey]);
-          }}
-          className={cn(
-            "px-2.5 py-1.5 rounded-lg border text-xs font-medium",
-            mode === "none"
-              ? "bg-brand-600 text-white border-brand-600"
-              : "bg-white text-gray-700 border-gray-200",
-          )}
-        >
-          Única / manual
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            onModeChange("interval");
-            apply("interval");
-          }}
-          className={cn(
-            "px-2.5 py-1.5 rounded-lg border text-xs font-medium",
-            mode === "interval"
-              ? "bg-brand-600 text-white border-brand-600"
-              : "bg-white text-gray-700 border-gray-200",
-          )}
-        >
-          A cada X dias
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            onModeChange("weekdays");
-            apply("weekdays");
-          }}
-          className={cn(
-            "px-2.5 py-1.5 rounded-lg border text-xs font-medium",
-            mode === "weekdays"
-              ? "bg-brand-600 text-white border-brand-600"
-              : "bg-white text-gray-700 border-gray-200",
-          )}
-        >
-          Dias da semana
-        </button>
+      <div className="grid grid-cols-3 gap-2">
+        {MODE_OPTIONS.map(({ value, label, icon: Icon }) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => {
+              onModeChange(value);
+              if (value === "none") onApplyGeneratedDays([startDayKey]);
+              else apply(value);
+            }}
+            className={cn(
+              "flex flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-2.5 text-center transition-all duration-150",
+              mode === value
+                ? "bg-brand-600 border-brand-600 text-white shadow-sm"
+                : "bg-white border-gray-200 text-gray-600 hover:border-brand-200 hover:bg-brand-50/40",
+            )}
+          >
+            <Icon className={cn("w-4 h-4", mode === value ? "text-white" : "text-gray-400")} />
+            <span className="text-[11px] font-semibold leading-tight">{label}</span>
+          </button>
+        ))}
       </div>
 
       {mode !== "none" && (
-        <div className="space-y-3">
+        <div className="space-y-3 pt-1">
           <div className="space-y-1">
             <Label htmlFor="recurrence-start-day" className="text-xs text-gray-600">
-              Início
+              Começar em
             </Label>
             <input
               id="recurrence-start-day"
               type="date"
               min={todayKey}
               value={startDayKey}
-              onChange={(e) => {
-                const next = e.target.value;
-                onStartDayKeyChange(next);
-              }}
-              className="h-9 w-full rounded-lg border border-gray-200 bg-white px-2 text-sm"
+              onChange={(e) => onStartDayKeyChange(e.target.value)}
+              className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm"
             />
           </div>
 
           {mode === "interval" && (
-            <div className="space-y-1">
-              <Label className="text-xs text-gray-600">Intervalo</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-gray-600">Repetir a cada</Label>
               <div className="flex flex-wrap gap-2">
                 {INTERVAL_OPTIONS.map((value) => (
                   <button
@@ -156,10 +137,10 @@ export function StatusRecurrenceControls({
                       );
                     }}
                     className={cn(
-                      "px-2.5 py-1.5 rounded-lg border text-xs font-medium",
+                      "px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors",
                       intervalDays === value
                         ? "bg-brand-600 text-white border-brand-600"
-                        : "bg-white text-gray-700 border-gray-200",
+                        : "bg-white text-gray-700 border-gray-200 hover:border-brand-200",
                     )}
                   >
                     {value} dia{value > 1 ? "s" : ""}
@@ -170,7 +151,7 @@ export function StatusRecurrenceControls({
           )}
 
           {mode === "weekdays" && (
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-xs text-gray-600">Dias da semana</Label>
               <div className="flex flex-wrap gap-2">
                 {WEEKDAY_OPTIONS.map((day) => (
@@ -190,10 +171,10 @@ export function StatusRecurrenceControls({
                       }
                     }}
                     className={cn(
-                      "px-2.5 py-1.5 rounded-lg border text-xs font-medium",
+                      "w-9 h-9 rounded-full border text-xs font-bold transition-colors",
                       weekdayNumbers.includes(day.value)
                         ? "bg-brand-600 text-white border-brand-600"
-                        : "bg-white text-gray-700 border-gray-200",
+                        : "bg-white text-gray-700 border-gray-200 hover:border-brand-200",
                     )}
                   >
                     {day.label}
@@ -206,7 +187,7 @@ export function StatusRecurrenceControls({
           <button
             type="button"
             onClick={() => apply(mode)}
-            className="h-9 w-full rounded-lg border border-brand-200 bg-brand-50 text-brand-700 text-sm font-medium"
+            className="h-10 w-full rounded-xl border border-brand-200 bg-brand-50 text-brand-700 text-sm font-semibold hover:bg-brand-100 transition-colors"
           >
             Regerar datas
           </button>

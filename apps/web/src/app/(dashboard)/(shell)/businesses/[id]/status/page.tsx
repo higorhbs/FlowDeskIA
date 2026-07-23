@@ -119,6 +119,9 @@ export default function StatusSchedulePage() {
     ? Math.max(0, storiesLimit - storiesUsed)
     : Infinity;
   const atStoriesLimit = Number.isFinite(storiesLimit) && storiesLeft === 0;
+  const storiesUsedPct = Number.isFinite(storiesLimit)
+    ? Math.min(100, (storiesUsed / Math.max(1, storiesLimit)) * 100)
+    : 0;
 
   const createMutation = useMutation({
     retry: false,
@@ -265,44 +268,67 @@ export default function StatusSchedulePage() {
         </div>
       </div>
 
-      {/* Alerts — always visible */}
-      {!connectedStable && (
-        <div className="flex items-start gap-3 mb-4 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200">
-          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <div className="text-xs text-amber-900">
-            <span className="font-semibold">WhatsApp desconectado.</span>{" "}
-            <Link href={panelHref(businessId, "whatsapp")} className="underline">
-              Conectar agora
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {Number.isFinite(storiesLimit) && (
+      {/* Status strip — connection + quota, always visible at a glance */}
+      <div className="grid gap-3 mb-6 sm:grid-cols-2">
         <div
           className={cn(
-            "flex items-center gap-2.5 mb-4 px-4 py-2.5 rounded-2xl border",
-            storiesLeft === 0 ? "bg-amber-50 border-amber-200" : "bg-brand-50/50 border-brand-100",
+            "flex items-center gap-3 px-4 py-3 rounded-2xl border",
+            connectedStable ? "bg-emerald-50/70 border-emerald-100" : "bg-amber-50 border-amber-200",
           )}
         >
-          <CircleDot className="w-4 h-4 text-brand-600 shrink-0" />
-          <p className="text-xs text-gray-700">
-            <strong>{storiesUsed}</strong> de <strong>{formatPlanLimit(storiesLimit)}</strong> stories usados este mês.
-            {storiesLeft === 0 ? (
-              <span className="text-amber-700 font-semibold"> Limite atingido.</span>
-            ) : (
-              <span className="text-gray-500"> Restam {storiesLeft}.</span>
+          <span
+            className={cn(
+              "w-2.5 h-2.5 rounded-full shrink-0",
+              connectedStable ? "bg-emerald-500" : "bg-amber-500 animate-pulse",
             )}
-          </p>
+          />
+          <div className="min-w-0 flex-1">
+            <p className={cn("text-xs font-semibold", connectedStable ? "text-emerald-800" : "text-amber-900")}>
+              {connectedStable ? "WhatsApp conectado" : "WhatsApp desconectado"}
+            </p>
+            {!connectedStable && (
+              <Link
+                href={panelHref(businessId, "whatsapp")}
+                className="text-[11px] text-amber-700 font-medium underline underline-offset-2"
+              >
+                Conectar agora
+              </Link>
+            )}
+          </div>
+          {!connectedStable && <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />}
         </div>
-      )}
 
-      <div className="flex items-start gap-3 mb-4 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200">
-        <CalendarClock className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
-        <p className="text-xs text-slate-700 leading-relaxed">
-          <span className="font-semibold">Agenda de até {MAX_SCHEDULE_DAYS} dias.</span>{" "}
-          Renove a fila toda semana. No histórico, a prévia some em {STORIES_MEDIA_RETENTION_DAYS} dias e o registro em {STORIES_HISTORY_RETENTION_DAYS} dias — o story no WhatsApp segue as regras do app (24h).
-        </p>
+        {Number.isFinite(storiesLimit) ? (
+          <div
+            className={cn(
+              "px-4 py-3 rounded-2xl border",
+              atStoriesLimit ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-100",
+            )}
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-xs font-semibold text-gray-700">Stories este mês</p>
+              <p className="text-[11px] font-bold tabular-nums text-gray-500">
+                {storiesUsed}/{formatPlanLimit(storiesLimit)}
+              </p>
+            </div>
+            <div className="h-1.5 rounded-full bg-gray-200 overflow-hidden">
+              <div
+                className={cn("h-full rounded-full transition-all", atStoriesLimit ? "bg-amber-500" : "bg-brand-500")}
+                style={{ width: `${storiesUsedPct}%` }}
+              />
+            </div>
+            {atStoriesLimit && (
+              <p className="text-[11px] text-amber-700 font-semibold mt-1.5">Limite do plano atingido.</p>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl border bg-gray-50 border-gray-100">
+            <CircleDot className="w-4 h-4 text-brand-500 shrink-0" />
+            <p className="text-xs text-gray-600">
+              <strong>{storiesUsed}</strong> stories publicados este mês · sem limite
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Tab bar */}
@@ -335,10 +361,9 @@ export default function StatusSchedulePage() {
       {/* ── Tab: Agendar ── */}
       {activeTab === "agendar" && (
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="space-y-5">
-            {/* File picker */}
-            <div>
-              <Label className="mb-2 block">Arte (JPEG, PNG ou vídeo MP4)</Label>
+          <div className="divide-y divide-gray-100">
+            {/* Step 1 — File */}
+            <FormStep step={1} title="Arte (foto ou vídeo)" className="pb-6">
               <input
                 ref={fileRef}
                 type="file"
@@ -366,88 +391,105 @@ export default function StatusSchedulePage() {
                   </>
                 )}
               </button>
-            </div>
+              {file && (
+                <button
+                  type="button"
+                  onClick={() => onPickFile(null)}
+                  className="mt-2 text-xs text-gray-500 hover:text-red-600 font-medium inline-flex items-center gap-1"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Remover arquivo
+                </button>
+              )}
+            </FormStep>
 
-            {/* Caption */}
-            <div>
-              <Label htmlFor="caption">Legenda (opcional)</Label>
+            {/* Step 2 — Caption */}
+            <FormStep step={2} title="Legenda" optional className="py-6">
               <Textarea
                 id="caption"
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 maxLength={700}
                 rows={2}
-                className="mt-1.5"
                 placeholder="Texto que aparece no status"
               />
-            </div>
+            </FormStep>
 
-            {/* Publish now toggle */}
-            <label className="flex items-start gap-3 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 cursor-pointer">
-              <input
-                type="checkbox"
-                className="mt-1 rounded border-brand-300 text-brand-600 focus:ring-brand-500"
-                checked={publishNow}
-                onChange={(e) => setPublishNow(e.target.checked)}
-              />
-              <span className="text-sm text-gray-800">
-                <span className="font-medium flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 text-brand-600" />
+            {/* Step 3 — When to publish */}
+            <FormStep step={3} title="Quando publicar" className="py-6">
+              <div className="grid grid-cols-2 gap-1 p-1 bg-gray-100 rounded-2xl">
+                <SegButton
+                  active={!publishNow}
+                  onClick={() => setPublishNow(false)}
+                  icon={<CalendarClock className="w-4 h-4" />}
+                >
+                  Agendar
+                </SegButton>
+                <SegButton
+                  active={publishNow}
+                  onClick={() => setPublishNow(true)}
+                  icon={<Zap className="w-4 h-4" />}
+                >
                   Publicar agora
-                </span>
-                <span className="block text-xs text-gray-500 mt-0.5">
-                  Envia em alguns segundos (WhatsApp precisa estar conectado).
-                </span>
-              </span>
-            </label>
+                </SegButton>
+              </div>
+              <p className="text-xs text-gray-500 mt-2.5">
+                {publishNow
+                  ? "Envia em alguns segundos assim que você confirmar (WhatsApp precisa estar conectado)."
+                  : `Escolha os dias e o horário no próximo passo — janela de até ${MAX_SCHEDULE_DAYS} dias.`}
+              </p>
+            </FormStep>
 
-            {/* Date + time picker */}
+            {/* Step 4 — Days, time & recurrence (only when scheduling) */}
             {!publishNow && (
-              <>
-                <StatusMultiDayPicker
-                  selectedDayKeys={selectedDayKeys}
-                  onSelectedDayKeysChange={setSelectedDayKeys}
-                  selectedHour={selectedHour}
-                  selectedMinute={selectedMinute}
-                  onHourChange={setSelectedHour}
-                  onMinuteChange={setSelectedMinute}
-                  mountedAt={mountedAt}
-                  disableDaySelection={recurrenceMode !== "none"}
-                />
-                <StatusRecurrenceControls
-                  mode={recurrenceMode}
-                  onModeChange={setRecurrenceMode}
-                  intervalDays={recurrenceIntervalDays}
-                  onIntervalDaysChange={setRecurrenceIntervalDays}
-                  weekdayNumbers={recurrenceWeekdays}
-                  onWeekdayNumbersChange={setRecurrenceWeekdays}
-                  startDayKey={recurrenceStartDayKey}
-                  onStartDayKeyChange={setRecurrenceStartDayKey}
-                  onApplyGeneratedDays={setSelectedDayKeys}
-                />
-              </>
+              <FormStep step={4} title="Dias, horário e recorrência" className="pt-6">
+                <div className="space-y-4">
+                  <StatusMultiDayPicker
+                    selectedDayKeys={selectedDayKeys}
+                    onSelectedDayKeysChange={setSelectedDayKeys}
+                    selectedHour={selectedHour}
+                    selectedMinute={selectedMinute}
+                    onHourChange={setSelectedHour}
+                    onMinuteChange={setSelectedMinute}
+                    mountedAt={mountedAt}
+                    disableDaySelection={recurrenceMode !== "none"}
+                  />
+                  <StatusRecurrenceControls
+                    mode={recurrenceMode}
+                    onModeChange={setRecurrenceMode}
+                    intervalDays={recurrenceIntervalDays}
+                    onIntervalDaysChange={setRecurrenceIntervalDays}
+                    weekdayNumbers={recurrenceWeekdays}
+                    onWeekdayNumbersChange={setRecurrenceWeekdays}
+                    startDayKey={recurrenceStartDayKey}
+                    onStartDayKeyChange={setRecurrenceStartDayKey}
+                    onApplyGeneratedDays={setSelectedDayKeys}
+                  />
+                </div>
+              </FormStep>
             )}
-
-            <Button
-              className="w-full"
-              disabled={
-                !file ||
-                createMutation.isPending ||
-                (!publishNow && selectedDayKeys.length === 0) ||
-                atStoriesLimit
-              }
-              onClick={() => createMutation.mutate()}
-            >
-              {createMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : publishNow ? (
-                <Zap className="w-4 h-4 mr-2" />
-              ) : (
-                <CalendarClock className="w-4 h-4 mr-2" />
-              )}
-              {publishNow ? "Publicar agora" : "Agendar publicação"}
-            </Button>
           </div>
+
+          <Button
+            size="lg"
+            className="w-full h-12 rounded-2xl text-base font-semibold mt-6"
+            disabled={
+              !file ||
+              createMutation.isPending ||
+              (!publishNow && selectedDayKeys.length === 0) ||
+              atStoriesLimit
+            }
+            onClick={() => createMutation.mutate()}
+          >
+            {createMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : publishNow ? (
+              <Zap className="w-4 h-4 mr-2" />
+            ) : (
+              <CalendarClock className="w-4 h-4 mr-2" />
+            )}
+            {publishNow ? "Publicar agora" : "Agendar publicação"}
+          </Button>
         </div>
       )}
 
@@ -597,6 +639,61 @@ export default function StatusSchedulePage() {
         </div>
       )}
     </div>
+  );
+}
+
+function FormStep({
+  step,
+  title,
+  optional,
+  className,
+  children,
+}: {
+  step: number;
+  title: string;
+  optional?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={className}>
+      <div className="flex items-center gap-2.5 mb-3">
+        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-600 text-white text-[11px] font-bold shrink-0">
+          {step}
+        </span>
+        <Label className="!mb-0 text-sm font-semibold text-gray-800">{title}</Label>
+        {optional && <span className="text-[10px] font-medium text-gray-400">(opcional)</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function SegButton({
+  active,
+  onClick,
+  icon,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
+        active ? "bg-white text-brand-700 shadow-sm" : "text-gray-500 hover:text-gray-700",
+      )}
+    >
+      <span className={cn("transition-colors", active ? "text-brand-600" : "text-gray-400")}>
+        {icon}
+      </span>
+      {children}
+    </button>
   );
 }
 
