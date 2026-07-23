@@ -29,7 +29,7 @@ interface StepDef {
   subtitle: string;
   color: string;
   accentColor: string;
-  features: { icon: React.ElementType; text: string }[];
+  features: { icon: React.ComponentType<{ className?: string }>; text: string }[];
   chat: { businessName: string; messages: ChatMsg[] };
 }
 
