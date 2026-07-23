@@ -1,4 +1,4 @@
-import { getAdminAuth } from '@flowdesk/firebase'
+import { getAdminAuth, getBusiness } from '@flowdesk/firebase'
 
 export function json(c, status, body) {
   return c.json(body, status)
@@ -23,4 +23,18 @@ export async function requireBearerUser(c) {
   } catch {
     return { error: json(c, 401, { error: 'Token inválido.' }) }
   }
+}
+
+export async function requireAgentToken(c, businessId) {
+  const token = c.req.header('X-Agent-Token')
+  if (!token) return { error: json(c, 401, { error: 'Unauthorized' }) }
+
+  const business = await getBusiness(businessId)
+  if (!business) return { error: json(c, 404, { error: 'Negócio não encontrado.' }) }
+
+  const expected = business.printerConfig?.agentToken
+  if (!expected || token !== expected) {
+    return { error: json(c, 401, { error: 'Token de agente inválido.' }) }
+  }
+  return { business }
 }

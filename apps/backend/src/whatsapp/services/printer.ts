@@ -1,5 +1,6 @@
 import { connect as connectSocket } from "node:net";
 import { buildOrderReceiptLines, normalizePrinterConfig, type PrinterConfig } from "@flowdesk/shared";
+import { createPrintJob } from "@flowdesk/firebase";
 
 const CONNECT_TIMEOUT_MS = 5_000;
 
@@ -61,37 +62,65 @@ function sendToPrinter(cfg: PrinterConfig, buffer: Buffer): Promise<PrintResult>
   });
 }
 
-export async function printOrderReceipt(
-  business: { name: string; printerConfig?: PrinterConfig | null },
-  order: Parameters<typeof buildOrderReceiptLines>[0],
+async function enqueueAgentPrintJob(
+  businessId: string,
+  buffer: Buffer,
+  printerName?: string,
 ): Promise<PrintResult> {
-  const cfg = normalizePrinterConfig(business.printerConfig);
-  if (!cfg.enabled) return { ok: false, error: "Impressão automática desativada." };
+  try {
+    await createPrintJob(businessId, buffer.toString("base64"), printerName);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Falha ao enfileirar impressão." };
+  }
+}
 
-  const lines = buildOrderReceiptLines(order, business.name);
-  const buffer = buildEscPosBuffer(lines);
-
+async function dispatchPrint(
+  businessId: string,
+  cfg: PrinterConfig,
+  buffer: Buffer,
+): Promise<PrintResult> {
   for (let i = 0; i < cfg.copies; i++) {
-    const result = await sendToPrinter(cfg, buffer);
+    const result =
+      cfg.connectionType === "usb"
+        ? await enqueueAgentPrintJob(businessId, buffer, cfg.agentPrinterName)
+        : await sendToPrinter(cfg, buffer);
     if (!result.ok) return result;
   }
   return { ok: true };
 }
 
+export async function printOrderReceipt(
+  business: { id: string; name: string; printerConfig?: PrinterConfig | null },
+  order: Parameters<typeof buildOrderReceiptLines>[0],
+): Promise<PrintResult> {
+  const cfg = normalizePrinterConfig(business.printerConfig);
+  if (!cfg.enabled) return { ok: false, error: "Impressão automática desativada." };
+  if (cfg.connectionType === "usb" && !cfg.agentToken) {
+    return { ok: false, error: "Agente local de impressão ainda não pareado." };
+  }
+
+  const lines = buildOrderReceiptLines(order, business.name);
+  const buffer = buildEscPosBuffer(lines);
+  return dispatchPrint(business.id, cfg, buffer);
+}
+
 export async function printTestReceipt(
-  business: { name: string; printerConfig?: PrinterConfig | null },
+  business: { id: string; name: string; printerConfig?: PrinterConfig | null },
 ): Promise<PrintResult> {
   const cfg = normalizePrinterConfig(business.printerConfig);
   const lines = [
     business.name.toUpperCase(),
     "TESTE DE IMPRESSAO",
     "------------------------------",
-    `Impressora configurada em ${cfg.ip || "(sem IP)"}:${cfg.port}`,
+    cfg.connectionType === "usb"
+      ? `Impressora local: ${cfg.agentPrinterName || "(nenhuma selecionada)"}`
+      : `Impressora configurada em ${cfg.ip || "(sem IP)"}:${cfg.port}`,
     "Se você está lendo isso no papel,",
     "a impressão automática de pedidos",
     "está funcionando corretamente!",
     "------------------------------",
     new Date().toLocaleString("pt-BR"),
   ];
-  return sendToPrinter(cfg, buildEscPosBuffer(lines));
+  return dispatchPrint(business.id, cfg, buildEscPosBuffer(lines));
 }

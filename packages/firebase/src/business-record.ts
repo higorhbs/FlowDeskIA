@@ -96,12 +96,18 @@ function readPrinterConfig(raw: unknown): Business["printerConfig"] {
 
 export function serializePrinterConfigForFirestore(cfg: PrinterConfig): Record<string, unknown> {
   const normalized = normalizePrinterConfig(cfg);
-  return {
+  const out: Record<string, unknown> = {
     enabled: normalized.enabled,
+    connectionType: normalized.connectionType,
     ip: normalized.ip,
     port: normalized.port,
     copies: normalized.copies,
   };
+  if (normalized.agentToken) out.agentToken = normalized.agentToken;
+  if (normalized.agentPrinterName) out.agentPrinterName = normalized.agentPrinterName;
+  if (normalized.agentPrinters) out.agentPrinters = normalized.agentPrinters;
+  if (normalized.agentLastSeenAt) out.agentLastSeenAt = normalized.agentLastSeenAt;
+  return out;
 }
 
 function readWeeklyMenu(raw: unknown): Business["weeklyMenu"] {

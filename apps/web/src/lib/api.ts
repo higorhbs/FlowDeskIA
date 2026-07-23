@@ -14,6 +14,7 @@ import {
   backendSendWhatsAppMessage,
   backendSendWhatsAppReport,
   backendTestPrinter,
+  backendGenerateAgentPrinterToken,
 } from "./backend-chat-whatsapp";
 import {
   backendCancelStory,
@@ -309,6 +310,10 @@ export const whatsappApi = {
   sendAppointmentConfirmation: (businessId: string, appointmentId: string) =>
     backendSendAppointmentConfirmation(businessId, appointmentId),
   testPrinter: (businessId: string) => backendTestPrinter(businessId),
+};
+
+export const printerApi = {
+  generateAgentToken: (businessId: string) => backendGenerateAgentPrinterToken(businessId),
 };
 
 export const scheduledStatusApi = {

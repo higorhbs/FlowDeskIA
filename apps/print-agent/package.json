@@ -1,0 +1,13 @@
+{
+  "name": "flowdesk-print-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Agente local do FlowDeskIA: imprime cupons de pedido numa impressora USB do computador.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js"
+  }
+}

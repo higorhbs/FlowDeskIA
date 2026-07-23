@@ -7,3 +7,4 @@ export * from "./media-storage.js";
 export * from "./wa-auth-files.js";
 export * from "./wa-auth-store.js";
 export * from "./whatsapp-jobs.js";
+export * from "./print-jobs.js";

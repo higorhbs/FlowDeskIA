@@ -79,6 +79,14 @@ export async function backendTestPrinter(businessId: string): Promise<{ status: 
   }) as Promise<{ status: string }>;
 }
 
+export async function backendGenerateAgentPrinterToken(businessId: string): Promise<{ token: string }> {
+  return authFetch(`/businesses/${businessId}/printer/agent/pair`, {
+    method: "POST",
+    timeoutMs: 15_000,
+    ...waBase(),
+  }) as Promise<{ token: string }>;
+}
+
 export async function backendSendAppointmentConfirmation(
   businessId: string,
   appointmentId: string,
