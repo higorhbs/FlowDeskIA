@@ -179,18 +179,31 @@ export function LeadFlowEditor({ businessId, businessName, initialFlow }: Props)
   );
   const debouncedSnapshot = useDebouncedValue(draftSnapshot, 1500);
   const hasChanges = draftSnapshot !== savedSnapshotRef.current;
+  const serverSnapshot = useMemo(
+    () =>
+      serializeLeadFlowDraft(
+        normalizeLeadCaptureFlow(initialFlow),
+        normalizeLeadCaptureFlow(initialFlow).triggerKeywords.join(", "),
+      ),
+    // content-stable sync key
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(initialFlow ?? null)],
+  );
 
   useEffect(() => {
-    if (draftSnapshot !== savedSnapshotRef.current) return;
+    if (hasChanges) return;
+    if (serverSnapshot === savedSnapshotRef.current) return;
     const normalized = normalizeLeadCaptureFlow(initialFlow);
+    const keywords = normalized.triggerKeywords.join(", ");
+    const drafts = entryKeywordsDraftFromFlow(normalized);
     setFlow(normalized);
-    setKeywordsDraft(normalized.triggerKeywords.join(", "));
-    setEntryKeywordsDrafts(entryKeywordsDraftFromFlow(normalized));
+    setKeywordsDraft(keywords);
+    setEntryKeywordsDrafts(drafts);
     savedSnapshotRef.current = serializeLeadFlowDraft(
-      normalized,
-      normalized.triggerKeywords.join(", "),
+      applyEntryKeywordDrafts(normalized, drafts),
+      keywords,
     );
-  }, [initialFlow, draftSnapshot]);
+  }, [serverSnapshot, hasChanges, initialFlow]);
 
   const { data: tenant } = useQuery({
     queryKey: ["tenant"],

@@ -71,6 +71,14 @@ export async function backendSendWhatsAppReport(
   }) as Promise<{ messageId?: string; count: number }>;
 }
 
+export async function backendTestPrinter(businessId: string): Promise<{ status: string }> {
+  return authFetch(`/businesses/${businessId}/printer/test`, {
+    method: "POST",
+    timeoutMs: 15_000,
+    ...waBase(),
+  }) as Promise<{ status: string }>;
+}
+
 export async function backendSendAppointmentConfirmation(
   businessId: string,
   appointmentId: string,

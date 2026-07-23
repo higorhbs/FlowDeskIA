@@ -4,9 +4,14 @@ import {
   normalizeLeadCaptureFlow,
   normalizeResumeFlowConfig,
   normalizeAppointmentBotConfig,
+  normalizeOrderBotConfig,
+  normalizePrinterConfig,
   type LeadCaptureFlow,
   type ResumeFlowConfig,
   type AppointmentBotConfig,
+  type OrderBotConfig,
+  type WeeklyMenuConfig,
+  type PrinterConfig,
 } from "@flowdesk/shared";
 
 export function stripUndefined<T extends Record<string, unknown>>(data: T): T {
@@ -60,6 +65,55 @@ function readResumeFlow(raw: unknown): Business["resumeFlow"] {
 function readAppointmentBot(raw: unknown): Business["appointmentBot"] {
   if (!raw || typeof raw !== "object") return undefined;
   return normalizeAppointmentBotConfig(raw as AppointmentBotConfig);
+}
+
+function readOrderBot(raw: unknown): Business["orderBot"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  return normalizeOrderBotConfig(raw as OrderBotConfig);
+}
+
+export function serializeOrderBotForFirestore(flow: OrderBotConfig): Record<string, unknown> {
+  const normalized = normalizeOrderBotConfig(flow);
+  return {
+    enabled: normalized.enabled,
+    triggerKeywords: normalized.triggerKeywords,
+    startMessage: normalized.startMessage,
+    fulfillmentDelivery: normalized.fulfillmentDelivery,
+    fulfillmentPickup: normalized.fulfillmentPickup,
+    paymentMethods: normalized.paymentMethods,
+    completedMessage: normalized.completedMessage,
+    awaitingMessage: normalized.awaitingMessage,
+    requiresApproval: normalized.requiresApproval === true,
+  };
+}
+
+function readPrinterConfig(raw: unknown): Business["printerConfig"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  return normalizePrinterConfig(raw as PrinterConfig);
+}
+
+export function serializePrinterConfigForFirestore(cfg: PrinterConfig): Record<string, unknown> {
+  const normalized = normalizePrinterConfig(cfg);
+  return {
+    enabled: normalized.enabled,
+    ip: normalized.ip,
+    port: normalized.port,
+    copies: normalized.copies,
+  };
+}
+
+function readWeeklyMenu(raw: unknown): Business["weeklyMenu"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  const source = raw as Partial<WeeklyMenuConfig>;
+  if (!Array.isArray(source.days)) return undefined;
+  return {
+    enabled: source.enabled === true,
+    triggerKeywords: Array.isArray(source.triggerKeywords)
+      ? (source.triggerKeywords as string[])
+      : [],
+    days: source.days,
+    responsePrefix: typeof source.responsePrefix === "string" ? source.responsePrefix : undefined,
+  };
 }
 
 export function serializeAppointmentBotForFirestore(
@@ -156,7 +210,10 @@ export function normalizeBusiness(id: string, raw: Record<string, unknown>): Bus
     manualAttendantPrefixEnabled: raw.manualAttendantPrefixEnabled !== false,
     leadFlow: readLeadFlow(raw.leadFlow),
     resumeFlow: readResumeFlow(raw.resumeFlow),
+    weeklyMenu: readWeeklyMenu(raw.weeklyMenu),
     appointmentBot: readAppointmentBot(raw.appointmentBot),
+    orderBot: readOrderBot(raw.orderBot),
+    printerConfig: readPrinterConfig(raw.printerConfig),
     appointmentBufferMins:
       typeof raw.appointmentBufferMins === "number" && raw.appointmentBufferMins >= 0
         ? raw.appointmentBufferMins

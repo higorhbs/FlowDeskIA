@@ -4,6 +4,7 @@ import { useAdLanding } from "@/hooks/use-ad-landing";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { EmailVerificationBanner } from "@/components/auth/EmailVerificationBanner";
 import { AdLandingStickyCta } from "@/components/landing/AdLandingStickyCta";
+import { LandingFeatures } from "@/components/landing/LandingFeatures";
 import { LandingHeader } from "@/components/landing/LandingHeader";
 import { LandingHero } from "@/components/landing/LandingHero";
 import { LandingPageBackground } from "@/components/landing/LandingPageBackground";
@@ -32,6 +33,7 @@ export function LandingPageView({ adMode: adModeProp }: LandingPageViewProps) {
         <EmailVerificationBanner />
         <LandingHeader adMode={adMode} />
         <LandingHero adMode={adMode} />
+        <LandingFeatures adMode={adMode} />
         <LandingSocialProof adMode={adMode} />
         <LandingPlans adMode={adMode} />
       </div>

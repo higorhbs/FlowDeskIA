@@ -27,38 +27,45 @@ function parseAuthParam(value: string | null): AuthMode | null {
   return null;
 }
 
+function hrefWithAuth(pathname: string, search: string, mode: AuthMode | null) {
+  const params = new URLSearchParams(search);
+  if (mode) params.set("auth", mode);
+  else params.delete("auth");
+  const query = params.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
 export function AuthDrawerProvider({ children }: { children: React.ReactNode }) {
   const router = useAppRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const search = searchParams.toString();
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [isOpen, setIsOpen] = useState(false);
 
   const redirectIfVerified = useCallback(async () => {
     const auth = await waitForAuthReady();
     if (auth.currentUser?.emailVerified) {
-      router.replace("/dashboard");
+      if (pathname !== "/dashboard") router.replace("/dashboard");
       return true;
     }
     return false;
-  }, [router]);
+  }, [router, pathname]);
 
   const syncUrl = useCallback(
     (mode: AuthMode | null) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (mode) params.set("auth", mode);
-      else params.delete("auth");
-      const query = params.toString();
-      const target = query ? `${pathname}?${query}` : pathname;
+      const target = hrefWithAuth(pathname, search, mode);
+      const current = search ? `${pathname}?${search}` : pathname;
+      if (target === current) return;
       router.replace(target, { scroll: false });
     },
-    [pathname, router, searchParams],
+    [pathname, router, search],
   );
 
   useEffect(() => {
     const param = parseAuthParam(searchParams.get("auth"));
     if (!param) {
-      setIsOpen(false);
+      setIsOpen((open) => (open ? false : open));
       return;
     }
     void redirectIfVerified().then((redirected) => {
@@ -89,8 +96,8 @@ export function AuthDrawerProvider({ children }: { children: React.ReactNode }) 
 
   const closeAuth = useCallback(() => {
     setIsOpen(false);
-    syncUrl(null);
-  }, [syncUrl]);
+    if (parseAuthParam(searchParams.get("auth"))) syncUrl(null);
+  }, [syncUrl, searchParams]);
 
   const handleModeChange = useCallback(
     (mode: AuthMode) => {

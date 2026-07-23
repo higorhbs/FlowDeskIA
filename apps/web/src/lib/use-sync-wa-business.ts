@@ -54,8 +54,8 @@ export function useSyncWhatsAppBusiness(businessId: string) {
 
   useEffect(() => {
     if (!waLive || !businessId) return;
-    void businessQuery.refetch();
-  }, [waLive, businessId, businessQuery]);
+    void queryClient.invalidateQueries({ queryKey: ["business", businessId] });
+  }, [waLive, businessId, queryClient]);
 
   useEffect(() => {
     if (!businessId) return;

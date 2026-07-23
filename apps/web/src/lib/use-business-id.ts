@@ -2,11 +2,12 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { businessApi } from "./api";
 import { useAuth } from "@/contexts/auth-context";
 import {
   inBusinessArea,
+  pathBusinessSegment,
   resolveBusinessId,
   persistBusinessId,
   persistBusinessSnapshot,
@@ -28,6 +29,7 @@ export function useBusinessId(opts: UseBusinessIdOptions = { required: true }): 
     queryFn: businessApi.list,
     enabled: ready && !!uid && onBusinessRoute,
     staleTime: 10 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 
   const tenant = businesses?.[0];
@@ -38,14 +40,10 @@ export function useBusinessId(opts: UseBusinessIdOptions = { required: true }): 
   if (!onBusinessRoute) return "";
 
   const id = resolveBusinessId(pathname, businesses);
+  if (id && id !== HOSTING_PLACEHOLDER_BUSINESS_ID) return id;
 
-  if (id && id !== HOSTING_PLACEHOLDER_BUSINESS_ID) {
-    return id;
-  }
-
-  if (!ready || businesses === undefined) {
-    return "";
-  }
+  const segment = pathBusinessSegment(pathname);
+  if (segment && segment !== HOSTING_PLACEHOLDER_BUSINESS_ID) return segment;
 
   return "";
 }

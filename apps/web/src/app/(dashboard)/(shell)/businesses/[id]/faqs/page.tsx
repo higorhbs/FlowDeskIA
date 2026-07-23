@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import {
   MessageSquare, HelpCircle, Plus, Trash2, Loader2, X,
   ChevronUp, ChevronDown, Eye, Save, Pencil, Check,
-  Sparkles, Hash, MessageCircleQuestion, Zap, GitBranch, FileText, UtensilsCrossed,
+  Sparkles, Hash, MessageCircleQuestion, Zap, GitBranch, FileText, UtensilsCrossed, ShoppingBag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,8 @@ import { usePlanAllowsPix } from "@/lib/use-plan-allows-pix";
 import { LeadFlowEditor } from "@/components/ia/LeadFlowEditor";
 import { ResumeFlowEditor } from "@/components/ia/ResumeFlowEditor";
 import { WeeklyMenuEditor } from "@/components/ia/WeeklyMenuEditor";
+import { OrderBotEditor } from "@/components/ia/OrderBotEditor";
+import { IaSectionNav, type IaTab, type IaSectionTab } from "@/components/ia/IaSectionNav";
 
 const LEGACY_EMOJI: Record<string, string> = {
   APPOINTMENT: "📅",
@@ -90,7 +92,9 @@ function migrateMenuItem(
 function migrateMenu(saved?: Partial<BotMenuItemConfig>[], businessType?: string, plan?: string): BotMenuItemConfig[] {
   const entries = !saved?.length ? defaultMenuItems(businessType, plan) : saved.map((raw, i) => migrateMenuItem(raw, i, businessType));
   if (plan === "PRO" || plan === "UNLIMITED") return entries;
-  return entries.filter((item) => item.action !== "PAYMENT" && !/pix|pagar|pagamento|sinal/i.test(`${item.label} ${item.response ?? ""}`));
+  return entries.filter(
+    (item) => !/pix|pagar|pagamento|sinal/i.test(`${item.label} ${item.response ?? ""}`),
+  );
 }
 
 const faqSchema = z.object({
@@ -100,7 +104,7 @@ const faqSchema = z.object({
 });
 type FAQForm = z.infer<typeof faqSchema>;
 
-type Tab = "menu" | "faqs" | "leadflow" | "resume" | "weeklymenu";
+type Tab = IaTab;
 type PreviewFocus = "greeting" | "menu" | "thanks" | "attendant" | "appointment";
 
 // ── Emoji picker ───────────────────────────────────────────────────────────────
@@ -503,7 +507,7 @@ function BotMenuEditor({
   };
 
   return (
-    <div className={cn("grid gap-8", showPreview && "lg:grid-cols-[1fr_320px]")}>
+    <div className={cn("grid gap-8", showPreview && "xl:grid-cols-[minmax(0,1fr)_320px]")}>
       {/* Emoji picker portal */}
       {pickerAnchor?.el && (
         <EmojiPickerBalloon
@@ -788,7 +792,7 @@ function BotMenuEditor({
                         appointmentExpanded && "rotate-180"
                       )}
                     />
-                    <span className="min-w-0">
+                    <span className="min-w-0 whitespace-normal">
                       <span className="block text-sm font-medium text-gray-900">
                         Configuração de agendamentos
                       </span>
@@ -1780,26 +1784,31 @@ export default function BotPage() {
   const { pixEnabled } = usePlanAllowsPix();
   const [tab, setTab] = useState<Tab>("menu");
   const [autoReplyEnabled, setAutoReplyEnabled] = useState(true);
+  const pixRedirected = useRef(false);
 
   useEffect(() => {
-    if (searchParams.get("sec") === "pix" && pixEnabled) {
-      router.replace(panelHref(businessId, "payments"));
-    }
+    if (pixRedirected.current) return;
+    if (!businessId) return;
+    if (searchParams.get("sec") !== "pix" || !pixEnabled) return;
+    pixRedirected.current = true;
+    router.replace(panelHref(businessId, "payments"));
   }, [searchParams, pixEnabled, businessId, router]);
 
   const { data: business, isLoading } = useQuery({
     queryKey: ["business", businessId],
     queryFn: () => businessApi.get(businessId),
+    enabled: !!businessId,
   });
 
+  const botAutoReply = (business as { botAutoReplyEnabled?: boolean } | undefined)?.botAutoReplyEnabled !== false;
   useEffect(() => {
     if (!business) return;
-    setAutoReplyEnabled((business as { botAutoReplyEnabled?: boolean }).botAutoReplyEnabled !== false);
-  }, [business]);
+    setAutoReplyEnabled(botAutoReply);
+  }, [business?.id, botAutoReply]);
 
   const isRestaurant = business?.type === "RESTAURANT";
   const isSalon = business?.type === "BARBERSHOP";
-  const showLeadFlow = !isSalon;
+  const showLeadFlow = !isSalon && !isRestaurant;
   const showResumeFlow = !isRestaurant && !isSalon;
 
   const autoReplyMutation = useMutation({
@@ -1809,7 +1818,7 @@ export default function BotPage() {
       void queryClient.invalidateQueries({ queryKey: ["business", businessId] });
       toast.success(
         enabled
-          ? isSalon
+          ? isSalon || isRestaurant
             ? "Respostas automáticas ativadas — configure menu e perguntas abaixo."
             : "Respostas automáticas ativadas — configure menu, vendas guiadas e perguntas abaixo."
           : "Respostas automáticas desativadas."
@@ -1818,20 +1827,60 @@ export default function BotPage() {
     onError: () => toast.error("Erro ao atualizar respostas automáticas"),
   });
 
-  const iaTabs = autoReplyEnabled
-    ? ([
-        { id: "menu" as const, label: "Menu da IA", icon: MessageSquare },
-        { id: "faqs" as const, label: "Perguntas & Respostas", icon: HelpCircle },
+  const iaTabs: IaSectionTab[] = autoReplyEnabled
+    ? [
+        {
+          id: "menu",
+          label: "Menu da IA",
+          icon: MessageSquare,
+          description: isSalon
+            ? "Saudação, menu numérico, agendamentos e respostas por número"
+            : "Saudação, menu numérico e respostas automáticas por número",
+          active: (business as { botMenuEnabled?: boolean })?.botMenuEnabled !== false,
+        },
+        {
+          id: "faqs",
+          label: "Perguntas & Respostas",
+          icon: HelpCircle,
+          description: "Perguntas frequentes respondidas 24h por palavra-chave",
+        },
         ...(showLeadFlow
-          ? [{ id: "leadflow" as const, label: "Vendas guiadas", icon: GitBranch }]
+          ? [{
+              id: "leadflow" as const,
+              label: "Vendas guiadas",
+              icon: GitBranch,
+              description: "Fluxo de mensagens com botões para guiar o cliente",
+              active: business?.leadFlow?.enabled,
+            }]
           : []),
         ...(showResumeFlow
-          ? [{ id: "resume" as const, label: "Geração de documentos", icon: FileText }]
+          ? [{
+              id: "resume" as const,
+              label: "Geração de documentos",
+              icon: FileText,
+              description: "Coleta dados do cliente em etapas (nome, endereço, etc.)",
+              active: business?.resumeFlow?.enabled,
+            }]
           : []),
         ...(isRestaurant
-          ? [{ id: "weeklymenu" as const, label: "Cardápio Semanal", icon: UtensilsCrossed }]
+          ? [{
+              id: "weeklymenu" as const,
+              label: "Cardápio Semanal",
+              icon: UtensilsCrossed,
+              description: "Cardápio do dia enviado automaticamente pela IA",
+              active: (business as { weeklyMenu?: { enabled?: boolean } })?.weeklyMenu?.enabled,
+            }]
           : []),
-      ] as const)
+        ...(isRestaurant
+          ? [{
+              id: "orderbot" as const,
+              label: "Pedidos",
+              icon: ShoppingBag,
+              description: "Entrega/retirada, formas de pagamento e mensagens do pedido",
+              active: business?.orderBot?.enabled,
+            }]
+          : []),
+      ]
     : [];
 
   useEffect(() => {
@@ -1844,7 +1893,8 @@ export default function BotPage() {
       tab === "faqs" ||
       (tab === "leadflow" && showLeadFlow) ||
       (tab === "resume" && showResumeFlow) ||
-      (tab === "weeklymenu" && isRestaurant);
+      (tab === "weeklymenu" && isRestaurant) ||
+      (tab === "orderbot" && isRestaurant);
     if (!allowed) setTab("menu");
   }, [autoReplyEnabled, tab, showLeadFlow, showResumeFlow, isRestaurant]);
 
@@ -1857,11 +1907,40 @@ export default function BotPage() {
   const initialMenu = migrateMenu(savedMenu, business?.type, tenant?.plan);
   const initialLeadFlow = business?.leadFlow;
   const initialResumeFlow = business?.resumeFlow;
+  const initialOrderBot = business?.orderBot;
+
+  const masterToggleCard = (
+    <div
+      className={cn(
+        "rounded-2xl border-2 px-4 py-4 transition-colors",
+        autoReplyEnabled ? "border-brand-200 bg-brand-50/50" : "border-amber-200 bg-amber-50"
+      )}
+    >
+      <ToggleRow
+        label="Respostas automáticas da IA"
+        hint="Desligado: a IA não envia nada no WhatsApp. Ligado: configure as seções ao lado."
+        checked={autoReplyEnabled}
+        disabled={autoReplyMutation.isPending || isLoading}
+        onChange={(enabled) => {
+          setAutoReplyEnabled(enabled);
+          autoReplyMutation.mutate(enabled);
+        }}
+      />
+    </div>
+  );
+
+  const disabledHint = !autoReplyEnabled && (
+    <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+      {isSalon || isRestaurant
+        ? "Com as respostas desligadas, o menu e as perguntas ficam ocultos. Ative o interruptor acima para configurá-los, ou responda manualmente em Conversas."
+        : "Com as respostas desligadas, o menu, as vendas guiadas e as perguntas ficam ocultos. Ative o interruptor acima para configurá-los, ou responda manualmente em Conversas."}
+    </p>
+  );
 
   return (
-    <div className="p-4 md:p-8 max-w-4xl mx-auto">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 via-brand-500 to-blue-500 p-6 mb-8 shadow-lg">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 via-brand-500 to-blue-500 p-6 mb-6 shadow-lg">
         {/* Decorative circles */}
         <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/10" />
         <div className="absolute -bottom-12 -left-6 w-48 h-48 rounded-full bg-white/5" />
@@ -1873,7 +1952,7 @@ export default function BotPage() {
           <div>
             <h1 className="text-2xl font-bold text-white">Configuração da IA</h1>
             <p className="text-brand-100 text-sm mt-0.5">
-              {isSalon
+              {isSalon || isRestaurant
                 ? "Personalize saudação, menu e respostas automáticas da IA no WhatsApp"
                 : "Personalize saudação, menu, vendas guiadas e respostas automáticas da IA no WhatsApp"}
             </p>
@@ -1881,108 +1960,80 @@ export default function BotPage() {
         </div>
       </div>
 
-      <div
-        className={cn(
-          "mb-6 rounded-2xl border-2 px-4 py-4 transition-colors",
-          autoReplyEnabled ? "border-brand-200 bg-brand-50/50" : "border-amber-200 bg-amber-50"
-        )}
-      >
-        <ToggleRow
-          label="Respostas automáticas da IA"
-          hint={
-            isSalon
-              ? "Desligado: a IA não envia nada no WhatsApp. Ligado: configure menu e perguntas nas abas abaixo."
-              : "Desligado: a IA não envia nada no WhatsApp. Ligado: configure menu, vendas guiadas e perguntas nas abas abaixo."
-          }
-          checked={autoReplyEnabled}
-          disabled={autoReplyMutation.isPending || isLoading}
-          onChange={(enabled) => {
-            setAutoReplyEnabled(enabled);
-            autoReplyMutation.mutate(enabled);
-          }}
-        />
+      {/* Mobile / tablet-portrait: toggle + horizontal section nav above the content */}
+      <div className="md:hidden space-y-4 mb-6">
+        {masterToggleCard}
+        {disabledHint}
+        {iaTabs.length > 0 && <IaSectionNav tabs={iaTabs} activeTab={tab} onChange={setTab} />}
       </div>
 
-      {!autoReplyEnabled && (
-        <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6">
-          {isSalon
-            ? "Com as respostas desligadas, o menu e as perguntas ficam ocultos. Ative o interruptor acima para configurá-los, ou responda manualmente em Conversas."
-            : "Com as respostas desligadas, o menu, as vendas guiadas e as perguntas ficam ocultos. Ative o interruptor acima para configurá-los, ou responda manualmente em Conversas."}
-        </p>
-      )}
+      <div className="md:grid md:grid-cols-[260px_minmax(0,1fr)] md:gap-6 lg:grid-cols-[288px_minmax(0,1fr)] lg:gap-8 md:items-start">
+        {/* Desktop / tablet-landscape: sticky sidebar with toggle + section nav */}
+        <aside className="hidden md:block md:sticky md:top-6 space-y-4">
+          {masterToggleCard}
+          {disabledHint}
+          {iaTabs.length > 0 && <IaSectionNav tabs={iaTabs} activeTab={tab} onChange={setTab} />}
+        </aside>
 
-      {iaTabs.length > 0 && (
-        <div className="flex flex-wrap gap-1 p-1.5 bg-gray-100 rounded-2xl w-fit mb-8 shadow-inner">
-          {iaTabs.map(({ id, label, icon: Icon }) => (
-            <Button
-              key={id}
-              type="button"
-              variant="ghost"
-              onClick={() => setTab(id)}
-              className={cn(
-                "h-auto flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-                tab === id
-                  ? "bg-white text-gray-900 shadow-sm hover:bg-white"
-                  : "text-gray-500 hover:text-gray-700"
-              )}
-            >
-              <Icon className={cn("w-4 h-4", tab === id ? "text-brand-600" : "text-gray-400")} />
-              {label}
-            </Button>
-          ))}
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="flex items-center justify-center h-48">
-          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-        </div>
-      ) : !autoReplyEnabled ? null : tab === "menu" && autoReplyEnabled ? (
-        <BotMenuEditor
-          businessId={businessId}
-          initialMenu={initialMenu}
-          businessName={business?.name ?? "Meu Negócio"}
-          businessType={business?.type}
-          initialGreetingMsg={business?.greetingMsg ?? "Olá {nome}! Bem-vindo ao {negocio} 😊 Como posso ajudar?"}
-          initialMenuEnabled={(business as { botMenuEnabled?: boolean })?.botMenuEnabled !== false}
-          initialGreetingEnabled={(business as { greetingEnabled?: boolean })?.greetingEnabled !== false}
-          initialThanksMsg={
-            (business as { thanksMsg?: string })?.thanksMsg?.trim() ||
-            DEFAULT_THANKS_MSG
-          }
-          initialThanksEnabled={(business as { thanksEnabled?: boolean })?.thanksEnabled !== false}
-          initialAttendantName={(business as { attendantName?: string })?.attendantName?.trim() || ""}
-          initialAttendantNames={
-            (business as { attendantNames?: string[] })?.attendantNames?.filter(Boolean) || []
-          }
-          initialAttendantEnabled={(business as { attendantEnabled?: boolean })?.attendantEnabled !== false}
-          initialManualAttendantPrefixEnabled={
-            (business as { manualAttendantPrefixEnabled?: boolean })?.manualAttendantPrefixEnabled !== false
-          }
-          initialAppointmentBot={(business as { appointmentBot?: AppointmentBotConfig })?.appointmentBot}
-          autoReplyEnabled={autoReplyEnabled}
-        />
-      ) : tab === "faqs" && autoReplyEnabled ? (
-        <FAQsEditor businessId={businessId} businessType={business?.type} />
-      ) : tab === "leadflow" && autoReplyEnabled && showLeadFlow ? (
-        <LeadFlowEditor
-          businessId={businessId}
-          businessName={business?.name ?? "Meu Negócio"}
-          initialFlow={initialLeadFlow}
-        />
-      ) : tab === "resume" && autoReplyEnabled && showResumeFlow ? (
-        <ResumeFlowEditor
-          businessId={businessId}
-          businessName={business?.name ?? "Meu Negócio"}
-          initialConfig={initialResumeFlow}
-        />
-      ) : tab === "weeklymenu" && autoReplyEnabled && isRestaurant ? (
-        <WeeklyMenuEditor
-          businessId={businessId}
-          businessName={business?.name ?? "Meu Restaurante"}
-          initialConfig={(business as any)?.weeklyMenu}
-        />
-      ) : null}
+        <main className="min-w-0">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-48">
+              <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            </div>
+          ) : !autoReplyEnabled ? null : tab === "menu" && autoReplyEnabled ? (
+            <BotMenuEditor
+              businessId={businessId}
+              initialMenu={initialMenu}
+              businessName={business?.name ?? "Meu Negócio"}
+              businessType={business?.type}
+              initialGreetingMsg={business?.greetingMsg ?? "Olá {nome}! Bem-vindo ao {negocio} 😊 Como posso ajudar?"}
+              initialMenuEnabled={(business as { botMenuEnabled?: boolean })?.botMenuEnabled !== false}
+              initialGreetingEnabled={(business as { greetingEnabled?: boolean })?.greetingEnabled !== false}
+              initialThanksMsg={
+                (business as { thanksMsg?: string })?.thanksMsg?.trim() ||
+                DEFAULT_THANKS_MSG
+              }
+              initialThanksEnabled={(business as { thanksEnabled?: boolean })?.thanksEnabled !== false}
+              initialAttendantName={(business as { attendantName?: string })?.attendantName?.trim() || ""}
+              initialAttendantNames={
+                (business as { attendantNames?: string[] })?.attendantNames?.filter(Boolean) || []
+              }
+              initialAttendantEnabled={(business as { attendantEnabled?: boolean })?.attendantEnabled !== false}
+              initialManualAttendantPrefixEnabled={
+                (business as { manualAttendantPrefixEnabled?: boolean })?.manualAttendantPrefixEnabled !== false
+              }
+              initialAppointmentBot={(business as { appointmentBot?: AppointmentBotConfig })?.appointmentBot}
+              autoReplyEnabled={autoReplyEnabled}
+            />
+          ) : tab === "faqs" && autoReplyEnabled ? (
+            <FAQsEditor businessId={businessId} businessType={business?.type} />
+          ) : tab === "leadflow" && autoReplyEnabled && showLeadFlow ? (
+            <LeadFlowEditor
+              businessId={businessId}
+              businessName={business?.name ?? "Meu Negócio"}
+              initialFlow={initialLeadFlow}
+            />
+          ) : tab === "resume" && autoReplyEnabled && showResumeFlow ? (
+            <ResumeFlowEditor
+              businessId={businessId}
+              businessName={business?.name ?? "Meu Negócio"}
+              initialConfig={initialResumeFlow}
+            />
+          ) : tab === "weeklymenu" && autoReplyEnabled && isRestaurant ? (
+            <WeeklyMenuEditor
+              businessId={businessId}
+              businessName={business?.name ?? "Meu Restaurante"}
+              initialConfig={(business as any)?.weeklyMenu}
+            />
+          ) : tab === "orderbot" && autoReplyEnabled && isRestaurant ? (
+            <OrderBotEditor
+              businessId={businessId}
+              businessName={business?.name ?? "Meu Restaurante"}
+              initialConfig={initialOrderBot}
+            />
+          ) : null}
+        </main>
+      </div>
     </div>
   );
 }

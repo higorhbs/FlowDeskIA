@@ -5,7 +5,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { watchAuth, completeGoogleRedirect, authErrorMessage } from "@/lib/firebase-auth";
 import { authApi } from "@/lib/api";
 import { setToken, removeToken } from "@/lib/auth";
-import { syncServerSession } from "@/lib/server/session-client";
+import { syncServerSession, clearServerSession } from "@/lib/server/session-client";
 import { readLastAuthUid, writeLastAuthUid, clearAuthSessionMarkers } from "@/lib/business-route";
 import { AuthDrawerProvider } from "@/contexts/auth-drawer-context";
 import { toast } from "sonner";
@@ -29,6 +29,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       .then(async (res) => {
         if (!active || !res || res.status !== "VERIFIED") return;
         setToken(res.token);
+        lastTokenRef.current = res.token;
         await syncServerSession(res.token).catch(() => {});
         window.location.replace("/dashboard");
       })
@@ -50,6 +51,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         }
         writeLastAuthUid(null);
         removeToken();
+        void clearServerSession().catch(() => {});
         return;
       }
 

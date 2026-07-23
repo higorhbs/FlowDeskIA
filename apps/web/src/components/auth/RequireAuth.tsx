@@ -23,62 +23,80 @@ function isDashboardShellPath(path: string) {
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const router = useAppRouter();
   const pathname = usePathname() ?? "";
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
   const [ready, setReady] = useState(false);
   const [uid, setUid] = useState<string | null>(null);
-  const lastTokenRef = useRef<string | null>(null);
+  const applyingRef = useRef(false);
 
   useEffect(() => {
     const auth = getClientAuth();
     let unsub = () => {};
+    let cancelled = false;
 
     const applyUser = (user: User | null) => {
+      if (cancelled) return;
       if (!user) {
-        lastTokenRef.current = null;
         setUid(null);
         setReady(false);
-        router.replace("/?auth=login");
+        if (isDashboardShellPath(pathnameRef.current)) {
+          router.replace("/?auth=login");
+        }
         return;
       }
+
+      if (applyingRef.current) return;
+      applyingRef.current = true;
+
       void (async () => {
-        const token = await user.getIdToken().catch(() => null);
-        if (!token) {
-          if (user.uid) {
+        try {
+          const token = await user.getIdToken().catch(() => null);
+          if (cancelled) return;
+          if (!token) {
+            if (user.uid) {
+              setUid(user.uid);
+              setReady(true);
+            }
+            return;
+          }
+
+          try {
+            await user.reload();
+          } catch {
             setUid(user.uid);
             setReady(true);
+            return;
           }
-          return;
-        }
-        if (token === lastTokenRef.current) return;
-        lastTokenRef.current = token;
-        try {
-          await user.reload();
-        } catch {
+
+          if (!user.emailVerified) {
+            removeToken();
+            setUid(null);
+            setReady(false);
+            router.replace("/?auth=register");
+            return;
+          }
+
+          setToken(token);
+          await syncServerSession(token).catch(() => {});
           setUid(user.uid);
           setReady(true);
-          return;
+          void authApi.sync(user.displayName ?? undefined).catch(() => {});
+        } finally {
+          applyingRef.current = false;
         }
-        if (!user.emailVerified) {
-          removeToken();
-          lastTokenRef.current = null;
-          setUid(null);
-          setReady(false);
-          router.replace("/?auth=register");
-          return;
-        }
-        setToken(token);
-        await syncServerSession(token).catch(() => {});
-        setUid(user.uid);
-        setReady(true);
-        void authApi.sync(user.displayName ?? undefined).catch(() => {});
       })();
     };
 
     void auth.authStateReady().then(() => {
+      if (cancelled) return;
       applyUser(auth.currentUser);
       unsub = onIdTokenChanged(auth, applyUser);
     });
 
-    return () => unsub();
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [router]);
 
   if (!ready) {

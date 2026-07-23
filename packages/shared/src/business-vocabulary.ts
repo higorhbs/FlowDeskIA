@@ -194,7 +194,21 @@ const BY_TYPE: Record<BusinessType, BusinessVocabulary> = {
     bookingSingular: "Agendamento",
     bookingsPlural: "Agendamentos",
   },
-  RESTAURANT: { ...DEFAULT, typeLabel: "Restaurante", ...APPROVAL_OVERRIDES },
+  RESTAURANT: {
+    ...DEFAULT,
+    typeLabel: "Restaurante",
+    ...APPROVAL_OVERRIDES,
+    bookingsNav: "Pedidos",
+    bookingsNavShort: "Pedidos",
+    bookingsPageTitle: "Pedidos",
+    bookingSingular: "Pedido",
+    bookingsPlural: "Pedidos",
+    bookingsSectionDesc: "Pedidos e entregas",
+    botBookingMenuLabel: "Pedidos",
+    botStartBookingTitle: "Pedidos",
+    botBookingServiceDefault: "Pedido",
+    botMyBookingPrompt: "meu pedido",
+  },
   DENTAL: { ...DEFAULT, typeLabel: "Clínica", ...APPROVAL_OVERRIDES },
   STORE: { ...DEFAULT, typeLabel: "Comércio", ...APPROVAL_OVERRIDES },
   OTHER: DEFAULT,
@@ -223,6 +237,18 @@ export function getBookingStatusLabel(type: string | null | undefined, status: s
     CANCELLED: "Cancelado",
     COMPLETED: "Concluído",
     NO_SHOW: "Não compareceu",
+  };
+  return map[status] ?? status;
+}
+
+export function getOrderStatusLabel(status: string, fulfillment?: string | null): string {
+  const map: Record<string, string> = {
+    PENDING: "Aguardando confirmação",
+    CONFIRMED: "Confirmado",
+    PREPARING: "Preparando",
+    READY: fulfillment === "DELIVERY" ? "Saiu para entrega" : "Pronto para retirada",
+    DELIVERED: fulfillment === "DELIVERY" ? "Entregue" : "Retirado",
+    CANCELLED: "Cancelado",
   };
   return map[status] ?? status;
 }

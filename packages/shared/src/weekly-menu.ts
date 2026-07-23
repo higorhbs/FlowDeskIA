@@ -10,6 +10,7 @@ export interface WeeklyMenuItem {
   description?: string;
   price?: number;
   category?: string;
+  isDailySpecial?: boolean;
 }
 
 export interface DailyMenu {
@@ -89,6 +90,41 @@ export function isWeeklyMenuTrigger(text: string, menu: WeeklyMenuConfig): boole
   return menu.triggerKeywords.some((kw) => normalized.includes(kw.toLowerCase().trim()));
 }
 
+export interface OrderMenuEntry {
+  num: number;
+  item: WeeklyMenuItem;
+}
+
+/** Lista numerada dos itens do dia (prato do dia primeiro) — usada pelo fluxo de pedido guiado. */
+export function buildOrderMenuForDay(config: WeeklyMenuConfig, day: DayOfWeek): OrderMenuEntry[] {
+  const dailyMenu = config.days.find((d) => d.day === day);
+  if (!dailyMenu) return [];
+  const items = [...dailyMenu.items].sort(
+    (a, b) => Number(b.isDailySpecial) - Number(a.isDailySpecial),
+  );
+  return items.map((item, i) => ({ num: i + 1, item }));
+}
+
+export function formatOrderMenuMessage(
+  entries: OrderMenuEntry[],
+  businessName: string,
+  dayOfWeek: DayOfWeek,
+): string {
+  const dayLabel = DAY_OF_WEEK_LABELS[dayOfWeek];
+  if (!entries.length) {
+    return `🍽️ *Cardápio de ${dayLabel} — ${businessName}*\n\n_Não há itens no cardápio para hoje._`;
+  }
+  let text = `🍽️ *Cardápio de ${dayLabel} — ${businessName}*\n\n`;
+  for (const { num, item } of entries) {
+    text += `*${num}* — ${item.isDailySpecial ? "⭐ " : ""}${item.name}`;
+    if (item.price != null && item.price > 0) {
+      text += ` — *R$ ${item.price.toFixed(2).replace(".", ",")}*`;
+    }
+    text += "\n";
+  }
+  return text.trim();
+}
+
 export function formatWeeklyMenuResponse(
   menu: WeeklyMenuConfig,
   dayOfWeek: DayOfWeek,
@@ -109,6 +145,9 @@ export function formatWeeklyMenuResponse(
     if (!categories.has(cat)) categories.set(cat, []);
     categories.get(cat)!.push(item);
   }
+  for (const items of categories.values()) {
+    items.sort((a, b) => Number(b.isDailySpecial) - Number(a.isDailySpecial));
+  }
 
   const hasCategories = [...categories.keys()].some((k) => k !== "");
 
@@ -117,7 +156,8 @@ export function formatWeeklyMenuResponse(
       text += `*${category}*\n`;
     }
     for (const item of items) {
-      text += `• *${item.name}*`;
+      text += `• ${item.isDailySpecial ? "⭐ " : ""}*${item.name}*`;
+      if (item.isDailySpecial) text += " _(Prato do dia)_";
       if (item.description) text += ` — ${item.description}`;
       if (item.price != null && item.price > 0) {
         text += ` — *R$ ${item.price.toFixed(2).replace(".", ",")}*`;

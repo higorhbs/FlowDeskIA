@@ -15,7 +15,7 @@ function scrollToSection(id: string) {
 
 const NAV_ORGANIC = [
   { label: "Início", href: "#hero", type: "link" as const },
-  { label: "Recursos", action: "onboarding" as const },
+  { label: "Recursos", id: "recursos" as const },
   { label: "Relatos", id: "clientes" as const },
   { label: "Preços", id: "precos" as const },
   { label: "Contato", action: "email" as const },
@@ -23,6 +23,7 @@ const NAV_ORGANIC = [
 
 const NAV_AD = [
   { label: "Início", href: "#hero", type: "link" as const },
+  { label: "Recursos", id: "recursos" as const },
   { label: "Relatos", id: "clientes" as const },
   { label: "Preços", id: "precos" as const },
   { label: "Contato", action: "email" as const },
@@ -38,10 +39,6 @@ export function LandingHeader({ adMode = false }: { adMode?: boolean }) {
     setMenuOpen(false);
     if ("href" in item && item.href) {
       document.querySelector(item.href)?.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    }
-    if ("action" in item && item.action === "onboarding") {
-      window.dispatchEvent(new Event("flowdesk:open-onboarding"));
       return;
     }
     if ("id" in item && item.id) scrollToSection(item.id);

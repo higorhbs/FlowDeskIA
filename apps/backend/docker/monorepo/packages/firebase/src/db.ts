@@ -8,6 +8,8 @@ import type {
   Message,
   Appointment,
   Payment,
+  Order,
+  OrderStatus,
   ConversationStatus,
   AppointmentStatus,
   PaymentStatus,
@@ -28,8 +30,8 @@ import {
   monthKey,
   type PlanTier,
 } from "@flowdesk/shared";
-import type { LeadCaptureFlow, ResumeFlowConfig, AppointmentBotConfig } from "@flowdesk/shared";
-import { buildBusinessCreateRecord, normalizeBusiness, serializeLeadFlowForFirestore, serializeResumeFlowForFirestore, serializeAppointmentBotForFirestore } from "./business-record.js";
+import type { LeadCaptureFlow, ResumeFlowConfig, AppointmentBotConfig, OrderBotConfig, PrinterConfig } from "@flowdesk/shared";
+import { buildBusinessCreateRecord, normalizeBusiness, serializeLeadFlowForFirestore, serializeResumeFlowForFirestore, serializeAppointmentBotForFirestore, serializeOrderBotForFirestore, serializePrinterConfigForFirestore } from "./business-record.js";
 import { getBusinessSchedule, resolveBotOperatingContext } from "./schedule.js";
 import { resolveStoryScheduledAts } from "./schedule-status-dates.js";
 import type { Query, QueryDocumentSnapshot } from "firebase-admin/firestore";
@@ -105,6 +107,10 @@ function messagesCol(businessId: string, conversationId: string) {
 
 function appointmentsCol(businessId: string) {
   return businessRef(businessId).collection("appointments");
+}
+
+function ordersCol(businessId: string) {
+  return businessRef(businessId).collection("orders");
 }
 
 function paymentsCol(businessId: string) {
@@ -345,6 +351,12 @@ export async function updateBusiness(
     patch.appointmentBot = serializeAppointmentBotForFirestore(
       patch.appointmentBot as AppointmentBotConfig,
     );
+  }
+  if (patch.orderBot && typeof patch.orderBot === "object") {
+    patch.orderBot = serializeOrderBotForFirestore(patch.orderBot as OrderBotConfig);
+  }
+  if (patch.printerConfig && typeof patch.printerConfig === "object") {
+    patch.printerConfig = serializePrinterConfigForFirestore(patch.printerConfig as PrinterConfig);
   }
   if (patch.type) {
     patch.type = normalizeBusinessType(String(patch.type));
@@ -1028,6 +1040,59 @@ export async function updateAppointment(
   const patch = { ...data, updatedAt: nowIso() };
   await ref.update(patch);
   return { id: appointmentId, businessId, ...snap.data(), ...patch } as Appointment;
+}
+
+// ─── Orders ──────────────────────────────────────────────────────────────────
+
+export async function listOrders(
+  businessId: string,
+  opts?: { from?: string; to?: string; status?: OrderStatus }
+): Promise<Order[]> {
+  const snap = await ordersCol(businessId).orderBy("createdAt", "desc").get();
+  let list = snap.docs.map((d) => ({ id: d.id, businessId, ...d.data() }) as Order);
+  if (opts?.status) list = list.filter((o) => o.status === opts.status);
+  if (opts?.from) list = list.filter((o) => o.createdAt >= opts.from!);
+  if (opts?.to) list = list.filter((o) => o.createdAt <= opts.to!);
+  return list;
+}
+
+export async function listCustomerOrders(
+  businessId: string,
+  customerPhone: string
+): Promise<Order[]> {
+  const orders = await listOrders(businessId);
+  return orders
+    .filter((o) => customerPhonesMatch(o.customerPhone, customerPhone))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function createOrder(
+  data: Omit<Order, "id" | "createdAt" | "updatedAt">
+): Promise<Order> {
+  const id = newId();
+  const ts = nowIso();
+  const order: Order = { id, createdAt: ts, updatedAt: ts, ...data };
+  await ordersCol(data.businessId).doc(id).set(removeUndefined(order as unknown as Record<string, unknown>));
+  return order;
+}
+
+export async function getOrder(businessId: string, orderId: string): Promise<Order | null> {
+  const snap = await ordersCol(businessId).doc(orderId).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, businessId, ...snap.data() } as Order;
+}
+
+export async function updateOrder(
+  businessId: string,
+  orderId: string,
+  data: Partial<Order>
+): Promise<Order | null> {
+  const ref = ordersCol(businessId).doc(orderId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const patch = { ...data, updatedAt: nowIso() };
+  await ref.update(patch);
+  return { id: orderId, businessId, ...snap.data(), ...patch } as Order;
 }
 
 // ─── Payments ────────────────────────────────────────────────────────────────

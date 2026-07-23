@@ -32,6 +32,7 @@ import { useBusinessVocabulary } from "@/lib/use-business-vocabulary";
 import { getBookingStatusLabel, businessRequiresBookingApproval } from "@flowdesk/shared";
 import { toast } from "sonner";
 import { VocabLabel } from "@/components/layout/VocabLabel";
+import OrdersPanel from "@/components/orders/OrdersPanel";
 
 const STATUS_ORDER = ["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED", "NO_SHOW"] as const;
 
@@ -98,6 +99,20 @@ function toEditForm(apt: Apt): EditForm {
 }
 
 export default function AppointmentsPage() {
+  const businessId = useBusinessId();
+  const { data: business } = useQuery({
+    queryKey: ["business", businessId],
+    queryFn: () => businessApi.get(businessId),
+    enabled: !!businessId,
+  });
+
+  if (business?.type === "RESTAURANT") {
+    return <OrdersPanel businessId={businessId} />;
+  }
+  return <AppointmentsCalendarView />;
+}
+
+function AppointmentsCalendarView() {
   const businessId = useBusinessId();
   const v = useBusinessVocabulary();
   const queryClient = useQueryClient();

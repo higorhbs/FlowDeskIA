@@ -13,6 +13,7 @@ import {
   backendSendWhatsAppMedia,
   backendSendWhatsAppMessage,
   backendSendWhatsAppReport,
+  backendTestPrinter,
 } from "./backend-chat-whatsapp";
 import {
   backendCancelStory,
@@ -29,6 +30,7 @@ import { webApi } from "./web-api";
 import type {
   ConversationStatus,
   AppointmentStatus,
+  OrderStatus,
   Tenant,
   Business,
 } from "@flowdesk/firebase/client";
@@ -307,6 +309,7 @@ export const whatsappApi = {
     backendSendWhatsAppReport(businessId, period),
   sendAppointmentConfirmation: (businessId: string, appointmentId: string) =>
     backendSendAppointmentConfirmation(businessId, appointmentId),
+  testPrinter: (businessId: string) => backendTestPrinter(businessId),
 };
 
 export const scheduledStatusApi = {
@@ -352,6 +355,21 @@ export const appointmentApi = {
       businessId,
       appointmentId,
       data as Parameters<typeof webApi.appointments.updateAppointment>[2],
+    ),
+};
+
+export const orderApi = {
+  list: (businessId: string, params?: { from?: string; to?: string; status?: string }) =>
+    webApi.orders.listOrders(businessId, {
+      from: params?.from,
+      to: params?.to,
+      status: params?.status as OrderStatus | undefined,
+    }),
+  patch: (businessId: string, orderId: string, data: Record<string, unknown>) =>
+    webApi.orders.updateOrder(
+      businessId,
+      orderId,
+      data as Parameters<typeof webApi.orders.updateOrder>[2],
     ),
 };
 

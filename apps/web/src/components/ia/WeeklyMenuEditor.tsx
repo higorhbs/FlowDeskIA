@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
   Plus, Trash2, Loader2, X, Save, Pencil, Check,
   GripVertical, ChevronDown, ChevronRight, Utensils,
-  Hash, Info, DollarSign, Tag,
+  Hash, Info, DollarSign, Tag, Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -55,12 +55,15 @@ interface ItemModalState {
   description: string;
   price: string;
   category: string;
+  isDailySpecial: boolean;
 }
 
 const EMPTY_MODAL: ItemModalState = {
   open: false, dayIndex: null, itemIndex: null,
-  name: "", description: "", price: "", category: "",
+  name: "", description: "", price: "", category: "", isDailySpecial: false,
 };
+
+const QUICK_CATEGORIES = ["Entrada", "Prato Principal", "Sobremesa", "Bebida", "Lanche", "Outro"];
 
 // ── Item drag state ────────────────────────────────────────────────────────────
 interface DragState {
@@ -129,6 +132,7 @@ export function WeeklyMenuEditor({
       description: item.description ?? "",
       price: item.price != null ? String(item.price) : "",
       category: item.category ?? "",
+      isDailySpecial: item.isDailySpecial ?? false,
     });
   }
 
@@ -147,6 +151,7 @@ export function WeeklyMenuEditor({
       description: modal.description.trim() || undefined,
       price: priceNum != null && !isNaN(priceNum) ? priceNum : undefined,
       category: modal.category.trim() || undefined,
+      isDailySpecial: modal.isDailySpecial || undefined,
     };
 
     setDays((prev) => {
@@ -328,7 +333,35 @@ export function WeeklyMenuEditor({
                     placeholder="Ex: Pratos, Bebidas, Sobremesas"
                     className="input"
                   />
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {QUICK_CATEGORIES.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setModal((m) => ({ ...m, category: c }))}
+                        className={cn(
+                          "text-[11px] font-medium px-2 py-1 rounded-full border transition-colors",
+                          modal.category === c
+                            ? "border-purple-400 bg-purple-100 text-purple-700"
+                            : "border-gray-200 text-gray-500 hover:border-purple-300 hover:bg-purple-50",
+                        )}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3">
+                <span className="flex items-center gap-2 text-sm font-medium text-amber-900">
+                  <Star className="w-4 h-4 text-amber-500" />
+                  Marcar como prato do dia
+                </span>
+                <Switch
+                  checked={modal.isDailySpecial}
+                  onCheckedChange={(v) => setModal((m) => ({ ...m, isDailySpecial: v }))}
+                />
               </div>
 
               <div className="flex gap-3 pt-1">
@@ -480,7 +513,12 @@ export function WeeklyMenuEditor({
                             >
                               <GripVertical className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 group-hover:text-gray-500" />
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-gray-800 truncate">{item.name}</p>
+                                <p className="text-xs font-semibold text-gray-800 truncate flex items-center gap-1">
+                                  {item.isDailySpecial && (
+                                    <Star className="w-3 h-3 text-amber-500 fill-amber-500 flex-shrink-0" />
+                                  )}
+                                  {item.name}
+                                </p>
                                 {item.description && (
                                   <p className="text-[11px] text-gray-400 truncate">{item.description}</p>
                                 )}
@@ -591,8 +629,11 @@ export function WeeklyMenuEditor({
                 if (!todayMenu || todayMenu.items.length === 0) {
                   lines.push("_Não há itens no cardápio para hoje._");
                 } else {
-                  for (const item of todayMenu.items) {
-                    let line = `• *${item.name}*`;
+                  const sorted = [...todayMenu.items].sort(
+                    (a, b) => Number(b.isDailySpecial) - Number(a.isDailySpecial),
+                  );
+                  for (const item of sorted) {
+                    let line = `• ${item.isDailySpecial ? "⭐ " : ""}*${item.name}*`;
                     if (item.description) line += ` — ${item.description}`;
                     if (item.price != null && item.price > 0) line += ` — *R$ ${item.price.toFixed(2).replace(".", ",")}*`;
                     lines.push(line);

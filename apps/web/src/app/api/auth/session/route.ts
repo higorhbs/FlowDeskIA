@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { getAdminAuth } from "@flowdesk/firebase";
 import { SESSION_COOKIE, SESSION_MAX_AGE_SEC } from "@/lib/server/auth";
 
@@ -25,14 +24,16 @@ export async function POST(req: Request) {
     if (decoded.email_verified !== true) {
       return NextResponse.json({ error: "E-mail não verificado." }, { status: 403 });
     }
-    (await cookies()).set(SESSION_COOKIE, idToken, sessionCookieOptions(SESSION_MAX_AGE_SEC));
-    return NextResponse.json({ ok: true });
+    const res = NextResponse.json({ ok: true });
+    res.cookies.set(SESSION_COOKIE, idToken, sessionCookieOptions(SESSION_MAX_AGE_SEC));
+    return res;
   } catch {
     return NextResponse.json({ error: "Token inválido." }, { status: 401 });
   }
 }
 
 export async function DELETE() {
-  (await cookies()).set(SESSION_COOKIE, "", sessionCookieOptions(0));
-  return NextResponse.json({ ok: true });
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set(SESSION_COOKIE, "", sessionCookieOptions(0));
+  return res;
 }

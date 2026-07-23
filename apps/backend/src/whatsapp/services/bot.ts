@@ -13,10 +13,13 @@ import {
   updateConversationStatus,
   createAppointment,
   createPayment,
+  createOrder,
+  listCustomerOrders,
   findConflictingAppointment,
   listCustomerAppointments,
   getBusinessAsaasIntegration,
   type Conversation,
+  type OrderFulfillment,
   clearOutsideHoursNotice,
   tryClaimOutsideHoursNotice,
   setConversationBotFlowState,
@@ -43,6 +46,7 @@ import {
   getBusinessVocabulary,
   businessRequiresBookingApproval,
   getBookingStatusLabel,
+  getOrderStatusLabel,
   isChatGreeting,
   type BotMenuAction,
   PLAN_LIMITS,
@@ -51,8 +55,13 @@ import {
   formatWeeklyMenuResponse,
   getTodayDayOfWeek,
   normalizeAppointmentBotConfig,
+  normalizeOrderBotConfig,
+  buildOrderMenuForDay,
+  formatOrderMenuMessage,
+  type OrderMenuEntry,
 } from "@flowdesk/shared";
 import { createPixCharge, resolveAsaasCredentials } from "./pix.js";
+import { printOrderReceipt } from "./printer.js";
 import {
   isLeadFlowActive,
   startLeadFlow,
@@ -495,6 +504,48 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
 
   const intent = detectIntent(messageBody, business.type);
 
+  // ─── Fluxo de pedido guiado (multi-step, restaurantes) ────────────────────
+  if (state?.step === "ORDER_ITEMS") {
+    if (isExitCommand(messageBody)) {
+      conversationState.delete(sessionKey);
+      return handleBotExit(business, conversation, sessionKey);
+    }
+    if (isMenuRequest(messageBody)) {
+      conversationState.delete(sessionKey);
+      const menu = buildMainMenu(business);
+      await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
+      return [{ text: menu }];
+    }
+    return handleOrderItems(ctx, business, conversation, state, sessionKey);
+  }
+  if (state?.step === "ORDER_FULFILLMENT") {
+    if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
+      conversationState.delete(sessionKey);
+      if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
+      const menu = buildMainMenu(business);
+      await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
+      return [{ text: menu }];
+    }
+    return handleOrderFulfillment(ctx, business, conversation, state, sessionKey);
+  }
+  if (state?.step === "ORDER_ADDRESS") {
+    if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
+      conversationState.delete(sessionKey);
+      if (isExitCommand(messageBody)) return handleBotExit(business, conversation, sessionKey);
+      const menu = buildMainMenu(business);
+      await saveAndReturn(business.id, conversation.id, [{ text: menu }]);
+      return [{ text: menu }];
+    }
+    return handleOrderAddress(ctx, business, conversation, state, sessionKey);
+  }
+  if (state?.step === "ORDER_PAYMENT") {
+    if (isExitCommand(messageBody)) {
+      conversationState.delete(sessionKey);
+      return handleBotExit(business, conversation, sessionKey);
+    }
+    return handleOrderPayment(ctx, business, conversation, state, sessionKey);
+  }
+
   // ─── Fluxo de agendamento (multi-step) ────────────────────────────────────
   if (state?.step === "APPOINTMENT_DATE") {
     if (isMenuRequest(messageBody) || isExitCommand(messageBody)) {
@@ -555,7 +606,7 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
     );
   }
 
-  if (!state && looksLikeAppointmentDate(messageBody)) {
+  if (!state && business.type !== "RESTAURANT" && looksLikeAppointmentDate(messageBody)) {
     const apptState = { step: "APPOINTMENT_DATE", data: { serviceName: voc(business).botBookingServiceDefault } };
     conversationState.set(sessionKey, apptState);
     return handleAppointmentDate(ctx, business, conversation, apptState, sessionKey);
@@ -577,9 +628,15 @@ async function processMessageInner(ctx: BotContext): Promise<BotResponse[]> {
       return handleCatalog(business, conversation);
 
     case "MY_APPOINTMENT":
+      if (business.type === "RESTAURANT" && normalizeOrderBotConfig(business.orderBot).enabled) {
+        return handleMyOrders(ctx, business, conversation);
+      }
       return handleMyAppointments(ctx, business, conversation);
 
     case "APPOINTMENT":
+      if (business.type === "RESTAURANT" && normalizeOrderBotConfig(business.orderBot).enabled) {
+        return startOrderFlow(business, conversation, sessionKey, ctx.customerName);
+      }
       return startAppointmentFlow(business, conversation, sessionKey, ctx.customerName);
 
     case "QUOTE":
@@ -832,6 +889,298 @@ async function handleMyAppointments(
     `📅 *Seus ${v.bookingsPlural.toLowerCase()} — ${business.name}*\n\n` +
     lines.join("\n\n") +
     `\n\nPara solicitar outro, digite *${v.botAppointmentKeywords[0] ?? "agendar"}*.`;
+  await saveAndReturn(business.id, conversation.id, [{ text }]);
+  return [{ text }];
+}
+
+// ─── Fluxo de pedido guiado (restaurantes) ─────────────────────────────────────
+
+type OrderCartLine = { num: number; name: string; price?: number; category?: string; quantity: number };
+
+function parseOrderItemTokens(text: string): { num: number; qty: number }[] {
+  const tokens = text.split(",").map((t) => t.trim()).filter(Boolean);
+  const parsed: { num: number; qty: number }[] = [];
+  for (const token of tokens) {
+    const match = token.match(/^(\d{1,3})\s*(?:x\s*(\d{1,2}))?$/i);
+    if (!match) continue;
+    const num = parseInt(match[1]!, 10);
+    const qty = match[2] ? parseInt(match[2], 10) : 1;
+    if (num > 0 && qty > 0) parsed.push({ num, qty });
+  }
+  return parsed;
+}
+
+const ORDER_CLOSE_COMMANDS = ["fechar pedido", "fechar", "finalizar", "finalizar pedido", "concluir", "concluir pedido"];
+
+async function startOrderFlow(
+  business: any,
+  conversation: Conversation,
+  sessionKey: string,
+  customerName?: string,
+): Promise<BotResponse[]> {
+  const cfg = normalizeOrderBotConfig(business.orderBot);
+  const weeklyMenu = (business as any).weeklyMenu;
+  const tz = businessTimezone(business);
+  const dayOfWeek = getTodayDayOfWeek(tz);
+  const entries: OrderMenuEntry[] = weeklyMenu ? buildOrderMenuForDay(weeklyMenu, dayOfWeek) : [];
+
+  if (!entries.length) {
+    const text = "Ainda não temos o cardápio de hoje cadastrado. Fale com a gente que te ajudamos com seu pedido!";
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+
+  conversationState.set(sessionKey, {
+    step: "ORDER_ITEMS",
+    data: { menuJson: JSON.stringify(entries), itemsJson: "[]" },
+  });
+
+  const intro = renderTemplate(cfg.startMessage, {
+    nome: customerName ?? "cliente",
+    negocio: business.name,
+  }).trim();
+  const menuText = formatOrderMenuMessage(entries, business.name, dayOfWeek);
+  const text = `${intro}\n\n${menuText}`;
+  await saveAndReturn(business.id, conversation.id, [{ text }]);
+  return [{ text }];
+}
+
+async function handleOrderItems(
+  ctx: BotContext,
+  business: any,
+  conversation: Conversation,
+  state: any,
+  sessionKey: string,
+): Promise<BotResponse[]> {
+  const raw = ctx.messageBody.trim();
+  const lower = raw.toLowerCase();
+  const cfg = normalizeOrderBotConfig(business.orderBot);
+  const cart: OrderCartLine[] = JSON.parse(state.data.itemsJson || "[]");
+
+  if (ORDER_CLOSE_COMMANDS.includes(lower)) {
+    if (!cart.length) {
+      const text = "Seu carrinho está vazio. Digite o número de um prato para adicionar antes de fechar o pedido.";
+      await saveAndReturn(business.id, conversation.id, [{ text }]);
+      return [{ text }];
+    }
+    return advanceAfterOrderItems(business, conversation, sessionKey, state.data, cart, cfg);
+  }
+
+  const entries: OrderMenuEntry[] = JSON.parse(state.data.menuJson || "[]");
+  const tokens = parseOrderItemTokens(raw);
+  if (!tokens.length) {
+    const text =
+      "Não entendi. Digite o número do prato (ex: *2* ou *2x3* para 3 unidades), ou *fechar pedido* para continuar.";
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+
+  let addedAny = false;
+  for (const { num, qty } of tokens) {
+    const entry = entries.find((e) => e.num === num);
+    if (!entry) continue;
+    addedAny = true;
+    const existing = cart.find((c) => c.num === num);
+    if (existing) existing.quantity += qty;
+    else {
+      cart.push({
+        num,
+        name: entry.item.name,
+        price: entry.item.price,
+        category: entry.item.category,
+        quantity: qty,
+      });
+    }
+  }
+
+  if (!addedAny) {
+    const text = "Não encontrei esse número no cardápio. Confira a lista e tente de novo.";
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+
+  conversationState.set(sessionKey, {
+    step: "ORDER_ITEMS",
+    data: { ...state.data, itemsJson: JSON.stringify(cart) },
+  });
+
+  const total = cart.reduce((sum, i) => sum + (i.price ?? 0) * i.quantity, 0);
+  const lines = cart.map(
+    (i) => `• ${i.quantity}x ${i.name}${i.price ? ` — ${formatCurrency(i.price * i.quantity)}` : ""}`,
+  );
+  const text =
+    `🛒 *Seu pedido até agora:*\n${lines.join("\n")}\n\n` +
+    `💰 Total parcial: *${formatCurrency(total)}*\n\n` +
+    `Digite outro número pra adicionar mais, ou *fechar pedido* pra continuar.`;
+  await saveAndReturn(business.id, conversation.id, [{ text }]);
+  return [{ text }];
+}
+
+async function promptOrderPayment(
+  business: any,
+  conversation: Conversation,
+  sessionKey: string,
+  data: Record<string, string>,
+  cfg: ReturnType<typeof normalizeOrderBotConfig>,
+): Promise<BotResponse[]> {
+  conversationState.set(sessionKey, { step: "ORDER_PAYMENT", data });
+  const lines = cfg.paymentMethods.map((m, i) => `*${i + 1}* — ${m}`);
+  const text = `Como você vai pagar?\n\n${lines.join("\n")}`;
+  await saveAndReturn(business.id, conversation.id, [{ text }]);
+  return [{ text }];
+}
+
+async function advanceAfterOrderItems(
+  business: any,
+  conversation: Conversation,
+  sessionKey: string,
+  data: Record<string, string>,
+  cart: OrderCartLine[],
+  cfg: ReturnType<typeof normalizeOrderBotConfig>,
+): Promise<BotResponse[]> {
+  const dataBase = { ...data, itemsJson: JSON.stringify(cart) };
+  if (cfg.fulfillmentDelivery && cfg.fulfillmentPickup) {
+    conversationState.set(sessionKey, { step: "ORDER_FULFILLMENT", data: dataBase });
+    const text = "Como prefere receber?\n\n*1* — Entrega\n*2* — Retirada no local";
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+  const fulfillment: OrderFulfillment = cfg.fulfillmentDelivery ? "DELIVERY" : "PICKUP";
+  if (fulfillment === "DELIVERY") {
+    conversationState.set(sessionKey, { step: "ORDER_ADDRESS", data: { ...dataBase, fulfillment } });
+    const text = "Qual o endereço de entrega? (rua, número, bairro)";
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+  return promptOrderPayment(business, conversation, sessionKey, { ...dataBase, fulfillment }, cfg);
+}
+
+async function handleOrderFulfillment(
+  ctx: BotContext,
+  business: any,
+  conversation: Conversation,
+  state: any,
+  sessionKey: string,
+): Promise<BotResponse[]> {
+  const raw = ctx.messageBody.trim().toLowerCase();
+  const cfg = normalizeOrderBotConfig(business.orderBot);
+  const isDelivery = raw === "1" || raw.includes("entrega");
+  const isPickup = raw === "2" || raw.includes("retirada") || raw.includes("retirar");
+
+  if (!isDelivery && !isPickup) {
+    const text = "Não entendi. Digite *1* para Entrega ou *2* para Retirada.";
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+
+  const fulfillment: OrderFulfillment = isDelivery ? "DELIVERY" : "PICKUP";
+  if (fulfillment === "DELIVERY") {
+    conversationState.set(sessionKey, { step: "ORDER_ADDRESS", data: { ...state.data, fulfillment } });
+    const text = "Qual o endereço de entrega? (rua, número, bairro)";
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+  return promptOrderPayment(business, conversation, sessionKey, { ...state.data, fulfillment }, cfg);
+}
+
+async function handleOrderAddress(
+  ctx: BotContext,
+  business: any,
+  conversation: Conversation,
+  state: any,
+  sessionKey: string,
+): Promise<BotResponse[]> {
+  const address = ctx.messageBody.trim();
+  if (address.length < 5) {
+    const text = "Endereço muito curto. Envie o endereço completo (rua, número, bairro).";
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+  const cfg = normalizeOrderBotConfig(business.orderBot);
+  return promptOrderPayment(business, conversation, sessionKey, { ...state.data, address }, cfg);
+}
+
+async function handleOrderPayment(
+  ctx: BotContext,
+  business: any,
+  conversation: Conversation,
+  state: any,
+  sessionKey: string,
+): Promise<BotResponse[]> {
+  const cfg = normalizeOrderBotConfig(business.orderBot);
+  const raw = ctx.messageBody.trim();
+  const n = parseOptionNumber(raw, 1, cfg.paymentMethods.length);
+  const paymentMethod = n
+    ? cfg.paymentMethods[n - 1]
+    : cfg.paymentMethods.find((m) => raw.toLowerCase().includes(m.toLowerCase()));
+
+  if (!paymentMethod) {
+    const lines = cfg.paymentMethods.map((m, i) => `*${i + 1}* — ${m}`);
+    const text = `Não entendi a forma de pagamento. Escolha uma opção:\n\n${lines.join("\n")}`;
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+
+  const cart: OrderCartLine[] = JSON.parse(state.data.itemsJson || "[]");
+  const total = cart.reduce((sum, i) => sum + (i.price ?? 0) * i.quantity, 0);
+  const fulfillment: OrderFulfillment = (state.data.fulfillment as OrderFulfillment) ?? "PICKUP";
+  const needsApproval = cfg.requiresApproval;
+
+  const order = await createOrder({
+    businessId: business.id,
+    conversationId: conversation.id,
+    customerPhone: ctx.customerPhone,
+    customerName: ctx.customerName,
+    items: cart.map((c) => ({ name: c.name, quantity: c.quantity, price: c.price, category: c.category })),
+    total,
+    fulfillment,
+    deliveryAddress: state.data.address,
+    paymentMethod,
+    status: needsApproval ? "PENDING" : "CONFIRMED",
+  });
+
+  printOrderReceipt(business, order)
+    .then((result) => {
+      if (!result.ok) console.error(`[printer] Falha ao imprimir pedido ${order.id}: ${result.error}`);
+    })
+    .catch((err) => console.error(`[printer] Erro inesperado ao imprimir pedido ${order.id}:`, err));
+
+  conversationState.delete(sessionKey);
+
+  const itensText = cart.map((i) => `• ${i.quantity}x ${i.name}`).join("\n");
+  const text = renderTemplate(needsApproval ? cfg.awaitingMessage : cfg.completedMessage, {
+    nome: ctx.customerName ?? "cliente",
+    negocio: business.name,
+    itens: itensText,
+    total: formatCurrency(total),
+    entrega: fulfillment === "DELIVERY" ? "Entrega" : "Retirada no local",
+    pagamento: paymentMethod,
+    codigo: order.id.slice(0, 8),
+  }).trim();
+
+  await saveAndReturn(business.id, conversation.id, [{ text }]);
+  return [{ text }];
+}
+
+async function handleMyOrders(
+  ctx: BotContext,
+  business: any,
+  conversation: Conversation,
+): Promise<BotResponse[]> {
+  const orders = await listCustomerOrders(business.id, ctx.customerPhone);
+  if (!orders.length) {
+    const text = `📋 Você ainda não tem pedidos em *${business.name}*.\n\nPara pedir, digite *pedido* ou *cardápio*.`;
+    await saveAndReturn(business.id, conversation.id, [{ text }]);
+    return [{ text }];
+  }
+  const last = orders[0]!;
+  const lines = last.items.map((i) => `• ${i.quantity}x ${i.name}`).join("\n");
+  const text =
+    `📋 *Seu último pedido — ${business.name}*\n\n${lines}\n\n` +
+    `💰 Total: *${formatCurrency(last.total ?? 0)}*\n` +
+    `Status: *${getOrderStatusLabel(last.status, last.fulfillment)}*\n` +
+    `Código: *${last.id.slice(0, 8)}*\n\n` +
+    `Para um novo pedido, digite *pedido*.`;
   await saveAndReturn(business.id, conversation.id, [{ text }]);
   return [{ text }];
 }

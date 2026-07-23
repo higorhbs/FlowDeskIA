@@ -5,6 +5,8 @@ export type ConversationStatus = "OPEN" | "ATTENDING" | "CLOSED";
 export type MessageRole = "CUSTOMER" | "IA" | "HUMAN";
 export type AppointmentStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED" | "NO_SHOW";
 export type PaymentStatus = "PENDING" | "PAID" | "OVERDUE" | "CANCELLED";
+export type OrderStatus = "PENDING" | "CONFIRMED" | "PREPARING" | "READY" | "DELIVERED" | "CANCELLED";
+export type OrderFulfillment = "DELIVERY" | "PICKUP";
 
 export type TimeSlot = [string, string] | null;
 
@@ -83,6 +85,8 @@ import type {
   DailyMenu,
   WeeklyMenuConfig,
   AppointmentBotConfig,
+  OrderBotConfig,
+  PrinterConfig,
 } from "@flowdesk/shared";
 
 export type {
@@ -95,6 +99,8 @@ export type {
   DailyMenu,
   WeeklyMenuConfig,
   AppointmentBotConfig,
+  OrderBotConfig,
+  PrinterConfig,
 };
 
 export interface Business {
@@ -130,6 +136,8 @@ export interface Business {
   weeklyMenu?: WeeklyMenuConfig;
   appointmentBot?: AppointmentBotConfig;
   appointmentBufferMins?: number;
+  orderBot?: OrderBotConfig;
+  printerConfig?: PrinterConfig;
   dailyReportEnabled?: boolean;
   dailyReportHour?: number;
   dailyReportMinute?: number;
@@ -208,6 +216,30 @@ export interface Appointment {
   status: AppointmentStatus;
   notes?: string;
   reminderSent: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrderItem {
+  name: string;
+  quantity: number;
+  price?: number;
+  category?: string;
+}
+
+export interface Order {
+  id: string;
+  businessId: string;
+  conversationId?: string;
+  customerPhone: string;
+  customerName?: string;
+  items: OrderItem[];
+  total?: number;
+  fulfillment: OrderFulfillment;
+  deliveryAddress?: string;
+  paymentMethod?: string;
+  status: OrderStatus;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
 }

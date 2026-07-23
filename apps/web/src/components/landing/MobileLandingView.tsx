@@ -1,17 +1,9 @@
 "use client";
 
-import {
-  ArrowRight,
-  CalendarCheck,
-  Check,
-  MessageSquare,
-  QrCode,
-  ShoppingBag,
-  Sparkles,
-  Wallet,
-} from "lucide-react";
+import { ArrowRight, Check, MessageSquare, Sparkles } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
+import { LANDING_FEATURES } from "@/components/landing/features-data";
 import {
   APP_DISPLAY_NAME,
   PLAN_PRICES,
@@ -23,34 +15,6 @@ import type { PlanTier } from "@flowdesk/shared";
 const WHATSAPP_URL =
   "https://wa.me/5531973616454?text=" +
   encodeURIComponent("Quero testar o FlowDesk grátis!");
-
-const FEATURES = [
-  {
-    icon: MessageSquare,
-    title: "Atendimento 24h com IA",
-    desc: "Responde clientes sozinho, a qualquer hora.",
-  },
-  {
-    icon: CalendarCheck,
-    title: "Agendamento guiado",
-    desc: "Cliente marca horário direto no WhatsApp.",
-  },
-  {
-    icon: ShoppingBag,
-    title: "Catálogo e orçamento",
-    desc: "Produtos e preços apresentados no chat.",
-  },
-  {
-    icon: Wallet,
-    title: "Cobrança PIX automática",
-    desc: "Recebe pagamento sem sair da conversa.",
-  },
-  {
-    icon: QrCode,
-    title: "Conexão fácil",
-    desc: "Ligue seu número em segundos via QR Code.",
-  },
-];
 
 const PLANS: { id: PlanTier; highlight?: boolean; badge?: string; extras?: string[] }[] = [
   { id: "STARTER" },
@@ -128,9 +92,9 @@ export function MobileLandingView() {
       <section className="mt-10 px-5">
         <h2 className="text-lg font-bold text-slate-900">O que o {APP_DISPLAY_NAME} faz</h2>
         <div className="mt-4 space-y-3">
-          {FEATURES.map(({ icon: Icon, title, desc }) => (
+          {LANDING_FEATURES.map(({ id, icon: Icon, title, desc }) => (
             <div
-              key={title}
+              key={id}
               className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4"
             >
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">

@@ -67,15 +67,22 @@ export function ResumeFlowEditor({ businessId, businessName, initialConfig }: Pr
   const draftSnapshot = useMemo(() => serializeDraft(cfg, keywordsDraft), [cfg, keywordsDraft]);
   const debouncedSnapshot = useDebouncedValue(draftSnapshot, 1500);
   const hasChanges = draftSnapshot !== savedRef.current;
+  const serverSnapshot = useMemo(() => {
+    const normalized = normalizeResumeFlowConfig(initialConfig);
+    const k = normalized.triggerKeywords.length ? normalized.triggerKeywords : DEFAULT_RESUME_FLOW_KEYWORDS;
+    return serializeDraft(normalized, k.join(", "));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(initialConfig ?? null)]);
 
   useEffect(() => {
-    if (draftSnapshot !== savedRef.current) return;
+    if (hasChanges) return;
+    if (serverSnapshot === savedRef.current) return;
     const normalized = normalizeResumeFlowConfig(initialConfig);
-    setCfg(normalized);
     const k = normalized.triggerKeywords.length ? normalized.triggerKeywords : DEFAULT_RESUME_FLOW_KEYWORDS;
+    setCfg(normalized);
     setKeywordsDraft(k.join(", "));
-    savedRef.current = serializeDraft(normalized, k.join(", "));
-  }, [initialConfig, draftSnapshot]);
+    savedRef.current = serverSnapshot;
+  }, [serverSnapshot, hasChanges, initialConfig]);
 
   const saveMutation = useMutation({
     mutationFn: () =>

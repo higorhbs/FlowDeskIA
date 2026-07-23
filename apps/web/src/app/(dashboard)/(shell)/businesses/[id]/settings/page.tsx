@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { businessApi, scheduleApi } from "@/lib/api";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -10,9 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Loader2,
-  Save,
   Building2,
   Phone,
   MapPin,
@@ -21,15 +21,25 @@ import {
   MessageSquare,
   MessageCircle,
   DoorClosed,
-  Settings2,
   CheckCircle2,
+  ChevronRight,
+  ChevronDown,
+  AlertTriangle,
+  RotateCw,
+  Scissors,
+  UtensilsCrossed,
+  Stethoscope,
+  Store,
+  LayoutGrid,
+  type LucideIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   TemplateMessageField,
   TemplateVariablesHelp,
 } from "@/components/business/TemplateMessageField";
 import { BusinessTypePicker } from "@/components/business/BusinessTypePicker";
+import { WhatsAppMessagePreview, type PreviewMessage } from "@/components/business/WhatsAppMessagePreview";
 import {
   WorkingHoursEditor,
   defaultWorkingHours,
@@ -40,7 +50,7 @@ import {
 } from "@/components/business/WorkingHoursEditor";
 import { useBusinessId } from "@/lib/use-business-id";
 import { persistBusinessSnapshot } from "@/lib/business-route";
-import { BUSINESS_TYPE_ORDER, DEFAULT_LUNCH_MSG } from "@flowdesk/shared";
+import { BUSINESS_TYPE_ORDER, BUSINESS_TYPE_LABELS, DEFAULT_LUNCH_MSG } from "@flowdesk/shared";
 import { cn } from "@/lib/utils";
 
 const businessTypeSchema = z.enum(BUSINESS_TYPE_ORDER);
@@ -108,31 +118,131 @@ function normalizeSpecialHours(raw: unknown): SpecialHoursValue {
   return out;
 }
 
+function renderPreviewTemplate(text: string, businessName: string) {
+  return text.replaceAll("{nome}", "Maria").replaceAll("{negocio}", businessName.trim() || "seu negócio");
+}
+
 // ── UI helpers ─────────────────────────────────────────────────────────────────
 
-type SectionCardProps = {
-  icon: React.ReactNode;
-  iconBg: string;
+const TAB_IDS = ["geral", "horarios", "mensagens", "relatorio"] as const;
+type SettingsTab = (typeof TAB_IDS)[number];
+
+const FIELD_TAB: Partial<Record<keyof FormData, SettingsTab>> = {
+  name: "geral",
+  type: "geral",
+  typeLabel: "geral",
+  phone: "geral",
+  address: "geral",
+  description: "geral",
+  greetingMsg: "mensagens",
+  awayMsg: "mensagens",
+};
+
+type TabConfig = {
+  id: SettingsTab;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  color: string;
+  hasError?: boolean;
+  active?: boolean;
+};
+
+function SettingsSectionNav({
+  tabs,
+  activeTab,
+  onChange,
+}: {
+  tabs: TabConfig[];
+  activeTab: SettingsTab;
+  onChange: (id: SettingsTab) => void;
+}) {
+  return (
+    <>
+      <nav className="hidden lg:flex lg:flex-col lg:gap-1.5">
+        {tabs.map(({ id, label, description, icon: Icon, color, hasError, active }) => {
+          const isActive = activeTab === id;
+          return (
+            <Button
+              key={id}
+              type="button"
+              variant="ghost"
+              onClick={() => onChange(id)}
+              className={cn(
+                "h-auto w-full items-start justify-start gap-3 rounded-2xl border px-3.5 py-3 text-left transition-all",
+                isActive ? "border-gray-200 bg-white shadow-sm" : "border-transparent hover:border-gray-200 hover:bg-white/60",
+              )}
+            >
+              <div className={cn("flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl", color)}>
+                <Icon className="w-4 h-4" />
+              </div>
+              <div className="min-w-0 flex-1 whitespace-normal">
+                <div className="flex items-center gap-1.5">
+                  <p className={cn("text-sm font-semibold truncate", isActive ? "text-gray-900" : "text-gray-700")}>
+                    {label}
+                  </p>
+                  {hasError && <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-red-500" title="Verifique este campo" />}
+                  {active !== undefined && !hasError && (
+                    <span
+                      className={cn("h-1.5 w-1.5 flex-shrink-0 rounded-full", active ? "bg-emerald-500" : "bg-gray-300")}
+                      title={active ? "Ativado" : "Desativado"}
+                    />
+                  )}
+                </div>
+                <p className="mt-0.5 text-xs leading-snug text-gray-500 whitespace-normal break-words">
+                  {description}
+                </p>
+              </div>
+              {isActive && <ChevronRight className="mt-2 w-4 h-4 flex-shrink-0 text-gray-400" />}
+            </Button>
+          );
+        })}
+      </nav>
+
+      <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden">
+        {tabs.map(({ id, label, icon: Icon, color, hasError }) => {
+          const isActive = activeTab === id;
+          return (
+            <Button
+              key={id}
+              type="button"
+              variant="ghost"
+              onClick={() => onChange(id)}
+              className={cn(
+                "h-auto flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-medium transition-all",
+                isActive ? "bg-gray-900 text-white shadow-sm" : "bg-white text-gray-600 border border-gray-200",
+              )}
+            >
+              <span className={cn("flex h-5 w-5 items-center justify-center rounded-lg", isActive ? "bg-white/15" : color)}>
+                <Icon className={cn("w-3 h-3", isActive && "text-white")} />
+              </span>
+              {label}
+              {hasError && <span className="h-1.5 w-1.5 rounded-full bg-red-500" />}
+            </Button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function TabPanel({
+  title,
+  description,
+  children,
+}: {
   title: string;
   description?: string;
   children: React.ReactNode;
-};
-
-function SectionCard({ icon, iconBg, title, description, children }: SectionCardProps) {
+}) {
   return (
-    <div className="rounded-2xl border border-gray-200/80 bg-white shadow-sm overflow-hidden">
-      <div className="flex items-center gap-4 px-6 pt-5 pb-4">
-        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", iconBg)}>
-          {icon}
-        </div>
-        <div className="min-w-0">
-          <h2 className="font-semibold text-gray-900 text-[15px] leading-tight">{title}</h2>
-          {description && (
-            <p className="text-xs text-gray-500 mt-0.5 leading-snug">{description}</p>
-          )}
-        </div>
+    <div className="space-y-5 rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm sm:p-6">
+      <div>
+        <h2 className="text-[15px] font-semibold leading-tight text-gray-900">{title}</h2>
+        {description && <p className="mt-0.5 text-xs leading-snug text-gray-500">{description}</p>}
       </div>
-      <div className="border-t border-gray-100 px-6 py-5 space-y-5">{children}</div>
+      <div className="h-px bg-gray-100" />
+      {children}
     </div>
   );
 }
@@ -173,6 +283,96 @@ function CharCount({ value, max }: { value: string; max: number }) {
   );
 }
 
+const INPUT_CLS =
+  "h-11 rounded-xl border-gray-200 bg-white px-3.5 text-sm shadow-sm transition-shadow focus-visible:border-brand-400 focus-visible:ring-4 focus-visible:ring-brand-100";
+const TEXTAREA_CLS =
+  "rounded-xl border-gray-200 bg-white px-3.5 py-3 text-sm shadow-sm transition-shadow focus-visible:border-brand-400 focus-visible:ring-4 focus-visible:ring-brand-100";
+const ERROR_RING_CLS = "border-red-300 focus-visible:border-red-400 focus-visible:ring-red-100";
+// Usada sobre o TemplateMessageField, que já define seu próprio focus ring via a classe global ".input".
+const TEMPLATE_FIELD_CLS = "rounded-xl border-gray-200 shadow-sm px-3.5 py-3";
+const TEMPLATE_FIELD_ERROR_CLS = "border-red-300";
+
+function IconInput({
+  icon: Icon,
+  className,
+  ...props
+}: { icon: LucideIcon } & React.ComponentProps<typeof Input>) {
+  return (
+    <div className="relative">
+      <Icon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden />
+      <Input className={cn(INPUT_CLS, "pl-10", className)} {...props} />
+    </div>
+  );
+}
+
+function PrettySelect({ className, children, ...props }: React.ComponentProps<"select">) {
+  return (
+    <div className="relative">
+      <select
+        {...props}
+        className={cn(
+          "h-11 w-full appearance-none rounded-xl border border-gray-200 bg-white pl-3.5 pr-9 text-sm shadow-sm transition-shadow focus:outline-none focus-visible:border-brand-400 focus-visible:ring-4 focus-visible:ring-brand-100",
+          className,
+        )}
+      >
+        {children}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden />
+    </div>
+  );
+}
+
+type SyncStatus = "saving" | "error" | "pending" | "saved";
+
+function SyncStatusPill({ status, onRetry }: { status: SyncStatus; onRetry: () => void }) {
+  if (status === "saving") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Salvando...
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600">
+        <AlertTriangle className="h-3.5 w-3.5" />
+        Erro ao salvar
+        <button
+          type="button"
+          onClick={onRetry}
+          className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-red-700 hover:bg-red-200"
+        >
+          <RotateCw className="h-3 w-3" />
+          Tentar de novo
+        </button>
+      </span>
+    );
+  }
+  if (status === "pending") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+        Alterações pendentes...
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
+      <CheckCircle2 className="h-3.5 w-3.5" />
+      Tudo salvo
+    </span>
+  );
+}
+
+const HERO_TYPE_ICON: Partial<Record<FormData["type"], LucideIcon>> = {
+  BARBERSHOP: Scissors,
+  RESTAURANT: UtensilsCrossed,
+  DENTAL: Stethoscope,
+  STORE: Store,
+  OTHER: LayoutGrid,
+};
+
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -194,6 +394,8 @@ export default function SettingsPage() {
   const [dailyReportHour, setDailyReportHour] = useState(20);
   const [dailyReportMinute, setDailyReportMinute] = useState(0);
   const [hoursDirty, setHoursDirty] = useState(false);
+  const [activeTab, setActiveTab] = useState<SettingsTab>("geral");
+  const [previewMode, setPreviewMode] = useState<"greeting" | "away">("greeting");
 
   const {
     register,
@@ -208,6 +410,7 @@ export default function SettingsPage() {
   const awayMsg = watch("awayMsg") ?? "";
   const description = watch("description") ?? "";
   const businessType = watch("type");
+  const businessName = watch("name") ?? "";
 
   useEffect(() => {
     if (!business) return;
@@ -300,8 +503,78 @@ export default function SettingsPage() {
       toast.error(err.message?.includes("almoço") ? err.message : "Erro ao salvar configurações"),
   });
 
+  function focusFirstErrorTab(formErrors: FieldErrors<FormData>) {
+    const firstKey = Object.keys(formErrors)[0] as keyof FormData | undefined;
+    const tab = firstKey ? FIELD_TAB[firstKey] : undefined;
+    if (tab) setActiveTab(tab);
+  }
+
+  // ── Autosave ───────────────────────────────────────────────────────────────
+  // Sempre lê o estado mais recente (evita closures desatualizadas dentro do timer).
+  const latestSubmitRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    latestSubmitRef.current = () => {
+      if (saveMutation.isPending) return;
+      void handleSubmit((form) => saveMutation.mutate({ form }), focusFirstErrorTab)();
+    };
+  });
+
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function scheduleAutosave() {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => latestSubmitRef.current(), 900);
+  }
+
+  function saveNow() {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    latestSubmitRef.current();
+  }
+
+  function markDirty() {
+    setHoursDirty(true);
+    scheduleAutosave();
+  }
+
+  useEffect(() => {
+    const subscription = watch((_values, info) => {
+      if (info.type === "change") scheduleAutosave();
+    });
+    return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watch]);
+
+  useEffect(() => () => {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+  }, []);
+
   const hasChanges = isDirty || hoursDirty;
+  const syncStatus: SyncStatus = saveMutation.isPending
+    ? "saving"
+    : saveMutation.isError
+    ? "error"
+    : hasChanges
+    ? "pending"
+    : "saved";
   const W = "w-full max-w-2xl mx-auto px-4 sm:px-6";
+
+  const geralHasError = Boolean(errors.name || errors.type || errors.typeLabel || errors.phone);
+  const mensagensHasError = Boolean(errors.greetingMsg || errors.awayMsg);
+
+  const tabs: TabConfig[] = [
+    { id: "geral", label: "Geral", description: "Nome, tipo e contato", icon: Building2, color: "bg-blue-100 text-blue-600", hasError: geralHasError },
+    { id: "horarios", label: "Horários", description: "Funcionamento, almoço e exceções", icon: Clock, color: "bg-emerald-100 text-emerald-600" },
+    { id: "mensagens", label: "Mensagens", description: "Boas-vindas e fora do horário", icon: MessageSquare, color: "bg-violet-100 text-violet-600", hasError: mensagensHasError },
+    { id: "relatorio", label: "Relatório", description: "Resumo diário no seu WhatsApp", icon: FileText, color: "bg-amber-100 text-amber-600", active: dailyReportEnabled },
+  ];
+
+  const previewMessages: PreviewMessage[] = useMemo(() => {
+    const botText = previewMode === "greeting" ? greetingMsg : awayMsg;
+    return [
+      { from: "customer", text: previewMode === "greeting" ? "Oi, boa tarde!" : "Vocês estão abertos agora?" },
+      { from: "bot", text: renderPreviewTemplate(botText, businessName) },
+    ];
+  }, [previewMode, greetingMsg, awayMsg, businessName]);
 
   if (!businessId || isLoading) {
     return (
@@ -324,334 +597,319 @@ export default function SettingsPage() {
     );
   }
 
+  const HeroIcon = HERO_TYPE_ICON[businessType] ?? Building2;
+  const typeLabel = business.typeLabel?.trim() || BUSINESS_TYPE_LABELS[businessType as FormData["type"]] || "Negócio";
+
   return (
     <div className="min-h-full bg-gray-50/60 pb-10">
 
       {/* ── Hero banner ─────────────────────────────────────────────────── */}
-      <div className="bg-gradient-to-br from-brand-600 via-brand-600 to-brand-700 px-4 sm:px-6 py-8">
-        <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center flex-shrink-0 border border-white/20">
-              <Settings2 className="w-6 h-6 text-white" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-brand-200 text-xs font-medium tracking-wide uppercase mb-0.5">
-                Configurações
-              </p>
-              <h1 className="text-xl font-bold text-white truncate">{business.name}</h1>
-              <p className="text-brand-200/80 text-xs mt-0.5">
-                Gerencie as informações do seu negócio
-              </p>
+      <div className="relative overflow-hidden bg-gradient-to-br from-brand-600 via-brand-600 to-brand-800 px-4 sm:px-6 py-8 sm:py-9">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" aria-hidden />
+        <div className="pointer-events-none absolute -bottom-24 -left-10 h-56 w-56 rounded-full bg-brand-300/20 blur-3xl" aria-hidden />
+        <div className="relative max-w-5xl mx-auto flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center flex-shrink-0 border border-white/20 shadow-inner">
+            <HeroIcon className="w-7 h-7 text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-brand-200 text-xs font-semibold tracking-wide uppercase mb-0.5">
+              Configurações
+            </p>
+            <h1 className="text-xl sm:text-2xl font-bold text-white truncate">{business.name}</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-brand-100/90">
+              <span className="inline-flex items-center gap-1">
+                <Building2 className="w-3 h-3" />
+                {typeLabel}
+              </span>
+              {business.phone && (
+                <span className="inline-flex items-center gap-1">
+                  <Phone className="w-3 h-3" />
+                  {business.phone}
+                </span>
+              )}
             </div>
           </div>
-
         </div>
       </div>
 
       {/* ── Form ────────────────────────────────────────────────────────── */}
       <form
-        onSubmit={handleSubmit((d) => saveMutation.mutate({ form: d }))}
-        className={cn(W, "pt-6 space-y-4")}
+        onSubmit={handleSubmit((d) => saveMutation.mutate({ form: d }), focusFirstErrorTab)}
+        className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 lg:grid lg:grid-cols-[240px_1fr] lg:gap-6 lg:items-start"
       >
-        {/* Informações básicas */}
-        <SectionCard
-          iconBg="bg-blue-100"
-          icon={<Building2 className="w-5 h-5 text-blue-600" />}
-          title="Informações básicas"
-          description="Nome, tipo e dados de contato do seu negócio"
-        >
-          <Field label="Nome do negócio" icon={<Building2 className="w-3.5 h-3.5" />} error={errors.name?.message}>
-            <Input
-              type="text"
-              placeholder="Ex.: Horizonte Serviços"
-              {...register("name")}
-              className={cn(errors.name && "border-red-300 focus-visible:ring-red-300")}
-            />
-          </Field>
+        <div className="lg:sticky lg:top-6 mb-4 lg:mb-0">
+          <SettingsSectionNav tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+        </div>
 
-          <Field label="Tipo de negócio" error={errors.type?.message}>
-            <Controller
-              name="type"
-              control={control}
-              render={({ field }) => (
+        <div className="space-y-4 min-w-0">
+          {activeTab === "geral" && (
+            <TabPanel title="Informações básicas" description="Nome, tipo e dados de contato do seu negócio">
+              <Field label="Nome do negócio" error={errors.name?.message}>
+                <IconInput
+                  icon={Building2}
+                  type="text"
+                  placeholder="Ex.: Horizonte Serviços"
+                  {...register("name")}
+                  className={cn(errors.name && ERROR_RING_CLS)}
+                />
+              </Field>
+
+              <Field label="Tipo de negócio" error={errors.type?.message}>
                 <Controller
-                  name="typeLabel"
+                  name="type"
                   control={control}
-                  render={({ field: labelField }) => (
-                    <BusinessTypePicker
-                      value={field.value}
-                      onChange={field.onChange}
-                      typeLabel={labelField.value ?? ""}
-                      onTypeLabelChange={labelField.onChange}
-                      typeLabelError={errors.typeLabel?.message}
+                  render={({ field }) => (
+                    <Controller
+                      name="typeLabel"
+                      control={control}
+                      render={({ field: labelField }) => (
+                        <BusinessTypePicker
+                          value={field.value}
+                          onChange={field.onChange}
+                          typeLabel={labelField.value ?? ""}
+                          onTypeLabelChange={labelField.onChange}
+                          typeLabelError={errors.typeLabel?.message}
+                        />
+                      )}
                     />
                   )}
                 />
-              )}
-            />
-          </Field>
+              </Field>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field
-              label="Telefone WhatsApp"
-              icon={<Phone className="w-3.5 h-3.5" />}
-              error={errors.phone?.message}
-              hint="Com DDI e DDD, sem espaços"
-            >
-              <Input
-                type="text"
-                placeholder="5511999999999"
-                {...register("phone")}
-                className={cn(errors.phone && "border-red-300 focus-visible:ring-red-300")}
-              />
-            </Field>
-
-            <Field label="Endereço" icon={<MapPin className="w-3.5 h-3.5" />} hint="Exibido aos clientes">
-              <Input
-                type="text"
-                placeholder="Rua Example, 123 – Cidade"
-                {...register("address")}
-              />
-            </Field>
-          </div>
-
-          <Field label="Descrição" icon={<FileText className="w-3.5 h-3.5" />} hint="Apresentação do seu negócio">
-            <div className="relative">
-              <Textarea
-                className="min-h-20 resize-none pr-14"
-                placeholder="Descreva seu negócio, especialidades, diferenciais..."
-                maxLength={300}
-                {...register("description")}
-              />
-              <span className="absolute bottom-2.5 right-3 pointer-events-none">
-                <CharCount value={description} max={300} />
-              </span>
-            </div>
-          </Field>
-        </SectionCard>
-
-        {/* Horário de funcionamento */}
-        <SectionCard
-          iconBg="bg-emerald-100"
-          icon={<Clock className="w-5 h-5 text-emerald-600" />}
-          title="Horário de funcionamento"
-          description="Fuso de Brasília · almoço e horários excepcionais por data"
-        >
-          <WorkingHoursEditor
-            value={workingHours}
-            onChange={(v) => { setWorkingHours(v); setHoursDirty(true); }}
-            specialHours={specialHours}
-            onSpecialHoursChange={(v) => { setSpecialHours(v); setHoursDirty(true); }}
-            lunchBreak={lunchBreak}
-            onLunchBreakChange={(v) => { setLunchBreak(v); setHoursDirty(true); }}
-            lunchMsg={lunchMsg}
-            onLunchMsgChange={(v) => { setLunchMsg(v); setHoursDirty(true); }}
-            onCommit={(schedule) => {
-              if (saveMutation.isPending) return;
-              void handleSubmit((form) => saveMutation.mutate({ form, schedule }))();
-            }}
-          />
-
-          {businessType === "BARBERSHOP" && (
-            <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-white">
-              <div>
-                <p className="text-sm font-semibold text-gray-900">Intervalo entre clientes</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Tempo livre reservado após cada atendimento. A IA bloqueia horários dentro desse intervalo.
-                </p>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {[0, 5, 10, 15, 20, 30].map((mins) => {
-                  const active = appointmentBufferMins === mins;
-                  return (
-                    <Button
-                      key={mins}
-                      type="button"
-                      variant={active ? "default" : "outline"}
-                      size="xs"
-                      onClick={() => {
-                        setAppointmentBufferMins(mins);
-                        setHoursDirty(true);
-                      }}
-                      className={cn(
-                        "text-xs h-auto",
-                        active
-                          ? "bg-brand-600 text-white hover:bg-brand-700"
-                          : "text-gray-500 hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50",
-                      )}
-                    >
-                      {mins === 0 ? "Sem intervalo" : `${mins} min`}
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </SectionCard>
-
-        {/* Mensagens automáticas */}
-        <SectionCard
-          iconBg="bg-violet-100"
-          icon={<MessageSquare className="w-5 h-5 text-violet-600" />}
-          title="Mensagens automáticas"
-          description="Boas-vindas e respostas fora do expediente"
-        >
-          <TemplateVariablesHelp />
-          <Field
-            label="Mensagem de boas-vindas"
-            icon={<MessageCircle className="w-3.5 h-3.5" />}
-            error={errors.greetingMsg?.message}
-            hint="Enviada na primeira interação do cliente"
-          >
-            <Controller
-              name="greetingMsg"
-              control={control}
-              render={({ field }) => (
-                <div className="relative">
-                  <TemplateMessageField
-                    value={field.value}
-                    onChange={field.onChange}
-                    rows={4}
-                    maxLength={500}
-                    placeholder="Olá {nome}! Bem-vindo ao {negocio}. Como posso ajudar?"
-                    className={cn("pb-7", errors.greetingMsg && "border-red-300 focus-visible:ring-red-300")}
-                    footer={
-                      <div className="flex justify-end">
-                        <CharCount value={greetingMsg} max={500} />
-                      </div>
-                    }
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field
+                  label="Telefone WhatsApp"
+                  error={errors.phone?.message}
+                  hint="Com DDI e DDD, sem espaços"
+                >
+                  <IconInput
+                    icon={Phone}
+                    type="text"
+                    placeholder="5511999999999"
+                    {...register("phone")}
+                    className={cn(errors.phone && ERROR_RING_CLS)}
                   />
+                </Field>
+
+                <Field label="Endereço" hint="Exibido aos clientes">
+                  <IconInput
+                    icon={MapPin}
+                    type="text"
+                    placeholder="Rua Example, 123 – Cidade"
+                    {...register("address")}
+                  />
+                </Field>
+              </div>
+
+              <Field label="Descrição" hint="Apresentação do seu negócio">
+                <div className="relative">
+                  <Textarea
+                    className={cn(TEXTAREA_CLS, "min-h-20 resize-none pr-14")}
+                    placeholder="Descreva seu negócio, especialidades, diferenciais..."
+                    maxLength={300}
+                    {...register("description")}
+                  />
+                  <span className="absolute bottom-2.5 right-3 pointer-events-none">
+                    <CharCount value={description} max={300} />
+                  </span>
+                </div>
+              </Field>
+            </TabPanel>
+          )}
+
+          {activeTab === "horarios" && (
+            <TabPanel title="Horário de funcionamento" description="Fuso de Brasília · almoço e horários excepcionais por data">
+              <WorkingHoursEditor
+                value={workingHours}
+                onChange={(v) => { setWorkingHours(v); markDirty(); }}
+                specialHours={specialHours}
+                onSpecialHoursChange={(v) => { setSpecialHours(v); markDirty(); }}
+                lunchBreak={lunchBreak}
+                onLunchBreakChange={(v) => { setLunchBreak(v); markDirty(); }}
+                lunchMsg={lunchMsg}
+                onLunchMsgChange={(v) => { setLunchMsg(v); markDirty(); }}
+                onCommit={(schedule) => {
+                  if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+                  if (saveMutation.isPending) return;
+                  void handleSubmit((form) => saveMutation.mutate({ form, schedule }), focusFirstErrorTab)();
+                }}
+              />
+
+              {businessType === "BARBERSHOP" && (
+                <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-white">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Intervalo entre clientes</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Tempo livre reservado após cada atendimento. A IA bloqueia horários dentro desse intervalo.
+                    </p>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {[0, 5, 10, 15, 20, 30].map((mins) => {
+                      const active = appointmentBufferMins === mins;
+                      return (
+                        <Button
+                          key={mins}
+                          type="button"
+                          variant={active ? "default" : "outline"}
+                          size="xs"
+                          onClick={() => {
+                            setAppointmentBufferMins(mins);
+                            markDirty();
+                          }}
+                          className={cn(
+                            "text-xs h-auto",
+                            active
+                              ? "bg-brand-600 text-white hover:bg-brand-700"
+                              : "text-gray-500 hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50",
+                          )}
+                        >
+                          {mins === 0 ? "Sem intervalo" : `${mins} min`}
+                        </Button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
-            />
-          </Field>
-
-          <Field
-            label="Mensagem fora do horário"
-            icon={<DoorClosed className="w-3.5 h-3.5" />}
-            error={errors.awayMsg?.message}
-            hint="Enviada quando o cliente escreve fora do expediente"
-          >
-            <Controller
-              name="awayMsg"
-              control={control}
-              render={({ field }) => (
-                <TemplateMessageField
-                  value={field.value}
-                  onChange={field.onChange}
-                  rows={4}
-                  maxLength={500}
-                  placeholder="Olá {nome}! No momento estamos fechados. Retornaremos em breve!"
-                  className={cn("pb-1", errors.awayMsg && "border-red-300 focus-visible:ring-red-300")}
-                  footer={
-                    <div className="flex justify-end">
-                      <CharCount value={awayMsg} max={500} />
-                    </div>
-                  }
-                />
-              )}
-            />
-          </Field>
-        </SectionCard>
-
-        {/* Relatório diário automático */}
-        <SectionCard
-          iconBg="bg-amber-100"
-          icon={<FileText className="w-5 h-5 text-amber-600" />}
-          title="Relatório diário automático"
-          description="Receba no seu WhatsApp o relatório dos agendamentos todo dia em um horário fixo"
-        >
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-900">Envio automático</p>
-              <p className="text-xs text-gray-500 mt-0.5">Enviado para o seu próprio número conectado</p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={dailyReportEnabled}
-              onClick={() => { setDailyReportEnabled((v) => !v); setHoursDirty(true); }}
-              className={cn(
-                "relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors",
-                dailyReportEnabled ? "bg-brand-600" : "bg-gray-300",
-              )}
-            >
-              <span
-                className={cn(
-                  "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform",
-                  dailyReportEnabled ? "translate-x-5" : "translate-x-0.5",
-                )}
-              />
-            </button>
-          </div>
-
-          {dailyReportEnabled && (
-            <Field label="Horário de envio" icon={<Clock className="w-3.5 h-3.5" />} hint="Fuso do negócio">
-              <div className="flex items-center gap-2">
-                <select
-                  value={dailyReportHour}
-                  onChange={(e) => { setDailyReportHour(Number(e.target.value)); setHoursDirty(true); }}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-                >
-                  {Array.from({ length: 24 }, (_, h) => (
-                    <option key={h} value={h}>{String(h).padStart(2, "0")}</option>
-                  ))}
-                </select>
-                <span className="text-gray-400">:</span>
-                <select
-                  value={dailyReportMinute}
-                  onChange={(e) => { setDailyReportMinute(Number(e.target.value)); setHoursDirty(true); }}
-                  className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-                >
-                  {[0, 15, 30, 45].map((m) => (
-                    <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
-                  ))}
-                </select>
-              </div>
-            </Field>
+            </TabPanel>
           )}
-        </SectionCard>
+
+          {activeTab === "mensagens" && (
+            <div className="grid gap-4 lg:grid-cols-[1fr_260px] lg:items-start">
+              <TabPanel title="Mensagens automáticas" description="Boas-vindas e respostas fora do expediente">
+                <TemplateVariablesHelp />
+                <Field
+                  label="Mensagem de boas-vindas"
+                  icon={<MessageCircle className="w-3.5 h-3.5" />}
+                  error={errors.greetingMsg?.message}
+                  hint="Enviada na primeira interação do cliente"
+                >
+                  <Controller
+                    name="greetingMsg"
+                    control={control}
+                    render={({ field }) => (
+                      <TemplateMessageField
+                        value={field.value}
+                        onChange={field.onChange}
+                        rows={4}
+                        maxLength={500}
+                        placeholder="Olá {nome}! Bem-vindo ao {negocio}. Como posso ajudar?"
+                        className={cn(TEMPLATE_FIELD_CLS, "pb-7", errors.greetingMsg && TEMPLATE_FIELD_ERROR_CLS)}
+                        footer={
+                          <div className="flex justify-end">
+                            <CharCount value={greetingMsg} max={500} />
+                          </div>
+                        }
+                      />
+                    )}
+                  />
+                </Field>
+
+                <div className="h-px bg-gray-100" />
+
+                <Field
+                  label="Mensagem fora do horário"
+                  icon={<DoorClosed className="w-3.5 h-3.5" />}
+                  error={errors.awayMsg?.message}
+                  hint="Enviada quando o cliente escreve fora do expediente"
+                >
+                  <Controller
+                    name="awayMsg"
+                    control={control}
+                    render={({ field }) => (
+                      <TemplateMessageField
+                        value={field.value}
+                        onChange={field.onChange}
+                        rows={4}
+                        maxLength={500}
+                        placeholder="Olá {nome}! No momento estamos fechados. Retornaremos em breve!"
+                        className={cn(TEMPLATE_FIELD_CLS, "pb-1", errors.awayMsg && TEMPLATE_FIELD_ERROR_CLS)}
+                        footer={
+                          <div className="flex justify-end">
+                            <CharCount value={awayMsg} max={500} />
+                          </div>
+                        }
+                      />
+                    )}
+                  />
+                </Field>
+              </TabPanel>
+
+              <div className="lg:sticky lg:top-6 space-y-2.5">
+                <p className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Como o cliente vê
+                </p>
+                <div className="flex gap-1.5 rounded-full bg-gray-100 p-1">
+                  {(["greeting", "away"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setPreviewMode(mode)}
+                      className={cn(
+                        "flex-1 rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors",
+                        previewMode === mode ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700",
+                      )}
+                    >
+                      {mode === "greeting" ? "Boas-vindas" : "Fora do horário"}
+                    </button>
+                  ))}
+                </div>
+                <WhatsAppMessagePreview businessName={businessName} messages={previewMessages} />
+              </div>
+            </div>
+          )}
+
+          {activeTab === "relatorio" && (
+            <TabPanel
+              title="Relatório diário automático"
+              description="Receba no seu WhatsApp o relatório dos agendamentos todo dia em um horário fixo"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900">Envio automático</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Enviado para o seu próprio número conectado</p>
+                </div>
+                <Switch
+                  checked={dailyReportEnabled}
+                  onCheckedChange={(v) => { setDailyReportEnabled(v); markDirty(); }}
+                />
+              </div>
+
+              {dailyReportEnabled && (
+                <Field label="Horário de envio" icon={<Clock className="w-3.5 h-3.5" />} hint="Fuso do negócio">
+                  <div className="flex items-center gap-2">
+                    <PrettySelect
+                      value={dailyReportHour}
+                      onChange={(e) => { setDailyReportHour(Number(e.target.value)); markDirty(); }}
+                      className="w-24"
+                    >
+                      {Array.from({ length: 24 }, (_, h) => (
+                        <option key={h} value={h}>{String(h).padStart(2, "0")}</option>
+                      ))}
+                    </PrettySelect>
+                    <span className="text-gray-400">:</span>
+                    <PrettySelect
+                      value={dailyReportMinute}
+                      onChange={(e) => { setDailyReportMinute(Number(e.target.value)); markDirty(); }}
+                      className="w-24"
+                    >
+                      {[0, 15, 30, 45].map((m) => (
+                        <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
+                      ))}
+                    </PrettySelect>
+                  </div>
+                </Field>
+              )}
+            </TabPanel>
+          )}
+        </div>
 
         <Button type="submit" className="sr-only" />
       </form>
 
-      {/* ── Floating save button (always visible while scrolling) ─────── */}
+      {/* ── Autosave status (always visible while scrolling) ─────────── */}
       {/* bottom-24 on mobile to clear the MobileNav (~64px) + safe area   */}
       <div className="fixed bottom-24 right-4 sm:right-6 lg:bottom-8 z-50">
-        <Button
-          type="button"
-          onClick={handleSubmit((d) => saveMutation.mutate({ form: d }))}
-          disabled={saveMutation.isPending || !hasChanges}
-          className={cn(
-            "h-auto flex items-center gap-2.5 rounded-full px-5 py-3 text-sm font-semibold",
-            "shadow-xl transition-all duration-200 ease-in-out",
-            saveMutation.isPending
-              ? "bg-brand-600 text-white cursor-wait shadow-brand-500/30 hover:bg-brand-600"
-              : hasChanges
-              ? "bg-brand-600 hover:bg-brand-700 active:scale-95 text-white shadow-brand-500/30 hover:shadow-brand-500/40"
-              : saveMutation.isSuccess
-              ? "bg-emerald-500 text-white shadow-emerald-500/30 cursor-default hover:bg-emerald-500"
-              : "bg-white text-gray-400 border border-gray-200 shadow-gray-200/50 cursor-not-allowed hover:bg-white"
-          )}
-        >
-          {saveMutation.isPending ? (
-            <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-          ) : saveMutation.isSuccess && !hasChanges ? (
-            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-          ) : (
-            <Save className="w-4 h-4 flex-shrink-0" />
-          )}
-          <span>
-            {saveMutation.isPending
-              ? "Salvando..."
-              : saveMutation.isSuccess && !hasChanges
-              ? "Salvo"
-              : "Salvar alterações"}
-          </span>
-          {hasChanges && !saveMutation.isPending && (
-            <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0 animate-pulse" />
-          )}
-        </Button>
+        <SyncStatusPill status={syncStatus} onRetry={saveNow} />
       </div>
     </div>
   );

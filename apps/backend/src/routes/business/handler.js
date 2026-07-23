@@ -14,6 +14,7 @@ import {
   normalizeLeadCaptureFlow,
 } from '@flowdesk/shared'
 import { json, requireBearerUser } from '../../lib/auth-guard.js'
+import { printTestReceipt } from '../../whatsapp/services/printer.js'
 
 const BUSINESS_TYPES = new Set([
   'BARBERSHOP',
@@ -182,6 +183,25 @@ export async function postLeadFlowMediaHandler(c) {
   } catch (err) {
     return json(c, 400, {
       error: err instanceof Error ? err.message : 'Upload inválido',
+    })
+  }
+}
+
+export async function postPrinterTestHandler(c) {
+  const blocked = requireAdmin(c)
+  if (blocked) return blocked
+
+  const businessId = c.req.param('id')
+  const ctx = await resolveOwnedBusiness(c, businessId)
+  if (ctx.error) return ctx.error
+
+  try {
+    const result = await printTestReceipt(ctx.business)
+    if (!result.ok) return json(c, 400, { error: result.error || 'Falha ao imprimir teste.' })
+    return json(c, 200, { status: 'ok' })
+  } catch (err) {
+    return json(c, 500, {
+      error: err instanceof Error ? err.message : 'Falha ao imprimir teste.',
     })
   }
 }
